@@ -1,0 +1,795 @@
+{
+  "version": 1,
+  "skills": {
+    "01_AI_Agent": {
+      "skills": {
+        "advanced-evaluation": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "01_AI_Agent/advanced-evaluation.md"
+        },
+        "agent-browser": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "01_AI_Agent/agent-browser.md"
+        },
+        "agent-creator": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "01_AI_Agent/agent-creator.md"
+        },
+        "agent-evaluation": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "01_AI_Agent/agent-evaluation.md"
+        },
+        "agent-memory-systems": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "01_AI_Agent/agent-memory-systems.md"
+        },
+        "agent-tool-builder": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "01_AI_Agent/agent-tool-builder.md"
+        },
+        "amazon-location-service": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "01_AI_Agent/amazon-location-service.md"
+        },
+        "attorney-assist": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "01_AI_Agent/attorney-assist.md"
+        },
+        "autonomous-agents": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "01_AI_Agent/autonomous-agents.md"
+        },
+        "browser-use": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "01_AI_Agent/browser-use.md"
+        },
+        "building-pydantic-ai-agents": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "01_AI_Agent/building-pydantic-ai-agents.md"
+        },
+        "computer-use-agents": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "01_AI_Agent/computer-use-agents.md"
+        },
+        "context-engineering": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "01_AI_Agent/context-engineering.md"
+        },
+        "context-window-management": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "01_AI_Agent/context-window-management.md"
+        },
+        "desktop-commander-overview": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "01_AI_Agent/desktop-commander-overview.md"
+        },
+        "dr-bedrock": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "01_AI_Agent/dr-bedrock.md"
+        },
+        "exa-search": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "01_AI_Agent/exa-search.md"
+        },
+        "knowledge-catalog-discovery": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "01_AI_Agent/knowledge-catalog-discovery.md"
+        },
+        "linear-sdk-scripting": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "01_AI_Agent/linear-sdk-scripting.md"
+        },
+        "llm-structured-output": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "01_AI_Agent/llm-structured-output.md"
+        },
+        "mcp-builder": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "01_AI_Agent/mcp-builder.md"
+        },
+        "multi-agent-architect": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "01_AI_Agent/multi-agent-architect.md"
+        },
+        "prompt-caching": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "01_AI_Agent/prompt-caching.md"
+        },
+        "prompt-engineering-patterns": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "01_AI_Agent/prompt-engineering-patterns.md"
+        },
+        "rag-implementation": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "01_AI_Agent/rag-implementation.md"
+        },
+        "session-report": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "01_AI_Agent/session-report.md"
+        },
+        "skill-creator": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "01_AI_Agent/skill-creator.md"
+        },
+        "vibe-prospecting": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "01_AI_Agent/vibe-prospecting.md"
+        },
+        "windsor-ai-business-data": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "01_AI_Agent/windsor-ai-business-data.md"
+        }
+      }
+    },
+    "02_Cloud_DevOps": {
+      "skills": {
+        "amplify-workflow": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "02_Cloud_DevOps/amplify-workflow.md"
+        },
+        "aws-serverless": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "02_Cloud_DevOps/aws-serverless.md"
+        },
+        "ci-cd-and-automation": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "02_Cloud_DevOps/ci-cd-and-automation.md"
+        },
+        "cloud-architect": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "02_Cloud_DevOps/cloud-architect.md"
+        },
+        "dataproc-skills": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "02_Cloud_DevOps/dataproc-skills.md"
+        },
+        "docker-expert": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "02_Cloud_DevOps/docker-expert.md"
+        },
+        "endor-setup": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "02_Cloud_DevOps/endor-setup.md"
+        },
+        "gcp-to-aws": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "02_Cloud_DevOps/gcp-to-aws.md"
+        },
+        "github-actions-advanced": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "02_Cloud_DevOps/github-actions-advanced.md"
+        },
+        "gitops-workflow": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "02_Cloud_DevOps/gitops-workflow.md"
+        },
+        "helm-chart-scaffolding": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "02_Cloud_DevOps/helm-chart-scaffolding.md"
+        },
+        "kubernetes-architect": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "02_Cloud_DevOps/kubernetes-architect.md"
+        },
+        "kubernetes-deployment": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "02_Cloud_DevOps/kubernetes-deployment.md"
+        },
+        "teamcity-cli": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "02_Cloud_DevOps/teamcity-cli.md"
+        },
+        "terraform-skill": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "02_Cloud_DevOps/terraform-skill.md"
+        },
+        "use-railway": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "02_Cloud_DevOps/use-railway.md"
+        }
+      }
+    },
+    "03_Web_Development": {
+      "skills": {
+        "angular-best-practices": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "03_Web_Development/angular-best-practices.md"
+        },
+        "astro": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "03_Web_Development/astro.md"
+        },
+        "convex-design": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "03_Web_Development/convex-design.md"
+        },
+        "frontend-architecture": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "03_Web_Development/frontend-architecture.md"
+        },
+        "frontend-design": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "03_Web_Development/frontend-design.md"
+        },
+        "mintlify": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "03_Web_Development/mintlify.md"
+        },
+        "nextjs": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "03_Web_Development/nextjs.md"
+        },
+        "playground": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "03_Web_Development/playground.md"
+        },
+        "react-best-practices": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "03_Web_Development/react-best-practices.md"
+        },
+        "sap-fiori-add-visual-filter": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "03_Web_Development/sap-fiori-add-visual-filter.md"
+        },
+        "save-to-spotify": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "03_Web_Development/save-to-spotify.md"
+        },
+        "searching-sourcegraph": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "03_Web_Development/searching-sourcegraph.md"
+        },
+        "site-specification": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "03_Web_Development/site-specification.md"
+        },
+        "sveltekit": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "03_Web_Development/sveltekit.md"
+        },
+        "tailwind-patterns": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "03_Web_Development/tailwind-patterns.md"
+        },
+        "typescript": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "03_Web_Development/typescript.md"
+        },
+        "ui5-typescript-conversion": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "03_Web_Development/ui5-typescript-conversion.md"
+        },
+        "web-design-guidelines": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "03_Web_Development/web-design-guidelines.md"
+        },
+        "zustand-store-ts": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "03_Web_Development/zustand-store-ts.md"
+        }
+      }
+    },
+    "04_Database": {
+      "skills": {
+        "cosmosdb-best-practices": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "04_Database/cosmosdb-best-practices.md"
+        },
+        "database-architect": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "04_Database/database-architect.md"
+        },
+        "database-design": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "04_Database/database-design.md"
+        },
+        "database-migration": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "04_Database/database-migration.md"
+        },
+        "dsql": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "04_Database/dsql.md"
+        },
+        "firestore-data": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "04_Database/firestore-data.md"
+        },
+        "mongodb": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "04_Database/mongodb.md"
+        },
+        "nosql-expert": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "04_Database/nosql-expert.md"
+        },
+        "oracledb": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "04_Database/oracledb.md"
+        },
+        "postgres-best-practices": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "04_Database/postgres-best-practices.md"
+        },
+        "postgresql-optimization": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "04_Database/postgresql-optimization.md"
+        },
+        "spanner-data": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "04_Database/spanner-data.md"
+        },
+        "vector-database-engineer": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "04_Database/vector-database-engineer.md"
+        }
+      }
+    },
+    "05_Security": {
+      "skills": {
+        "api-security-testing": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "05_Security/api-security-testing.md"
+        },
+        "container-security-hardening": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "05_Security/container-security-hardening.md"
+        },
+        "k8s-security-policies": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "05_Security/k8s-security-policies.md"
+        },
+        "pentest-checklist": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "05_Security/pentest-checklist.md"
+        },
+        "secrets-management": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "05_Security/secrets-management.md"
+        },
+        "security-audit": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "05_Security/security-audit.md"
+        },
+        "sentry-cli": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "05_Security/sentry-cli.md"
+        },
+        "threat-modeling-expert": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "05_Security/threat-modeling-expert.md"
+        },
+        "web-security-testing": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "05_Security/web-security-testing.md"
+        }
+      }
+    },
+    "06_Testing": {
+      "skills": {
+        "bats-testing-patterns": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "06_Testing/bats-testing-patterns.md"
+        },
+        "cypress-skill": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "06_Testing/cypress-skill.md"
+        },
+        "e2e-testing": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "06_Testing/e2e-testing.md"
+        },
+        "k6-load-testing": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "06_Testing/k6-load-testing.md"
+        },
+        "playwright-best-practices": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "06_Testing/playwright-best-practices.md"
+        },
+        "playwright-cli": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "06_Testing/playwright-cli.md"
+        },
+        "playwright-skill": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "06_Testing/playwright-skill.md"
+        },
+        "pytest-skill": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "06_Testing/pytest-skill.md"
+        },
+        "test-driven-development": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "06_Testing/test-driven-development.md"
+        },
+        "vitest-skill": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "06_Testing/vitest-skill.md"
+        },
+        "webapp-testing": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "06_Testing/webapp-testing.md"
+        }
+      }
+    },
+    "07_Architecture_Design": {
+      "skills": {
+        "api-patterns": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "07_Architecture_Design/api-patterns.md"
+        },
+        "architecture-decision-records": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "07_Architecture_Design/architecture-decision-records.md"
+        },
+        "c4-architecture-c4-architecture": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "07_Architecture_Design/c4-architecture-c4-architecture.md"
+        },
+        "clean-architecture": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "07_Architecture_Design/clean-architecture.md"
+        },
+        "cqrs-implementation": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "07_Architecture_Design/cqrs-implementation.md"
+        },
+        "domain-driven-design": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "07_Architecture_Design/domain-driven-design.md"
+        },
+        "event-sourcing-architect": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "07_Architecture_Design/event-sourcing-architect.md"
+        },
+        "graphql-architect": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "07_Architecture_Design/graphql-architect.md"
+        },
+        "microservices-patterns": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "07_Architecture_Design/microservices-patterns.md"
+        },
+        "solid-principles": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "07_Architecture_Design/solid-principles.md"
+        }
+      }
+    },
+    "08_Backend_Programming_Languages": {
+      "skills": {
+        "clean-code": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "08_Backend_Programming_Languages/clean-code.md"
+        },
+        "csharp-pro": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "08_Backend_Programming_Languages/csharp-pro.md"
+        },
+        "django-pro": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "08_Backend_Programming_Languages/django-pro.md"
+        },
+        "error-handling": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "08_Backend_Programming_Languages/error-handling.md"
+        },
+        "fastapi-pro": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "08_Backend_Programming_Languages/fastapi-pro.md"
+        },
+        "golang-pro": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "08_Backend_Programming_Languages/golang-pro.md"
+        },
+        "graphql": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "08_Backend_Programming_Languages/graphql.md"
+        },
+        "java-pro": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "08_Backend_Programming_Languages/java-pro.md"
+        },
+        "nodejs-best-practices": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "08_Backend_Programming_Languages/nodejs-best-practices.md"
+        },
+        "php-pro": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "08_Backend_Programming_Languages/php-pro.md"
+        },
+        "python-pro": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "08_Backend_Programming_Languages/python-pro.md"
+        },
+        "rust-pro": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "08_Backend_Programming_Languages/rust-pro.md"
+        },
+        "sql-optimization": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "08_Backend_Programming_Languages/sql-optimization.md"
+        }
+      }
+    },
+    "09_AI_ML_Data_Science": {
+      "skills": {
+        "data-analyst": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "09_AI_ML_Data_Science/data-analyst.md"
+        },
+        "data-engineer": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "09_AI_ML_Data_Science/data-engineer.md"
+        },
+        "data-scientist": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "09_AI_ML_Data_Science/data-scientist.md"
+        },
+        "huggingface-best": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "09_AI_ML_Data_Science/huggingface-best.md"
+        },
+        "langchain-architecture": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "09_AI_ML_Data_Science/langchain-architecture.md"
+        },
+        "langgraph": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "09_AI_ML_Data_Science/langgraph.md"
+        },
+        "machine-learning-ops": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "09_AI_ML_Data_Science/machine-learning-ops.md"
+        },
+        "math-olympiad": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "09_AI_ML_Data_Science/math-olympiad.md"
+        },
+        "ml-engineer": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "09_AI_ML_Data_Science/ml-engineer.md"
+        },
+        "scikit-learn": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "09_AI_ML_Data_Science/scikit-learn.md"
+        },
+        "train-sentence-transformers": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "09_AI_ML_Data_Science/train-sentence-transformers.md"
+        }
+      }
+    },
+    "10_Workflow": {
+      "skills": {
+        "acceptance-orchestrator": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "10_Workflow/acceptance-orchestrator.md"
+        },
+        "brainstorming": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "10_Workflow/brainstorming.md"
+        },
+        "code-review-checklist": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "10_Workflow/code-review-checklist.md"
+        },
+        "dispatching-parallel-agents": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "10_Workflow/dispatching-parallel-agents.md"
+        },
+        "executing-plans": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "10_Workflow/executing-plans.md"
+        },
+        "find-skills": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "10_Workflow/find-skills.md"
+        },
+        "finishing-a-development-branch": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "10_Workflow/finishing-a-development-branch.md"
+        },
+        "git-pr-workflows-git-workflow": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "10_Workflow/git-pr-workflows-git-workflow.md"
+        },
+        "grill-me": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "10_Workflow/grill-me.md"
+        },
+        "ralph-tui-create-beads": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "10_Workflow/ralph-tui-create-beads.md"
+        },
+        "ralph-tui-create-json": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "10_Workflow/ralph-tui-create-json.md"
+        },
+        "ralph-tui-prd": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "10_Workflow/ralph-tui-prd.md"
+        },
+        "ralph-wiggum": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "10_Workflow/ralph-wiggum.md"
+        },
+        "requesting-code-review": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "10_Workflow/requesting-code-review.md"
+        },
+        "review-team": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "10_Workflow/review-team.md"
+        },
+        "systematic-debugging": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "10_Workflow/systematic-debugging.md"
+        },
+        "using-git-worktrees": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "10_Workflow/using-git-worktrees.md"
+        },
+        "verification-before-completion": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "10_Workflow/verification-before-completion.md"
+        },
+        "writing-plans": {
+          "source": ".",
+          "sourceType": "local",
+          "skillPath": "10_Workflow/writing-plans.md"
+        }
+      }
+    }
+  }
+}
