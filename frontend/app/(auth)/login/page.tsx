@@ -183,33 +183,6 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm">
-              <div className={`w-4 h-4 rounded-full flex items-center justify-center ${hasMinLength ? 'bg-green-500 text-white' : 'border border-slate-300 text-slate-300'}`}>
-                <CheckCircle2 className="h-3 w-3" />
-              </div>
-              <span className={hasMinLength ? 'text-slate-700' : 'text-slate-500'}>
-                Tối thiểu 8 ký tự
-              </span>
-            </div>
-            <div className="flex items-center gap-2 text-sm">
-              <div className={`w-4 h-4 rounded-full flex items-center justify-center ${hasLetterAndNumber ? 'bg-green-500 text-white' : 'border border-slate-300 text-slate-300'}`}>
-                <CheckCircle2 className="h-3 w-3" />
-              </div>
-              <span className={hasLetterAndNumber ? 'text-slate-700' : 'text-slate-500'}>
-                Bao gồm cả chữ cái và số
-              </span>
-            </div>
-            <div className="flex items-center gap-2 text-sm">
-              <div className={`w-4 h-4 rounded-full flex items-center justify-center ${passwordsMatch ? 'bg-green-500 text-white' : 'border border-slate-300 text-slate-300'}`}>
-                <CheckCircle2 className="h-3 w-3" />
-              </div>
-              <span className={passwordsMatch ? 'text-slate-700' : 'text-slate-500'}>
-                Mật khẩu xác nhận khớp
-              </span>
-            </div>
-          </div>
-
           {resetError && (
             <div className="p-3 rounded-xl bg-red-50 border border-red-100 flex items-center gap-3 text-red-600 text-sm">
               <AlertCircle className="h-5 w-5 shrink-0" />
@@ -262,25 +235,6 @@ export default function LoginPage() {
             >
               {showForgotId ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
             </button>
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 text-sm">
-            <div className={`w-4 h-4 rounded-full flex items-center justify-center ${hasMinLength ? 'bg-green-500 text-white' : 'border border-slate-300 text-slate-300'}`}>
-              <CheckCircle2 className="h-3 w-3" />
-            </div>
-            <span className={hasMinLength ? 'text-slate-700' : 'text-slate-500'}>
-              Tối thiểu 12 ký tự
-            </span>
-          </div>
-          <div className="flex items-center gap-2 text-sm">
-            <div className={`w-4 h-4 rounded-full flex items-center justify-center ${isNumeric && forgotId.length > 0 ? 'bg-green-500 text-white' : 'border border-slate-300 text-slate-300'}`}>
-              <CheckCircle2 className="h-3 w-3" />
-            </div>
-            <span className={isNumeric && forgotId.length > 0 ? 'text-slate-700' : 'text-slate-500'}>
-              Phải là chữ số
-            </span>
           </div>
         </div>
 

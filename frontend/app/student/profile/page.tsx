@@ -4,78 +4,64 @@ import React from 'react';
 import Link from 'next/link';
 import { 
   ArrowRightLeft, 
-  LogOut, 
+  BookCopy, 
   Archive, 
-  PlayCircle, 
-  User,
-  Sparkles
+  PlayCircle,
+  ChevronRight,
+  FileSearch
 } from 'lucide-react';
 
 const services = [
   { 
-    href: '/student/services/major-change', 
+    href: '/student/procedures/major-change', 
     label: 'Chuyển ngành', 
     icon: ArrowRightLeft,
-    highlighted: true
   },
   { 
-    href: '/student/services/dropout', 
+    href: '/student/procedures/dropout', 
     label: 'Thôi học', 
-    icon: LogOut,
-    highlighted: false
+    icon: BookCopy,
   },
   { 
-    href: '/student/services/retention', 
+    href: '/student/procedures/retention', 
     label: 'Bảo lưu', 
     icon: Archive,
-    highlighted: false
   },
   { 
-    href: '/student/services/resume', 
+    href: '/student/procedures/resume', 
     label: 'Học tiếp', 
     icon: PlayCircle,
-    highlighted: false
   },
 ];
 
 export default function ProfilePage() {
   return (
-    <div className="h-full w-full flex flex-col">
-      {/* Header nhỏ trong Main */}
-      <div className="h-16 shrink-0 border-b border-gray-200 bg-white px-6 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-blue-100 rounded-lg text-primary">
-            <User className="h-5 w-5" />
-          </div>
-          <div>
-            <h1 className="text-base font-bold text-slate-800 leading-tight">Xem thông tin thủ tục</h1>
-            <p className="text-xs text-slate-500 leading-tight">Chọn thủ tục để xem chi tiết hồ sơ</p>
-          </div>
+    <div className="h-full w-full flex flex-col p-6 sm:p-8 md:p-10 bg-gray-50/50">
+      {/* Breadcrumbs */}
+      <nav className="flex items-center text-sm text-gray-500 mb-6">
+          <Link href="/student/dashboard" className="hover:text-primary transition-colors">Trang chủ</Link>
+          <ChevronRight className="h-4 w-4 mx-1" />
+          <span className="font-medium text-slate-700">Xem thông tin thủ tục</span>
+      </nav>
+      
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col items-center justify-center text-center">
+        <div className="w-24 h-24 bg-white border border-gray-200 rounded-2xl flex items-center justify-center mb-6 shadow-sm">
+          <FileSearch className="h-12 w-12 text-primary" />
         </div>
-
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-100 text-primary text-xs font-medium">
-          <Sparkles className="h-3 w-3" />
-          <span>AI đang hỗ trợ</span>
-        </div>
-      </div>
-
-      {/* Nội dung chính */}
-      <div className="flex-1 overflow-y-auto p-8">
-        <div className="max-w-2xl mx-auto space-y-3">
+        <h1 className="text-3xl font-bold text-slate-800 mb-2">Vui lòng chọn một thủ tục</h1>
+        
+        <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full max-w-4xl">
           {services.map((service) => (
             <Link
               key={service.label}
               href={service.href}
-              className={`flex items-center gap-4 w-full p-5 rounded-xl border transition-all duration-200 ${
-                service.highlighted
-                  ? 'bg-blue-50 border-primary text-primary shadow-sm'
-                  : 'bg-white border-gray-200 text-slate-700 hover:border-primary hover:text-primary hover:shadow-sm hover:bg-blue-50/30'
-              }`}
+              className="group flex flex-col items-center justify-center text-center p-6 bg-white rounded-2xl border border-gray-200 transition-all duration-200 hover:border-primary hover:shadow-lg hover:-translate-y-1"
             >
-              <div className={`p-3 rounded-lg ${service.highlighted ? 'bg-primary text-white' : 'bg-slate-100 text-slate-600 group-hover:bg-primary group-hover:text-white'}`}>
-                <service.icon className="h-6 w-6" />
+              <div className="p-4 bg-gray-100 rounded-full transition-colors duration-200 group-hover:bg-primary group-hover:text-white">
+                <service.icon className="h-7 w-7 text-slate-600 transition-colors duration-200 group-hover:text-white" />
               </div>
-              <span className="text-base font-semibold">{service.label}</span>
+              <span className="text-base font-semibold mt-4 text-slate-700">{service.label}</span>
             </Link>
           ))}
         </div>

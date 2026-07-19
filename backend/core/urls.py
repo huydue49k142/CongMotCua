@@ -20,5 +20,6 @@ from django.urls import path, include
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/users/', include('apps.users.urls')),
+    path('api/ocr/', include('apps.ocr_integration.urls', namespace='ocr_integration')),
     path('api/', include('apps.users.urls')), # fallback
 ]

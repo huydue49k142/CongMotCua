@@ -9,7 +9,7 @@ export default function StudentLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="grid min-h-screen w-full" style={{
+    <div className="grid h-screen w-full overflow-hidden" style={{
       gridTemplateAreas: `
         'header header'
         'sidebar main'
@@ -19,7 +19,7 @@ export default function StudentLayout({
     }}>
       <Header />
       <Sidebar />
-      <main className="bg-white border-t border-gray-200" style={{ gridArea: 'main' }}>
+      <main className="bg-white border-t border-gray-200 overflow-y-auto" style={{ gridArea: 'main' }}>
         {children}
       </main>
       <ChatWidget />

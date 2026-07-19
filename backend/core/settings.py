@@ -41,10 +41,13 @@ INSTALLED_APPS = [
     
     # Local apps
     'apps.users',
+    'apps.students',
+    'apps.documents',
+    'apps.notifications',
     'apps.procedures',
     'apps.requests',
     'apps.ocr_integration',
-    'apps.ai_agent',
+    'apps.ai_assist',
     'apps.common',
 ]
 

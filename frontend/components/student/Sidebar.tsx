@@ -9,7 +9,8 @@ import {
   PlayCircle, 
   User, 
   HelpCircle,
-  BarChart3
+  BarChart3,
+  Info
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -23,6 +24,7 @@ const navItems = [
   { href: '/student/profile', label: 'Xem thông tin thủ tục', icon: User, description: 'Xem thông tin thủ tục học vụ' },
   { href: '/student/submissions', label: 'Hồ sơ đã gửi', icon: FileText, description: 'Theo dõi hồ sơ đã gửi' },
 ];
+
 
 const Sidebar = () => {
   const pathname = usePathname();
@@ -87,6 +89,22 @@ const Sidebar = () => {
           <LogOut className="h-5 w-5" />
           <span>Đăng xuất</span>
         </button>
+      </div>
+
+      <div className="px-6 pb-4 mt-auto">
+        <div className="p-4 rounded-lg bg-blue-50 border border-blue-100">
+          <div className="flex items-start gap-3">
+            <div className="text-primary pt-0.5">
+              <Info className="h-5 w-5" />
+            </div>
+            <div>
+              <h4 className="font-semibold text-primary text-sm mb-1">Hướng dẫn</h4>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Chọn loại thủ tục, cung cấp thông tin cho AI kiểm tra điều kiện, rồi nộp hồ sơ và theo dõi tiến trình.
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
 
       <LogoutConfirmDialog

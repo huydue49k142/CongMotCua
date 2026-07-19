@@ -22,11 +22,6 @@ const Header = () => {
 
       {/* Right side */}
       <div className="flex items-center gap-6">
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/20 text-white text-sm font-medium">
-          <div className="h-2 w-2 rounded-full bg-green-400 animate-pulse"></div>
-          <span>AI đang hoạt động</span>
-        </div>
-        
         <button className="relative hover:bg-white/10 p-2 rounded-full transition-colors">
           <Bell className="h-5 w-5" />
         </button>
