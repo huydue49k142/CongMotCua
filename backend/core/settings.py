@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'apps.requests',
     'apps.ocr_integration',
     'apps.ai_assist',
+    'apps.rules',
     'apps.common',
 ]
 

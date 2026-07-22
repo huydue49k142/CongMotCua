@@ -1,0 +1,256 @@
+{
+  "name": "Submit Major Change Procedure",
+  "nodes": [
+    {
+      "parameters": {},
+      "name": "Start",
+      "type": "n8n-nodes-base.start",
+      "typeVersion": 1,
+      "position": [
+        250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "path": "d8a8b877-a8a1-4a5f-9d46-8a7c7c3b3c4e",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        450,
+        300
+      ],
+      "webhookId": "d8a8b877-a8a1-4a5f-9d46-8a7c7c3b3c4e"
+    },
+    {
+      "parameters": {
+        "url": "http://backend:8000/api/students/{{$json.body.student_id}}/profile",
+        "authentication": "headerAuth",
+        "options": {}
+      },
+      "name": "Get Student Profile",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [
+        650,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "1",
+          "name": "Backend API Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "http://backend:8000/api/rules/check",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "student_profile",
+              "value": "={{$json}}"
+            },
+            {
+              "name": "procedure_id",
+              "value": "major-change"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Check Business Rules",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [
+        850,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.result}}",
+              "operation": "equal",
+              "value2": "PASS"
+            }
+          ]
+        }
+      },
+      "name": "IF: Eligible?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1050,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "content": "Sinh viên không đủ điều kiện.",
+        "options": {}
+      },
+      "name": "Handle FAIL",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1250,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "content": "Sinh viên đủ điều kiện. Tiếp tục workflow.",
+        "options": {}
+      },
+      "name": "Handle PASS",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1250,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "url": "http://backend:8000/api/requests/draft",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "student_id",
+              "value": "={{$node[\"Webhook\"].json.body.student_id}}"
+            },
+            {
+              "name": "procedure_id",
+              "value": "major-change"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Generate Draft",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [
+        1450,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "url": "http://ai-coordinator:5000/api/v1/conversation/{{$node[\"Webhook\"].json.body.conversation_id}}/request-upload",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "message",
+              "value": "Tuyệt vời! Bạn đã đủ điều kiện thực hiện thủ tục. Dưới đây là thành phần hồ sơ cần có, hãy thực hiện theo yêu cầu của tôi nhé:"
+            },
+            {
+              "name": "required_files",
+              "value": "={{$node[\"Generate Draft\"].json.required_files}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "AI: Request File Upload",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [
+        1650,
+        100
+      ]
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get Student Profile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Student Profile": {
+      "main": [
+        [
+          {
+            "node": "Check Business Rules",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Business Rules": {
+      "main": [
+        [
+          {
+            "node": "IF: Eligible?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: Eligible?": {
+      "main": [
+        [
+          {
+            "node": "Handle PASS",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Handle FAIL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle PASS": {
+      "main": [
+        [
+          {
+            "node": "Generate Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Draft": {
+      "main": [
+        [
+          {
+            "node": "AI: Request File Upload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

@@ -21,7 +21,6 @@ const navItems = [
   { href: '/student/services/dropout', label: 'Thôi học', icon: LogOut, description: 'Thôi học tự nguyện' },
   { href: '/student/services/retention', label: 'Bảo lưu', icon: Archive, description: 'Bảo lưu kết quả' },
   { href: '/student/services/resume', label: 'Học tiếp', icon: PlayCircle, description: 'Đăng ký học tiếp' },
-  { href: '/student/profile', label: 'Xem thông tin thủ tục', icon: User, description: 'Xem thông tin thủ tục học vụ' },
   { href: '/student/submissions', label: 'Hồ sơ đã gửi', icon: FileText, description: 'Theo dõi hồ sơ đã gửi' },
 ];
 
