@@ -1,0 +1,251 @@
+{
+  "metadata": {
+    "school": "Trường Đại học Kinh tế - Đại học Đà Nẵng",
+    "data_source": "Quy chế đào tạo hiện hành của DUE",
+    "version": "1.0.0",
+    "last_updated": "2026-07-18"
+  },
+
+  "verification": {
+    "pending": [
+      "Số hiệu và ngày ban hành chính thức của quy chế (đặc biệt mục Chuyển ngành)",
+      "Số phòng nộp hồ sơ hiện hành",
+      "Thông tin liên hệ (SĐT/Email/Giờ làm việc) của Phòng Đào tạo",
+      "Link tải mẫu đơn chính thức (nếu trường công bố)"
+    ],
+    "note": "Các thông tin trên cần được xác minh trước khi triển khai thực tế."
+  },
+
+  "contact": {
+    "office": "Phòng Đào tạo",
+    "phone": "",
+    "email": "",
+    "room": "",
+    "working_time": ""
+  },
+
+  "procedures": [
+    {
+      "id": "chuyen_nganh",
+      "title": "Chuyển ngành",
+
+      "confidence": {
+        "level": "medium",
+        "note": "Nguồn là tư vấn đào tạo, chưa xác nhận bằng văn bản quy chế chính thức."
+      },
+
+      "description": "Thủ tục hỗ trợ sinh viên có nhu cầu học ngành khác.",
+
+      "conditions": "Sinh viên trúng tuyển ngành nào học ngành đó, KHÔNG được chuyển ngành trực tiếp trong quá trình học. Muốn học ngành khác phải làm đơn xin thôi học, sau đó thi lại đầu vào ngành mới.",
+
+      "required_documents": [
+        "Không có hồ sơ chuyển ngành trực tiếp.",
+        "Đơn xin thôi học.",
+        "Hồ sơ xin công nhận tín chỉ (nếu trúng tuyển ngành mới và có nhu cầu)."
+      ],
+
+      "workflow": [
+        "Nộp đơn xin thôi học.",
+        "Tham gia kỳ tuyển sinh và trúng tuyển ngành mới.",
+        "Nộp hồ sơ xin công nhận tín chỉ (nếu có)."
+      ],
+
+      "credit_transfer_limit": "Tối đa 50% khối lượng chương trình đào tạo mới.",
+
+      "submission": {
+        "location": "Phòng Đào tạo",
+        "deadline": "Theo lịch tuyển sinh và thông báo từng học kỳ.",
+        "fee": "Lệ phí tuyển sinh theo quy định."
+      },
+
+      "resources": {
+        "form": "forms/don-xin-chuyen-nganh.docx",
+        "excel": "excel/Kiem tra dieu kien chuyen truong.xlsm"
+      },
+
+      "tool_support": {
+        "generate_form": true,
+        "download_form": true,
+        "download_excel": true,
+        "preview_form": true
+      },
+
+      "required_fields": [
+        "student_id",
+        "student_name",
+        "class",
+        "current_major",
+        "target_major",
+        "phone",
+        "email"
+      ],
+
+      "faq": [
+        {
+          "question": "Em có thể chuyển sang ngành khác trong trường được không?",
+          "answer": "Không được phép chuyển ngành trực tiếp sau khi đã trúng tuyển. Phải làm đơn thôi học, sau đó thi lại đầu vào ngành mới."
+        }
+      ]
+    },
+
+    {
+      "id": "bao_luu",
+      "title": "Nghỉ học tạm thời (Bảo lưu kết quả học tập)",
+
+      "confidence": {
+        "level": "high"
+      },
+
+      "conditions": "Sinh viên có lý do chính đáng và được Hiệu trưởng chấp thuận.",
+
+      "required_documents": [
+        "Đơn xin nghỉ học tạm thời.",
+        "Giấy tờ minh chứng (nếu có)."
+      ],
+
+      "workflow": [
+        "Điền đơn.",
+        "Nộp tại Phòng Đào tạo.",
+        "Chờ quyết định của Hiệu trưởng."
+      ],
+
+      "submission": {
+        "location": "Phòng Đào tạo",
+        "deadline": "Trước khi bắt đầu học kỳ.",
+        "fee": "Không quy định."
+      },
+
+      "resources": {
+        "form": "forms/don-xin-bao-luu.docx"
+      },
+
+      "tool_support": {
+        "generate_form": true,
+        "download_form": true,
+        "preview_form": true
+      },
+
+      "required_fields": [
+        "student_id",
+        "student_name",
+        "class",
+        "reason",
+        "phone"
+      ],
+
+      "faq": [
+        {
+          "question": "Em muốn gia hạn thời gian bảo lưu thì làm thế nào?",
+          "answer": "Lập đơn đề nghị gia hạn và nộp Phòng Đào tạo."
+        },
+        {
+          "question": "Bị buộc thôi học có được bảo lưu điểm không?",
+          "answer": "Được bảo lưu tối đa 02 năm theo quy định."
+        }
+      ]
+    },
+
+    {
+      "id": "thoi_hoc",
+      "title": "Thôi học",
+
+      "confidence": {
+        "level": "high"
+      },
+
+      "conditions": "Áp dụng cho trường hợp tự nguyện hoặc bị buộc thôi học theo quy chế.",
+
+      "required_documents": [
+        "Đơn xin thôi học."
+      ],
+
+      "workflow": [
+        "Điền đơn.",
+        "Nộp Phòng Đào tạo.",
+        "Nhận quyết định thôi học."
+      ],
+
+      "submission": {
+        "location": "Phòng Đào tạo",
+        "deadline": "Theo nhu cầu của sinh viên hoặc cuối học kỳ.",
+        "fee": "Hoàn thành nghĩa vụ tài chính."
+      },
+
+      "resources": {
+        "form": "forms/don-xin-thoi-hoc.docx"
+      },
+
+      "tool_support": {
+        "generate_form": true,
+        "download_form": true,
+        "preview_form": true
+      },
+
+      "required_fields": [
+        "student_id",
+        "student_name",
+        "class",
+        "reason"
+      ],
+
+      "faq": [
+        {
+          "question": "Bị cảnh báo học tập bao nhiêu lần thì bị buộc thôi học?",
+          "answer": "Tối đa 4 lần trong toàn khóa hoặc 3 lần liên tiếp."
+        }
+      ]
+    },
+
+    {
+      "id": "hoc_tiep",
+      "title": "Xin học tiếp",
+
+      "confidence": {
+        "level": "high"
+      },
+
+      "conditions": "Sinh viên hết thời hạn bảo lưu và muốn quay lại học.",
+
+      "required_documents": [
+        "Đơn xin trở lại học tập."
+      ],
+
+      "workflow": [
+        "Điền đơn.",
+        "Xin chữ ký phụ huynh.",
+        "Nộp Phòng Đào tạo.",
+        "Nhận quyết định học tiếp."
+      ],
+
+      "submission": {
+        "location": "Phòng Đào tạo",
+        "deadline": "Trước khi bắt đầu học kỳ.",
+        "fee": "Không quy định."
+      },
+
+      "resources": {
+        "form": "forms/don-xin-tro-lai-hoc.docx"
+      },
+
+      "tool_support": {
+        "generate_form": true,
+        "download_form": true,
+        "preview_form": true
+      },
+
+      "required_fields": [
+        "student_id",
+        "student_name",
+        "class",
+        "decision_number"
+      ],
+
+      "faq": [
+        {
+          "question": "Đơn xin trở lại học tập cần chữ ký nào?",
+          "answer": "Cần chữ ký của sinh viên và phụ huynh."
+        }
+      ]
+    }
+  ]
+}

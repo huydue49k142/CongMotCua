@@ -18,17 +18,18 @@ import LogoutConfirmDialog from './LogoutConfirmDialog';
 
 const navItems = [
   { href: '/student/services/major-change', label: 'Chuyển ngành', icon: ArrowRightLeft, description: 'Chuyển ngành học' },
-  { href: '/student/services/dropout', label: 'Thôi học', icon: LogOut, description: 'Thôi học tự nguyện' },
-  { href: '/student/services/retention', label: 'Bảo lưu', icon: Archive, description: 'Bảo lưu kết quả' },
-  { href: '/student/services/resume', label: 'Học tiếp', icon: PlayCircle, description: 'Đăng ký học tiếp' },
+  { href: '/student/services/dropout', label: 'Thôi học', icon: LogOut, description: 'Thôi học tự nguyện', procedureKey: 'dropout' },
+  { href: '/student/services/retention', label: 'Bảo lưu', icon: Archive, description: 'Bảo lưu kết quả', procedureKey: 'retention' },
+  { href: '/student/services/resume', label: 'Học tiếp', icon: PlayCircle, description: 'Đăng ký học tiếp', procedureKey: 'resume' },
+  { href: '/student/student-procedure-info', label: 'Xem thông tin thủ tục', icon: Info, description: 'Xem thông tin chi tiết' },
   { href: '/student/submissions', label: 'Hồ sơ đã gửi', icon: FileText, description: 'Theo dõi hồ sơ đã gửi' },
 ];
-
 
 const Sidebar = () => {
   const pathname = usePathname();
   const router = useRouter();
   const [isLogoutOpen, setIsLogoutOpen] = useState(false);
+  const procedureFromPath = pathname.split('/')[3];
 
   const handleOpenLogout = () => setIsLogoutOpen(true);
   const handleCloseLogout = () => setIsLogoutOpen(false);
@@ -47,29 +48,32 @@ const Sidebar = () => {
           {/* This can be a separate component */}
         </div>
         <div>
-          <h2 className="px-3 mb-2 text-sm font-bold text-slate-800 uppercase tracking-wider">
+          <h2 className="px-3 mb-2 text-sm font-bold text-slate-800 uppercase tracking-[0.24em]">
             Chọn thủ tục
           </h2>
-          <nav className="space-y-1">
+          <nav className="space-y-3">
             {navItems.map((item) => {
-              const isActive = pathname === item.href;
+              const isActive = pathname === item.href || 
+                (item.procedureKey && `/student/procedures/${item.procedureKey}` === pathname);
               return (
                 <Link
                   key={item.label}
                   href={item.href}
-                  className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm font-medium ${
+                  className={`flex items-center gap-3 px-4 py-3 rounded-2xl transition-all text-sm font-medium ${
                     isActive
-                      ? 'bg-blue-50 text-primary'
-                      : 'text-slate-600 hover:bg-gray-100'
+                      ? 'bg-sky-100 text-sky-700 shadow-sm'
+                      : 'text-slate-600 hover:bg-slate-100'
                   }`}
                 >
-                  <item.icon className="h-5 w-5" />
-                  <div className="flex flex-col">
-                    <span>{item.label}</span>
+                  <div className={`flex h-10 w-10 items-center justify-center rounded-2xl ${isActive ? 'bg-sky-700 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                    <item.icon className="h-5 w-5" />
+                  </div>
+                  <div className="text-left">
+                    <div>{item.label}</div>
                     {item.description && (
-                      <span className={`text-[11px] font-normal leading-tight ${isActive ? 'text-primary/80' : 'text-slate-500'}`}>
+                      <div className={`text-[11px] leading-tight ${isActive ? 'text-sky-700/80' : 'text-slate-500'}`}>
                         {item.description}
-                      </span>
+                      </div>
                     )}
                   </div>
                 </Link>
@@ -83,14 +87,14 @@ const Sidebar = () => {
         <button
           type="button"
           onClick={handleOpenLogout}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-sm font-medium text-slate-600 hover:bg-gray-100"
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-medium text-slate-700 bg-slate-50 hover:bg-slate-100 transition-colors"
         >
           <LogOut className="h-5 w-5" />
           <span>Đăng xuất</span>
         </button>
       </div>
 
-      <div className="px-6 pb-4 mt-auto">
+      <div className="px-6 pb-6 mt-auto">
         <div className="p-4 rounded-lg bg-blue-50 border border-blue-100">
           <div className="flex items-start gap-3">
             <div className="text-primary pt-0.5">

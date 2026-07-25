@@ -1,143 +1,301 @@
+// frontend/app/student/procedures/major-change/page.tsx
 "use client";
 
-import React from 'react';
-import { ChevronRight, CheckCircle, FileText, Download, Clock, Info, Lightbulb } from 'lucide-react';
-import { motion } from 'framer-motion';
-import Link from 'next/link';
-
-const MotionDiv = ({ children, index }: { children: React.ReactNode, index: number }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.5, delay: index * 0.1 }}
-  >
-    {children}
-  </motion.div>
-);
-
-const conditions = [
-  { text: "Không phải là sinh viên năm thứ 1 hoặc năm cuối khóa, không thuộc thụ diện bị xem xét buộc thôi học và còn đủ thời gian học tập", details: "Thủ tục chỉ áp dụng cho sinh viên từ năm thứ 2 trở lên và không thuộc diện bị buộc thôi học." },
-  { text: "Đạt điều kiện trúng tuyển của chương trình, ngành đào tạo", details: "Điểm xét tuyển đầu vào phải lớn hơn hoặc bằng điểm chuẩn của ngành muốn chuyển đến tại năm tuyển sinh tương ứng. Về điểm chuẩn 1 trong tất cả các phương thức xét tuyển đáp ứng: học bạ, điểm thi THPTQG, điểm ĐGNL,...)" },
-  { text: "Được sự đồng ý của thủ trưởng các đơn vị", details: "Phải được sự phê duyệt từ các đơn vị chuyên môn phụ trách chương trình, ngành đào tạo và hiệu trưởng cơ sở đào tạo" },
-  { text: "Không thuộc diện bị xét thôi học hay kỉ luật", details: null },
-];
-
-const requiredFiles = [
-  "Đơn xin chuyển ngành",
-  "Giấy báo trúng tuyển",
-  "Giấy báo kết quả thi tốt nghiệp",
-  "Giấy xác nhận sinh viên không thuộc diện thôi học",
-  "Giấy xác nhận sinh viên không vi phạm kỉ luật",
-  "Điểm rèn luyện",
-  "Bảng điểm",
-];
+import React, { useState, useEffect, useRef } from 'react';
+import ChatInterface from '@/components/student/ChatInterface';
+import { 
+  ArrowLeftRight, Bot, CheckCircle2, Upload, Check, ChevronRight, FileText
+} from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { extractDocumentData, ExtractedData } from '@/services/major-change.service';
 
 export default function MajorChangePage() {
+  const router = useRouter();
+  
+  const [isStarted, setIsStarted] = useState(false);
+  
+  // Các bước: 1 - Upload | 2 - Form OCR | 3 - Kiểm tra điều kiện
+  const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
+  
+  // Trạng thái upload file
+  const [file1Status, setFile1Status] = useState<'idle' | 'uploading' | 'done'>('idle');
+  const [file2Status, setFile2Status] = useState<'idle' | 'uploading' | 'done'>('idle');
+  
+  // Dữ liệu OCR
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [formData, setFormData] = useState<ExtractedData | null>(null);
+
+  // Trạng thái kiểm tra học vụ (Bước 3)
+  const [isCheckingAcademic, setIsCheckingAcademic] = useState(false);
+  const [academicChecked, setAcademicChecked] = useState(false);
+
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setTimeout(() => {
+      chatEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }, 100);
+  }, [isStarted, currentStep, file1Status, file2Status, isExtracting, academicChecked]);
+
+  // Lắng nghe: Nếu cả 2 file tải lên xong thì tự động chạy AI OCR
+  useEffect(() => {
+    if (file1Status === 'done' && file2Status === 'done' && currentStep === 1) {
+      setIsExtracting(true);
+      extractDocumentData().then((data) => {
+        setFormData(data);
+        setIsExtracting(false);
+        setCurrentStep(2);
+      });
+    }
+  }, [file1Status, file2Status, currentStep]);
+
+  // Hành động các nút
+  const handleStart = () => setIsStarted(true);
+  const handleCancel = () => router.push('/student/dashboard');
+
+  const handleUploadFile1 = () => {
+    setFile1Status('uploading');
+    setTimeout(() => setFile1Status('done'), 1000);
+  };
+
+  const handleUploadFile2 = () => {
+    setFile2Status('uploading');
+    setTimeout(() => setFile2Status('done'), 1000);
+  };
+
+  const handleConfirmData = () => {
+    setCurrentStep(3);
+    setIsCheckingAcademic(true);
+    // Giả lập hệ thống đồng bộ dữ liệu mất 1.5s
+    setTimeout(() => {
+      setIsCheckingAcademic(false);
+      setAcademicChecked(true);
+    }, 1500);
+  };
+
+  const handleContinue = () => {
+    console.log("Tiếp tục chuyển sang bước chọn ngành mới");
+    // Mở ra các step tiếp theo (chọn ngành, nộp đơn...) ở đây
+  };
+
   return (
-    <div className="flex-1 bg-gray-50/50 p-6 sm:p-8 md:p-10">
-      <div className="max-w-6xl mx-auto">
-        {/* Breadcrumbs */}
-        <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-        >
-            <nav className="flex items-center text-sm text-gray-500 mb-6">
-                <Link href="/student/dashboard" className="hover:text-primary transition-colors">Trang chủ</Link>
-                <ChevronRight className="h-4 w-4 mx-1" />
-                <Link href="/student/profile" className="hover:text-primary transition-colors">Xem thông tin thủ tục</Link>
-                <ChevronRight className="h-4 w-4 mx-1" />
-                <span className="font-medium text-primary">Chuyển ngành</span>
-            </nav>
-        </motion.div>
-
-        {/* Header */}
-        <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.1 }}
-        >
-            <h1 className="text-4xl font-bold text-slate-800 tracking-tight">Chuyển ngành</h1>
-            <p className="mt-2 text-lg text-slate-600 max-w-3xl">
-                Thủ tục cho phép sinh viên đăng ký chuyển từ ngành hiện tại sang một ngành đào tạo khác trong cùng trường để phù hợp với định hướng nghề nghiệp mới.
-            </p>
-        </motion.div>
-
-        <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-          {/* Left Column */}
-          <div className="lg:col-span-2 space-y-8">
-            <MotionDiv index={1}>
-                <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
-                    <h2 className="flex items-center gap-3 text-xl font-bold text-slate-800 mb-5">
-                        <FileText className="h-6 w-6 text-primary" />
-                        Điều kiện thực hiện
-                    </h2>
-                    <ul className="space-y-4">
-                        {conditions.map((item, index) => (
-                            <li key={index} className="flex items-start gap-4">
-                            <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
-                            <div>
-                                <p className="font-semibold text-slate-700">{item.text}</p>
-                                {item.details && <p className="text-sm text-slate-500 mt-1">{item.details}</p>}
-                            </div>
-                            </li>
-                        ))}
-                    </ul>
-                </div>
-            </MotionDiv>
+    <div className="h-full w-full flex flex-col">
+      <ChatInterface
+        title="Chuyển ngành"
+        description="Đăng ký chuyển sang ngành học khác"
+        Icon={ArrowLeftRight}
+        welcomeMessage={
+          <>Chào bạn, hệ thống Trường Đại học Kinh tế ghi nhận bạn đang chọn thủ tục <strong>chuyển ngành</strong>. Bạn có muốn đăng ký chuyển ngành không?</>
+        }
+        welcomePrimaryLabel="Đăng ký chuyển ngành"
+        welcomeSecondaryLabel="Không, quay lại"
+        onStart={handleStart}
+        onCancel={handleCancel}
+        isStarted={isStarted}
+        headerBadge={isStarted ? (
+          <span className="bg-green-100 text-green-700 text-xs px-3 py-1 rounded-full font-medium flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> AI đang hỗ trợ
+          </span>
+        ) : undefined}
+      >
+        {isStarted && (
+          <div className="flex flex-col gap-8 mt-6 pb-20 animate-in fade-in slide-in-from-bottom-4 duration-500">
             
-            <MotionDiv index={3}>
-              <div className="bg-blue-50 border border-blue-200 p-6 rounded-2xl">
-                <h2 className="flex items-center gap-3 text-xl font-bold text-slate-800 mb-4">
-                    <Lightbulb className="h-6 w-6 text-blue-500" />
-                    Lưu ý!
-                </h2>
-                <p className="text-blue-800">
-                Sinh viên nên thực hiện thủ tục chuyển ngành ít nhất 4 tuần trước khi bắt đầu học kỳ mới để đảm bảo việc đăng ký học ở ngành mới diễn ra thuận lợi.
-                </p>
-              </div>
-            </MotionDiv>
-          </div>
+            {/* ================= BƯỚC 1: YÊU CẦU TÀI LIỆU VÀ TẢI LÊN ================= */}
+            {currentStep >= 1 && (
+              <>
+                <div className="flex gap-4 items-start">
+                  <div className="bg-[#0070F4] p-2 rounded-full text-white shrink-0"><Bot size={24} /></div>
+                  <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 max-w-[80%]">
+                    <p className="text-gray-700 font-medium text-sm mb-1">Trợ lý AI</p>
+                    <p className="text-gray-600 text-sm leading-relaxed">
+                      Xin chào <strong>Thanh Hải</strong>, hệ thống ghi nhận bạn đang làm thủ tục <strong>xin chuyển ngành</strong>. Vui lòng cung cấp các tài liệu minh chứng đầu vào để hệ thống trích xuất thông tin nhé:
+                    </p>
+                  </div>
+                </div>
 
-          {/* Right Column */}
-          <div className="space-y-8">
-            <MotionDiv index={2}>
-              <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
-                <h2 className="flex items-center gap-3 text-xl font-bold text-slate-800 mb-5">
-                  <FileText className="h-6 w-6 text-primary" />
-                  Thành phần hồ sơ
-                </h2>
-                <ol className="space-y-2.5">
-                  {requiredFiles.map((file, index) => (
-                    <li key={index} className="flex items-center justify-between gap-3 bg-gray-50 p-3 rounded-lg border border-gray-100">
-                      <div className="flex items-center gap-3">
-                        <span className="font-bold text-primary text-sm">{index + 1}.</span>
-                        <span className="text-sm font-medium text-slate-700">{file}</span>
+                <div className="ml-12 border border-gray-200 rounded-xl bg-white shadow-sm overflow-hidden p-5">
+                  <h4 className="text-xs font-bold text-gray-400 mb-4 uppercase tracking-wider">Khu vực tải tài liệu</h4>
+                  
+                  <div className="flex flex-col gap-3">
+                    {/* TÀI LIỆU 1 */}
+                    <div className={`border rounded-lg p-4 flex items-center justify-between transition-colors ${file1Status === 'done' ? 'bg-green-50/30 border-green-300' : 'bg-gray-50 border-gray-200 border-dashed'}`}>
+                      <div className="flex items-center gap-4">
+                        {file1Status === 'done' ? (
+                          <div className="bg-green-500 text-white p-1.5 rounded-full"><Check size={16} strokeWidth={3}/></div>
+                        ) : (
+                          <div className="bg-gray-200 text-gray-500 p-1.5 rounded-full"><Upload size={16} /></div>
+                        )}
+                        <div>
+                          <p className={`font-semibold text-sm ${file1Status === 'done' ? 'text-green-700' : 'text-gray-700'}`}>Tải lên Giấy báo trúng tuyển (PDF)</p>
+                          <p className={`text-xs ${file1Status === 'done' ? 'text-green-600' : 'text-gray-400'}`}>
+                            {file1Status === 'done' ? 'Đã tải lên thành công ✓' : 'Giay_Bao_Trung_Tuyen.pdf'}
+                          </p>
+                        </div>
                       </div>
-                      <button className="text-primary hover:text-blue-700 transition-colors">
-                        <Download className="h-5 w-5" />
-                      </button>
-                    </li>
-                  ))}
-                </ol>
-              </div>
-            </MotionDiv>
+                      
+                      {file1Status === 'idle' && (
+                        <button onClick={handleUploadFile1} className="text-sm font-medium border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 px-4 py-1.5 rounded-md transition shadow-sm">
+                          Tải lên
+                        </button>
+                      )}
+                      {file1Status === 'uploading' && <span className="text-sm text-gray-500 animate-pulse font-medium">Đang tải...</span>}
+                    </div>
 
-            <MotionDiv index={4}>
-              <div className="bg-primary text-white p-6 rounded-2xl shadow-lg shadow-blue-500/20">
-                <div className="flex items-center gap-2 mb-2 text-sm font-semibold uppercase tracking-wider text-blue-200">
-                    <Clock className="h-5 w-5" />
-                    <span>Thời gian giải quyết</span>
+                    {/* TÀI LIỆU 2 */}
+                    <div className={`border rounded-lg p-4 flex items-center justify-between transition-colors ${file2Status === 'done' ? 'bg-green-50/30 border-green-300' : 'bg-gray-50 border-gray-200 border-dashed'}`}>
+                      <div className="flex items-center gap-4">
+                        {file2Status === 'done' ? (
+                          <div className="bg-green-500 text-white p-1.5 rounded-full"><Check size={16} strokeWidth={3}/></div>
+                        ) : (
+                          <div className="bg-gray-200 text-gray-500 p-1.5 rounded-full"><Upload size={16} /></div>
+                        )}
+                        <div>
+                          <p className={`font-semibold text-sm ${file2Status === 'done' ? 'text-green-700' : 'text-gray-700'}`}>Tải lên Bản scan Giấy CN Tốt nghiệp THPT</p>
+                          <p className={`text-xs ${file2Status === 'done' ? 'text-green-600' : 'text-gray-400'}`}>
+                            {file2Status === 'done' ? 'Đã tải lên thành công ✓' : 'Giay_Chung_Nhan_TN_THPT.pdf'}
+                          </p>
+                        </div>
+                      </div>
+                      
+                      {file2Status === 'idle' && (
+                        <button onClick={handleUploadFile2} className="text-sm font-medium border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 px-4 py-1.5 rounded-md transition shadow-sm">
+                          Tải lên
+                        </button>
+                      )}
+                      {file2Status === 'uploading' && <span className="text-sm text-gray-500 animate-pulse font-medium">Đang tải...</span>}
+                    </div>
+                  </div>
+
+                  {/* LOADING OCR */}
+                  {isExtracting && (
+                    <div className="mt-6 flex flex-col items-center justify-center p-6 border border-blue-100 bg-blue-50/50 rounded-xl">
+                      <span className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mb-3"></span>
+                      <p className="text-sm font-semibold text-blue-700">AI đang quét và trích xuất dữ liệu...</p>
+                      <p className="text-xs text-blue-500 mt-1">Vui lòng đợi trong giây lát</p>
+                    </div>
+                  )}
                 </div>
-                <div className="text-5xl font-extrabold tracking-tight">
-                    07 - 10
+              </>
+            )}
+
+            {/* ================= BƯỚC 2: FORM XÁC NHẬN OCR ================= */}
+            {currentStep >= 2 && formData && (
+              <div className="ml-12 border border-gray-200 rounded-xl bg-white shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4">
+                <div className="bg-[#F8FAFC] px-5 py-3 border-b border-gray-200 flex justify-between items-center">
+                  <h3 className="font-semibold text-gray-800 flex items-center gap-2 text-sm">
+                    <div className="bg-[#1E293B] text-white rounded-full p-0.5"><Check size={14} /></div>
+                    Đối chiếu dữ liệu — Có thể chỉnh sửa nếu AI đọc sai
+                  </h3>
+                  <span className="text-[10px] bg-blue-100 text-blue-700 px-2.5 py-1 rounded-full font-bold">Trích xuất tự động</span>
                 </div>
-                <p className="text-blue-100 font-medium">Ngày làm việc kể từ khi nhận đủ hồ sơ</p>
+
+                <div className="p-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-y-5 gap-x-6 mb-6">
+                    <div>
+                      <label className="text-[11px] font-semibold text-gray-400 mb-1.5 block">Họ và tên</label>
+                      <input type="text" defaultValue={formData.fullName} className="w-full border border-gray-300 bg-gray-50 rounded-lg p-2.5 text-sm text-gray-800 outline-none focus:ring-1 focus:ring-blue-500" />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-semibold text-gray-400 mb-1.5 block">Mã số sinh viên</label>
+                      <input type="text" defaultValue={formData.studentId} className="w-full border border-gray-300 bg-gray-50 rounded-lg p-2.5 text-sm text-gray-800 outline-none focus:ring-1 focus:ring-blue-500" />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-semibold text-gray-400 mb-1.5 block">Ngày sinh</label>
+                      <input type="text" defaultValue={formData.dob} className="w-full border border-gray-300 bg-gray-50 rounded-lg p-2.5 text-sm text-gray-800 outline-none focus:ring-1 focus:ring-blue-500" />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-semibold text-gray-400 mb-1.5 block">Số CCCD/CMND</label>
+                      <input type="text" defaultValue={formData.idNumber} className="w-full border border-gray-300 bg-gray-50 rounded-lg p-2.5 text-sm text-gray-800 outline-none focus:ring-1 focus:ring-blue-500" />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-semibold text-gray-400 mb-1.5 block">Năm trúng tuyển</label>
+                      <input type="text" defaultValue={formData.enrollmentYear} className="w-full border border-gray-300 bg-gray-50 rounded-lg p-2.5 text-sm text-gray-800 outline-none focus:ring-1 focus:ring-blue-500" />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-semibold text-gray-400 mb-1.5 block">Ngành hiện tại</label>
+                      <input type="text" defaultValue={formData.currentMajor} className="w-full border border-gray-300 bg-gray-50 rounded-lg p-2.5 text-sm text-gray-800 outline-none focus:ring-1 focus:ring-blue-500" />
+                    </div>
+                  </div>
+
+                  {currentStep === 2 && (
+                    <div className="flex gap-3 mt-4">
+                      <button onClick={handleConfirmData} className="flex-1 bg-[#0070F4] text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition flex justify-center items-center gap-2 text-sm shadow-sm">
+                        <Check size={18} /> Xác nhận thông tin chính xác
+                      </button>
+                      <button className="px-6 bg-white border border-gray-300 text-gray-600 rounded-lg font-medium hover:bg-gray-50 transition text-sm">
+                        Tải lại
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
-            </MotionDiv>
+            )}
+
+            {/* ================= BƯỚC 3: KIỂM TRA ĐIỀU KIỆN & TIẾP TỤC ================= */}
+            {currentStep >= 3 && (
+              <div className="ml-12 flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-4 mt-2">
+                
+                {/* Banner trạng thái xác nhận */}
+                <div className="bg-green-50 border border-green-200 text-green-700 rounded-xl p-3 flex items-center gap-3 text-sm font-medium">
+                  <div className="bg-green-500 text-white rounded-full p-0.5"><Check size={16} /></div>
+                  Thông tin đã xác nhận — Đang kiểm tra tình trạng học vụ...
+                </div>
+
+                {/* AI Text check */}
+                <div className="flex gap-4 items-start mt-2">
+                  <div className="bg-[#0070F4] p-2 rounded-full text-white shrink-0"><Bot size={24} /></div>
+                  <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 max-w-[80%]">
+                    <p className="text-gray-700 font-medium text-sm mb-1">Trợ lý AI</p>
+                    <p className="text-gray-600 text-sm">
+                      {isCheckingAcademic 
+                        ? "Hệ thống đang đồng bộ dữ liệu với Phòng Đào tạo để kiểm tra tình trạng học vụ của bạn..." 
+                        : "Tuyệt vời! Kết quả học vụ của bạn đã đáp ứng yêu cầu chuyển ngành đầu vào."}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Card kết quả check điều kiện */}
+                {academicChecked && (
+                  <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-4 mt-2">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      
+                      <div className="bg-green-50/50 border border-green-200 rounded-xl p-5 shadow-sm">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="bg-green-500 text-white rounded-full p-1"><Check size={14} strokeWidth={3}/></div>
+                          <h4 className="font-bold text-green-700 text-sm">Đạt điều kiện</h4>
+                        </div>
+                        <p className="text-gray-800 text-sm font-medium mb-3">Không thuộc diện bị buộc thôi học</p>
+                        <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                          <FileText size={14} /> Giấy XN không bị buộc thôi học
+                        </div>
+                      </div>
+
+                      <div className="bg-green-50/50 border border-green-200 rounded-xl p-5 shadow-sm">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="bg-green-500 text-white rounded-full p-1"><Check size={14} strokeWidth={3}/></div>
+                          <h4 className="font-bold text-green-700 text-sm">Đạt điều kiện</h4>
+                        </div>
+                        <p className="text-gray-800 text-sm font-medium mb-3">Không vi phạm kỷ luật</p>
+                        <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                          <FileText size={14} /> Giấy XN không vi phạm kỷ luật
+                        </div>
+                      </div>
+                      
+                    </div>
+
+                    <button onClick={handleContinue} className="w-full bg-[#0070F4] text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition flex justify-center items-center gap-2 text-sm shadow-sm mt-2">
+                      Tiếp tục <ChevronRight size={18} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            <div ref={chatEndRef} />
           </div>
-        </div>
-      </div>
+        )}
+      </ChatInterface>
     </div>
   );
 }

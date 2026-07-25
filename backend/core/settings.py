@@ -44,7 +44,6 @@ INSTALLED_APPS = [
     'apps.students',
     'apps.documents',
     'apps.notifications',
-    'apps.procedures',
     'apps.requests',
     'apps.ocr_integration',
     'apps.ai_assist',
@@ -159,3 +158,8 @@ SIMPLE_JWT = {
     'BLACKLIST_AFTER_ROTATION': True,
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
+
+
+import os
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.1-flash-lite")

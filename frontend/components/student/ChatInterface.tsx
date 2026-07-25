@@ -1,16 +1,74 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Send, Paperclip, Bot, Sparkles } from 'lucide-react';
+import { Bot } from 'lucide-react';
 
 interface ChatInterfaceProps {
   title: string;
   description: string;
   Icon: React.ElementType;
+  welcomeMessage?: string;
+  welcomePrimaryLabel?: string;
+  welcomeSecondaryLabel?: string;
+  welcomeSecondaryHref?: string;
+  onStart?: () => void;
+  onCancel?: () => void;
+  children?: React.ReactNode;
+  isStarted?: boolean;
 }
 
-const ChatInterface = ({ title, description, Icon }: ChatInterfaceProps) => {
+const ChatInterface = ({
+  title,
+  description,
+  Icon,
+  welcomeMessage,
+  welcomePrimaryLabel = 'Bắt đầu làm thủ tục',
+  welcomeSecondaryLabel = 'Không, quay lại',
+  welcomeSecondaryHref,
+  onStart,
+  onCancel,
+  children,
+  isStarted = false,
+}: ChatInterfaceProps) => {
   const [message, setMessage] = useState('');
+  const finalWelcomeMessage =
+    welcomeMessage ||
+    `Chào bạn, hệ thống Trường Đại học Kinh tế ghi nhận bạn đang chọn thủ tục ${title}. Bạn có muốn bắt đầu tạo hồ sơ không?`;
+
+  const handleStart = () => {
+    if (onStart) {
+      onStart();
+      return;
+    }
+    console.log('Bắt đầu thủ tục:', title);
+  };
+
+  const handleCancel = () => {
+    if (onCancel) {
+      onCancel();
+      return;
+    }
+
+    if (welcomeSecondaryHref) {
+      window.location.href = welcomeSecondaryHref;
+      return;
+    }
+
+    console.log('Hủy thủ tục:', title);
+  };
+
+  const handleSend = () => {
+    if (!message.trim()) return;
+    console.log('Gửi tin nhắn:', message);
+    setMessage('');
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
 
   return (
     <div className="flex flex-col h-full bg-white overflow-hidden">
@@ -25,10 +83,6 @@ const ChatInterface = ({ title, description, Icon }: ChatInterfaceProps) => {
             <p className="text-xs text-slate-500">{description}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 border border-blue-100 text-blue-600 text-xs font-medium">
-          <Sparkles className="h-3 w-3" />
-          <span>AI đang hỗ trợ</span>
-        </div>
       </div>
 
       {/* Chat Area */}
@@ -39,9 +93,8 @@ const ChatInterface = ({ title, description, Icon }: ChatInterfaceProps) => {
             <Bot className="h-5 w-5" />
           </div>
           <div className="p-4 bg-white border border-gray-200 rounded-2xl rounded-tl-none shadow-sm text-slate-700 text-sm leading-relaxed">
-            Xin chào! Tôi là trợ lý ảo hỗ trợ thủ tục <strong>{title}</strong>. 
-            <br /><br />
-            Để bắt đầu, bạn vui lòng cung cấp thông tin hồ sơ hoặc đặt câu hỏi về quy trình chuyển ngành. Tôi sẽ hướng dẫn bạn từng bước một cách chi tiết nhất.
+            <p className="font-semibold text-primary mb-1">Trợ lý AI</p>
+            <p>{finalWelcomeMessage}</p>
             <div className="flex gap-1 mt-2 animate-pulse">
                 <span className="w-1.5 h-1.5 bg-gray-300 rounded-full"></span>
                 <span className="w-1.5 h-1.5 bg-gray-300 rounded-full"></span>
@@ -49,28 +102,33 @@ const ChatInterface = ({ title, description, Icon }: ChatInterfaceProps) => {
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Input Area */}
-      <div className="p-6 bg-white border-t border-gray-100">
-        <div className="flex items-center gap-3 p-2 pl-4 bg-slate-100 rounded-2xl border border-gray-200 focus-within:border-primary transition-colors">
-          <button className="p-2 text-slate-400 hover:text-primary transition-colors">
-            <Paperclip className="h-5 w-5" />
-          </button>
-          <input 
-            type="text" 
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            placeholder={`Nhập thông tin hồ sơ của bạn...`}
-            className="flex-1 bg-transparent border-none outline-none text-sm text-slate-700 placeholder:text-slate-400"
-          />
-          <button 
-            className={`p-2 rounded-xl transition-all ${message ? 'bg-primary text-white shadow-md' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
-            disabled={!message}
-          >
-            <Send className="h-5 w-5" />
-          </button>
-        </div>
+        {/* Quick Action Buttons - only show when not started */}
+        {!isStarted && (
+          <div className="flex items-center gap-3 pl-11">
+            <button
+              type="button"
+              onClick={handleStart}
+              className="px-4 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors"
+            >
+              {welcomePrimaryLabel}
+            </button>
+            <button
+              type="button"
+              onClick={handleCancel}
+              className="px-4 py-2 bg-white border border-gray-200 text-slate-600 text-sm font-medium rounded-lg hover:bg-slate-50 transition-colors"
+            >
+              {welcomeSecondaryLabel}
+            </button>
+          </div>
+        )}
+
+        {/* Render Children */}
+        {children && (
+          <div>
+            {children}
+          </div>
+        )}
       </div>
     </div>
   );

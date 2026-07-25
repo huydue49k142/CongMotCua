@@ -2,6 +2,7 @@ import React from 'react';
 import Sidebar from '@/components/student/Sidebar';
 import Header from '@/components/student/Header';
 import ChatWidget from '@/components/student/ChatWidget';
+import { ProcedureProvider } from '@/contexts/ProcedureContext';
 
 export default function StudentLayout({
   children,
@@ -20,7 +21,9 @@ export default function StudentLayout({
       <Header />
       <Sidebar />
       <main className="bg-white border-t border-gray-200 overflow-y-auto" style={{ gridArea: 'main' }}>
-        {children}
+        <ProcedureProvider>
+          {children}
+        </ProcedureProvider>
       </main>
       <ChatWidget />
     </div>

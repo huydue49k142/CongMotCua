@@ -1,0 +1,96 @@
+{
+  "truong": "Trường Đại học Kinh tế - Đại học Đà Nẵng",
+  "nguon_du_lieu": "Quy chế đào tạo hiện hành của DUE",
+  "ngay_cap_nhat": "2026-07-18",
+  "can_xac_minh_them": [
+    "Số hiệu và ngày ban hành chính thức của quy chế (đặc biệt mục Chuyển ngành, hiện đang ghi nguồn là 'thông tin tư vấn đào tạo')",
+    "Số phòng nộp hồ sơ hiện hành H212",
+    "Thông tin liên hệ (SĐT/email/giờ làm việc) của Phòng Đào tạo",
+    "Link tải các mẫu đơn (nếu có cổng thông tin/website mẫu biểu)"
+  ],
+  "lien_he_du_phong": "Chưa có - CẦN BỔ SUNG số điện thoại/email Phòng Đào tạo trước khi triển khai thật",
+
+  "thu_tuc": [
+    {
+      "id": "chuyen_nganh",
+      "ten": "Chuyển ngành",
+      "tu_khoa": ["chuyển ngành", "chuyen nganh", "đổi ngành", "doi nganh", "học ngành khác"],
+      "link_tai_mau_don": "[Đơn xin chuyển ngành](/bieu-mau/don-xin-chuyen-nganh.docx)",
+      "do_tin_cay": "trung_binh",
+      "ghi_chu_do_tin_cay": "Nguồn là tư vấn đào tạo, chưa xác nhận bằng văn bản quy chế chính thức",
+      "dieu_kien": "Sinh viên trúng tuyển ngành nào học ngành đó, KHÔNG được chuyển ngành trực tiếp trong quá trình học. Muốn học ngành khác phải làm đơn xin thôi học, sau đó thi lại đầu vào ngành mới.",
+      "ho_so": ["Đơn xin thôi học", "Hồ sơ xin xét công nhận điểm/tín chỉ"],
+      "quy_trinh": ["Nộp đơn xin thôi học", "Thi lại vào ngành mới", "Xét miễn học và công nhận tín chỉ"],
+      "noi_nop": "Phòng Đào tạo",
+      "thoi_han": "Theo lịch tuyển sinh",
+      "chi_phi": "Lệ phí thi tuyển sinh",
+      "faq": [
+        {
+          "hoi": "Em có thể chuyển sang ngành khác trong trường được không?",
+          "dap": "Không được phép chuyển ngành trực tiếp. Phải làm đơn thôi học, sau đó thi lại đầu vào ngành mới."
+        }
+      ]
+    },
+    {
+      "id": "bao_luu",
+      "ten": "Nghỉ học tạm thời (Bảo lưu kết quả học tập)",
+      "tu_khoa": ["bảo lưu", "bao luu", "tạm dừng", "tam dung", "nghỉ học tạm thời", "nghi hoc tam thoi", "gia hạn bảo lưu", "gia han bao luu"],
+      "link_tai_mau_don": "[Đơn xin bảo lưu](/bieu-mau/don-xin-bao-luu.docx)",
+      "do_tin_cay": "cao",
+      "dieu_kien": "Sinh viên có lý do chính đáng, được sự đồng ý của Hiệu trưởng. Tối đa 02 năm kể từ ngày ra quyết định (số tín chỉ bảo lưu không quá 50%).",
+      "ho_so": ["Đơn xin nghỉ học tạm thời", "Minh chứng (giấy khám sức khỏe,...)"],
+      "quy_trinh": ["Điền đơn", "Nộp đơn tại Phòng Đào tạo/Online", "Chờ Quyết định của Hiệu trưởng"],
+      "noi_nop": "Phòng Đào tạo (Phòng H212) hoặc cổng thông tin",
+      "thoi_han": "Trước khi bắt đầu học kỳ hoặc theo thông báo",
+      "chi_phi": "Không quy định phí; thanh toán học phí còn nợ trước khi nghỉ",
+      "faq": [
+        {
+          "hoi": "Em muốn gia hạn thời gian bảo lưu thì làm thế nào?",
+          "dap": "Lập đơn đề nghị xét gia hạn ngừng học trên website và nộp tại Phòng Đào tạo."
+        },
+        {
+          "hoi": "Bị buộc thôi học có được bảo lưu điểm không?",
+          "dap": "Được, trong vòng 02 năm kể từ ngày có quyết định, tối đa 50% khối lượng chương trình."
+        }
+      ]
+    },
+    {
+      "id": "thoi_hoc",
+      "ten": "Thôi học",
+      "tu_khoa": ["thôi học", "thoi hoc", "nghỉ học", "nghi hoc", "bị buộc thôi học", "buoc thoi hoc"],
+      "link_tai_mau_don": "[Đơn xin thôi học](/bieu-mau/don-xin-thoi-hoc.docx)",
+      "do_tin_cay": "cao",
+      "dieu_kien": "Tự nguyện (lý do cá nhân) hoặc Bị buộc thôi học (cảnh báo học tập quá 4 lần, không đăng ký học,...)",
+      "ho_so": ["Đơn xin thôi học (nếu tự nguyện)"],
+      "quy_trinh": ["Nộp đơn (tự nguyện) hoặc nhận Quyết định từ Nhà trường (bị buộc thôi học)"],
+      "noi_nop": "Phòng Đào tạo",
+      "thoi_han": "Tự nguyện: bất cứ khi nào. Buộc thôi học: cuối mỗi học kỳ chính.",
+      "chi_phi": "Hoàn thành nghĩa vụ tài chính trước khi rút hồ sơ",
+      "faq": [
+        {
+          "hoi": "Bị cảnh báo học tập bao nhiêu lần thì bị buộc thôi học?",
+          "dap": "Tối đa 4 lần/khóa học, hoặc 3 lần cảnh báo liên tiếp."
+        }
+      ]
+    },
+    {
+      "id": "hoc_tiep",
+      "ten": "Xin học tiếp (Học tiếp sau khi nghỉ tạm thời)",
+      "tu_khoa": ["học tiếp", "hoc tiep", "trở lại học", "tro lai hoc", "đi học lại", "di hoc lai"],
+      "link_tai_mau_don": "[Đơn xin trở lại học tập](/bieu-mau/don-xin-tro-lai-hoc.docx)",
+      "do_tin_cay": "cao",
+      "dieu_kien": "Sinh viên đã hết thời hạn nghỉ học tạm thời và có nguyện vọng trở lại.",
+      "ho_so": ["Đơn xin trở lại học tập (có chữ ký sinh viên và phụ huynh)"],
+      "quy_trinh": ["Điền đơn", "Xin chữ ký phụ huynh", "Nộp Phòng Đào tạo", "Nhận Quyết định"],
+      "noi_nop": "Phòng Đào tạo (Phòng H212)",
+      "thoi_han": "Trước khi bắt đầu học kỳ mới.",
+      "chi_phi": "Không quy định phí nộp đơn; đóng học phí theo tín chỉ học lại",
+      "faq": [
+        {
+          "hoi": "Đơn xin trở lại học tập cần những chữ ký nào?",
+          "dap": "Cần chữ ký của chính sinh viên và ý kiến/chữ ký của phụ huynh."
+        }
+      ]
+    }
+  ]
+}

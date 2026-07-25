@@ -24,5 +24,6 @@ urlpatterns = [
     path('api/rules/', include('apps.rules.urls')),
     path('api/requests/', include('apps.requests.urls')),
     path('api/ocr/', include('apps.ocr_integration.urls', namespace='ocr_integration')),
+    path('api/thoi-hoc/', include('apps.ai_assist.urls')),
     path('api/', include('apps.users.urls')), # fallback
 ]
