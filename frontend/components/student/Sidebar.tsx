@@ -17,10 +17,10 @@ import { usePathname, useRouter } from 'next/navigation';
 import LogoutConfirmDialog from './LogoutConfirmDialog';
 
 const navItems = [
-  { href: '/student/services/major-change', label: 'Chuyển ngành', icon: ArrowRightLeft, description: 'Chuyển ngành học' },
-  { href: '/student/services/dropout', label: 'Thôi học', icon: LogOut, description: 'Thôi học tự nguyện', procedureKey: 'dropout' },
-  { href: '/student/services/retention', label: 'Bảo lưu', icon: Archive, description: 'Bảo lưu kết quả', procedureKey: 'retention' },
-  { href: '/student/services/resume', label: 'Học tiếp', icon: PlayCircle, description: 'Đăng ký học tiếp', procedureKey: 'resume' },
+  { href: '/student/procedures/major-change', label: 'Chuyển ngành', icon: ArrowRightLeft, description: 'Chuyển ngành học', procedureKey: 'major-change' },
+  { href: '/student/procedures/dropout', label: 'Thôi học', icon: LogOut, description: 'Thôi học tự nguyện', procedureKey: 'dropout' },
+  { href: '/student/procedures/retention', label: 'Bảo lưu', icon: Archive, description: 'Bảo lưu kết quả', procedureKey: 'retention' },
+  { href: '/student/procedures/resume', label: 'Học tiếp', icon: PlayCircle, description: 'Đăng ký học tiếp', procedureKey: 'resume' },
   { href: '/student/student-procedure-info', label: 'Xem thông tin thủ tục', icon: Info, description: 'Xem thông tin chi tiết' },
   { href: '/student/submissions', label: 'Hồ sơ đã gửi', icon: FileText, description: 'Theo dõi hồ sơ đã gửi' },
 ];

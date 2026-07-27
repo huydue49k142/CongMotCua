@@ -3,10 +3,6 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 
 class User(AbstractUser):
-    """
-    Model TaiKhoan
-    Mở rộng User model có sẵn của Django.
-    """
     class Role(models.TextChoices):
         STUDENT = "STUDENT", "Sinh viên"
         STAFF = "STAFF", "Phòng đào tạo"
@@ -17,3 +13,7 @@ class User(AbstractUser):
 
     def __str__(self):
         return self.username
+
+    class Meta:
+        verbose_name = "Tài khoản"
+        verbose_name_plural = "Tài khoản"

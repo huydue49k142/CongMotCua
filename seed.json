@@ -1,0 +1,48 @@
+[
+  {
+    "model": "students.major",
+    "pk": "8f3e8bfa-63eb-4f48-9b45-3f4a3334d588",
+    "fields": {
+      "name": "Công nghệ thông tin",
+      "major_id": "CNTT"
+    }
+  },
+  {
+    "model": "students.class",
+    "pk": "d4a5a7b1-2a8e-4a6a-8f6e-3d7f9b8c3a2b",
+    "fields": {
+      "name": "Lớp Công nghệ thông tin 1",
+      "class_id": "CNTT1",
+      "major": "8f3e8bfa-63eb-4f48-9b45-3f4a3334d588"
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+    "fields": {
+      "password": "pbkdf2_sha256$720000$your_hash_here_for_password123",
+      "last_login": null,
+      "is_superuser": false,
+      "username": "sv001",
+      "first_name": "An",
+      "last_name": "Nguyễn Văn",
+      "email": "sv001@example.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2024-07-27T10:30:00Z",
+      "role": "STUDENT",
+      "groups": [],
+      "user_permissions": []
+    }
+  },
+  {
+    "model": "students.student",
+    "fields": {
+      "user": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+      "student_id": "SV001",
+      "full_name": "Nguyễn Văn An",
+      "date_of_birth": "2003-01-15",
+      "student_class": "d4a5a7b1-2a8e-4a6a-8f6e-3d7f9b8c3a2b"
+    }
+  }
+]

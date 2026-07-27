@@ -1,0 +1,18 @@
+[
+  {
+    "model": "students.major",
+    "pk": "a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1",
+    "fields": {
+      "name": "Công nghệ thông tin",
+      "major_id": "CNTT"
+    }
+  },
+  {
+    "model": "students.major",
+    "pk": "b2b2b2b2-b2b2-b2b2-b2b2-b2b2b2b2b2b2",
+    "fields": {
+      "name": "Quản trị kinh doanh",
+      "major_id": "QTKD"
+    }
+  }
+]

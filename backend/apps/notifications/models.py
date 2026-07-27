@@ -1,21 +1,19 @@
 from django.db import models
 from django.conf import settings
 from apps.requests.models import Request
+from apps.common.models import BaseModel
 
-class Notification(models.Model):
-    """Model ThongBao"""
+class Notification(BaseModel):
     id = models.BigAutoField(primary_key=True)
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="notifications", verbose_name="Người nhận")
-    request = models.ForeignKey(Request, on_delete=models.CASCADE, related_name="notifications", verbose_name="Yêu cầu liên quan")
-    content = models.TextField(verbose_name="Nội dung")
-    is_read = models.BooleanField(default=False, db_index=True, verbose_name="Đã đọc")
-    
-    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='notifications')
+    request = models.ForeignKey(Request, on_delete=models.CASCADE, related_name='notifications', null=True, blank=True)
+    message = models.TextField()
+    is_read = models.BooleanField(default=False)
 
     def __str__(self):
-        return f"Thông báo cho {self.user.username}"
+        return f"Notification for {self.user.username}"
 
     class Meta:
         verbose_name = "Thông báo"
-        verbose_name_plural = "Các thông báo"
+        verbose_name_plural = "Thông báo"
         ordering = ['-created_at']

@@ -2,9 +2,9 @@ import uuid
 from django.conf import settings
 from django.db import models
 from apps.students.models import Student
+from apps.common.models import BaseModel
 
-class Request(models.Model):
-    """Model YeuCau (Bảng trung tâm)"""
+class Request(BaseModel):
     class RequestType(models.TextChoices):
         MAJOR_CHANGE = "MAJOR_CHANGE", "Chuyển ngành"
         ACADEMIC_LEAVE = "ACADEMIC_LEAVE", "Ngừng học"
@@ -24,12 +24,8 @@ class Request(models.Model):
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name="requests")
     request_type = models.CharField(max_length=50, choices=RequestType.choices)
     status = models.CharField(max_length=50, choices=Status.choices, default=Status.DRAFT, db_index=True)
-
     submitted_at = models.DateTimeField(null=True, blank=True, verbose_name="Ngày gửi")
     completed_at = models.DateTimeField(null=True, blank=True, verbose_name="Ngày hoàn thành")
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return f"{self.get_request_type_display()} - {self.student.full_name}"
@@ -50,31 +46,41 @@ class Request(models.Model):
         ]
 
 class MajorChangeRequest(models.Model):
-    """Model ChuyenNganh"""
     request = models.OneToOneField(Request, on_delete=models.CASCADE, primary_key=True, related_name="major_change_request")
     reason = models.TextField(verbose_name="Lý do chuyển ngành")
-    
+
     def __str__(self):
         return f"Yêu cầu chuyển ngành của {self.request.student.full_name}"
 
+    class Meta:
+        verbose_name = "Yêu cầu Chuyển ngành"
+        verbose_name_plural = "Yêu cầu Chuyển ngành"
+
 class AcademicLeaveRequest(models.Model):
-    """Model NgungHoc"""
     request = models.OneToOneField(Request, on_delete=models.CASCADE, primary_key=True, related_name="academic_leave_request")
     reason = models.TextField(verbose_name="Lý do ngừng học")
 
+    class Meta:
+        verbose_name = "Yêu cầu Ngừng học"
+        verbose_name_plural = "Yêu cầu Ngừng học"
+
 class ResumeStudiesRequest(models.Model):
-    """Model TiepTucHoc"""
     request = models.OneToOneField(Request, on_delete=models.CASCADE, primary_key=True, related_name="resume_studies_request")
     reason = models.TextField(verbose_name="Lý do tiếp tục học")
+    
+    class Meta:
+        verbose_name = "Yêu cầu Tiếp tục học"
+        verbose_name_plural = "Yêu cầu Tiếp tục học"
 
 class DropoutRequest(models.Model):
-    """Model ThoiHoc"""
     request = models.OneToOneField(Request, on_delete=models.CASCADE, primary_key=True, related_name="dropout_request")
     reason = models.TextField(verbose_name="Lý do thôi học")
 
+    class Meta:
+        verbose_name = "Yêu cầu Thôi học"
+        verbose_name_plural = "Yêu cầu Thôi học"
 
 class RequestHistory(models.Model):
-    """Model LichSuXuLy"""
     id = models.BigAutoField(primary_key=True)
     request = models.ForeignKey(Request, on_delete=models.CASCADE, related_name="history")
     status = models.CharField(max_length=50, choices=Request.Status.choices, verbose_name="Trạng thái")

@@ -1,32 +1,25 @@
 from django.db import models
 from apps.requests.models import Request
+from apps.common.models import BaseModel
 
-class AIConversation(models.Model):
-    """Model AIConversation"""
+class AIConversation(BaseModel):
     request = models.OneToOneField(Request, on_delete=models.CASCADE, primary_key=True, related_name="ai_conversation")
-    workflow_status = models.CharField(max_length=100, verbose_name="Trạng thái workflow")
-    context = models.JSONField(default=dict, verbose_name="Context")
-    
-    updated_at = models.DateTimeField(auto_now=True)
-
-    def __str__(self):
-        return f"AI Conversation for Request {self.request_id}"
+    context = models.JSONField(default=dict, blank=True)
 
     class Meta:
         verbose_name = "AI Conversation"
         verbose_name_plural = "AI Conversations"
 
 class AIMessage(models.Model):
-    """Model AIMessage"""
-    id = models.BigAutoField(primary_key=True)
-    conversation = models.ForeignKey(AIConversation, on_delete=models.CASCADE, related_name="messages", verbose_name="Hội thoại")
-    sender = models.CharField(max_length=50, verbose_name="Người gửi") # 'USER' or 'AI'
-    content = models.TextField(verbose_name="Nội dung")
-    
-    timestamp = models.DateTimeField(auto_now_add=True)
+    class Role(models.TextChoices):
+        USER = "USER", "Người dùng"
+        ASSISTANT = "ASSISTANT", "Trợ lý AI"
 
-    def __str__(self):
-        return f"Message from {self.sender} at {self.timestamp}"
+    id = models.BigAutoField(primary_key=True)
+    conversation = models.ForeignKey(AIConversation, on_delete=models.CASCADE, related_name="messages")
+    role = models.CharField(max_length=20, choices=Role.choices)
+    content = models.TextField()
+    timestamp = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         verbose_name = "AI Message"
