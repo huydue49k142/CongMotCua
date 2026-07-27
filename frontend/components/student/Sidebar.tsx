@@ -39,7 +39,7 @@ const Sidebar = () => {
   };
 
   return (
-    <aside className="bg-white border-r border-gray-200 flex flex-col" style={{ gridArea: 'sidebar' }}>
+    <aside className="bg-white border-r border-gray-200 flex flex-col overflow-y-auto custom-scrollbar" style={{ gridArea: 'sidebar' }}>
       <div className="flex-1 py-6 px-4 space-y-6">
         <div>
           <h2 className="px-3 mb-2 text-sm font-semibold text-gray-400 uppercase tracking-wider">

@@ -13,4 +13,7 @@ urlpatterns = [
     path('upload-verify', views.UploadVerify.as_view(), name='thoi_hoc_upload_verify'),
     path('review', views.Review.as_view(), name='thoi_hoc_review'),
     path('submit', views.SubmitApplication.as_view(), name='thoi_hoc_submit'),
+    path('scan-retention/', views.ScanRetentionDocumentAPI.as_view(), name='scan_retention'),
+    path('scan-dropout/', views.ScanDropoutDocumentAPI.as_view(), name='scan_dropout'),
+    path('scan-major-change/', views.ScanMajorChangeDocumentAPI.as_view(), name='scan_major_change'),
 ]

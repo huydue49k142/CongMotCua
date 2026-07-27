@@ -18,7 +18,7 @@ class StudentProfileAPIView(APIView):
             student = Student.objects.select_related(
                 'user', 
                 'student_class__major'
-            ).get(student_id=student_id)
+            ).get(student_id__iexact=student_id)
             serializer = StudentProfileSerializer(student)
             return Response(serializer.data)
         except Student.DoesNotExist:

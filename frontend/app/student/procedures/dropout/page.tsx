@@ -2,9 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import ChatInterface from '@/components/student/ChatInterface';
-import { LogOut, Bot, AlertTriangle, Download, CheckCircle2, ChevronRight, UploadCloud, Loader2, Scan, Check, Clock, CircleDot, FileText } from 'lucide-react';
+import { LogOut, Bot, AlertTriangle, Download, CheckCircle2, ChevronRight, UploadCloud, Loader2, Scan, Check, Clock, CircleDot, FileText, X, ScanSearch, User } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { getStudentProfile, StudentProfile, DropoutFormData } from '@/services/dropout.service';
+import axios from 'axios';
 
 export default function DropoutPage() {
   const router = useRouter();
@@ -14,7 +15,8 @@ export default function DropoutPage() {
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4 | 5 | 6>(1);
   const [isAgreed, setIsAgreed] = useState(false);
   const [isDownloaded, setIsDownloaded] = useState(false);
-  const [uploadState, setUploadState] = useState<'idle' | 'analyzing' | 'success'>('idle');
+  const [uploadState, setUploadState] = useState<'idle' | 'analyzing' | 'success' | 'error'>('idle');
+  const [aiResult, setAiResult] = useState<{format_valid?: boolean, title_valid?: boolean, signature_present?: boolean} | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState<'details' | 'tracking'>('details');
   
@@ -94,9 +96,31 @@ export default function DropoutPage() {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploadState('analyzing');
-    setTimeout(() => {
-      setUploadState('success');
-    }, 2500);
+    setAiResult(null);
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api'}/thoi-hoc/scan-dropout/`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      
+      setAiResult(response.data);
+      
+      if (response.data.format_valid && response.data.title_valid && response.data.signature_present) {
+        setUploadState('success');
+      } else {
+        setUploadState('error');
+      }
+    } catch (error) {
+      console.error('Lỗi khi quét OCR:', error);
+      setUploadState('error');
+    } finally {
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
   };
 
   const handlePreviewBeforeSubmit = () => {
@@ -172,7 +196,7 @@ export default function DropoutPage() {
                               <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Lý do xin thôi học <span className="text-red-500">*</span></label>
                                 {currentStep === 1 ? (
-                                  <select name="reason" required className="w-full border border-gray-300 rounded-md p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none bg-white" value={formData.reason} onChange={handleInputChange}>
+                                  <select name="reason" required className="w-full border border-gray-300 rounded-md p-2.5 text-sm text-gray-800 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none bg-white" value={formData.reason} onChange={handleInputChange}>
                                     <option value="">-- Chọn lý do --</option>
                                     <option value="ca_nhan">Lý do cá nhân</option>
                                     <option value="kinh_te">Lý do kinh tế / gia đình</option>
@@ -181,31 +205,31 @@ export default function DropoutPage() {
                                     <option value="khac">Lý do khác</option>
                                   </select>
                                 ) : (
-                                  <div className="w-full border border-gray-200 bg-gray-50 rounded-md p-2.5 text-sm text-gray-700">{formData.reason === 'ca_nhan' ? 'Lý do cá nhân' : formData.reason}</div>
+                                  <div className="w-full border border-gray-200 bg-gray-50 rounded-md p-2.5 text-sm text-gray-800">{formData.reason === 'ca_nhan' ? 'Lý do cá nhân' : formData.reason}</div>
                                 )}
                               </div>
                               <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Ngày dự kiến thôi học <span className="text-red-500">*</span></label>
                                 {currentStep === 1 ? (
-                                  <input type="date" name="expectedDate" required className="w-full border border-gray-300 rounded-md p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none" value={formData.expectedDate} onChange={handleInputChange} />
+                                  <input type="date" name="expectedDate" required className="w-full border border-gray-300 rounded-md p-2.5 text-sm text-gray-800 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none bg-white" value={formData.expectedDate} onChange={handleInputChange} />
                                 ) : (
-                                  <div className="w-full border border-gray-200 bg-gray-50 rounded-md p-2.5 text-sm text-gray-700">{formData.expectedDate}</div>
+                                  <div className="w-full border border-gray-200 bg-gray-50 rounded-md p-2.5 text-sm text-gray-800">{formData.expectedDate}</div>
                                 )}
                               </div>
                               <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Địa chỉ liên hệ sau khi thôi học <span className="text-red-500">*</span></label>
                                 {currentStep === 1 ? (
-                                  <input type="text" name="contactAddress" required placeholder="VD: 123 Nguyễn Văn Linh, Đà Nẵng" className="w-full border border-gray-300 rounded-md p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none" value={formData.contactAddress} onChange={handleInputChange} />
+                                  <input type="text" name="contactAddress" required placeholder="VD: 123 Nguyễn Văn Linh, Đà Nẵng" className="w-full border border-gray-300 rounded-md p-2.5 text-sm text-gray-800 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none bg-white" value={formData.contactAddress} onChange={handleInputChange} />
                                 ) : (
-                                  <div className="w-full border border-gray-200 bg-gray-50 rounded-md p-2.5 text-sm text-gray-700">{formData.contactAddress}</div>
+                                  <div className="w-full border border-gray-200 bg-gray-50 rounded-md p-2.5 text-sm text-gray-800">{formData.contactAddress}</div>
                                 )}
                               </div>
                               <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Ghi chú thêm (nếu có)</label>
                                 {currentStep === 1 ? (
-                                  <textarea name="notes" rows={3} placeholder="VD: Đề nghị xem xét hoàn trả học phí học kỳ hiện tại..." className="w-full border border-gray-300 rounded-md p-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none resize-none" value={formData.notes} onChange={handleInputChange} />
+                                  <textarea name="notes" rows={3} placeholder="VD: Đề nghị xem xét hoàn trả học phí học kỳ hiện tại..." className="w-full border border-gray-300 rounded-md p-2.5 text-sm text-gray-800 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none resize-none bg-white" value={formData.notes} onChange={handleInputChange} />
                                 ) : (
-                                  <div className="w-full border border-gray-200 bg-gray-50 rounded-md p-2.5 text-sm text-gray-700 min-h-[80px]">{formData.notes || 'Không có ghi chú'}</div>
+                                  <div className="w-full border border-gray-200 bg-gray-50 rounded-md p-2.5 text-sm text-gray-800 min-h-[80px]">{formData.notes || 'Không có ghi chú'}</div>
                                 )}
                               </div>
                             </div>
@@ -348,20 +372,48 @@ export default function DropoutPage() {
                     </div>
                   )}
 
-                  {uploadState === 'analyzing' && (
+                  {uploadState === 'analyzing' ? (
                     <div className="border border-blue-200 bg-blue-50 rounded-xl p-5 shadow-sm">
                       <div className="flex items-center gap-3 text-blue-700 font-semibold text-sm mb-3">
-                        <Loader2 className="animate-spin text-blue-600" size={18} /> AI đang kiểm tra chữ ký...
+                        <ScanSearch size={20} className="animate-pulse" /> AI đang kiểm tra chữ ký...
                       </div>
-                      <ul className="text-sm text-blue-600/80 space-y-2 ml-8 list-disc font-medium">
-                        <li>Quét vùng: Ý kiến của phụ huynh / người giám hộ</li>
-                        <li>Quét vùng: Người làm đơn (Sinh viên)</li>
-                        <li>Quét vùng: Ý kiến của Lãnh đạo Khoa</li>
-                      </ul>
+                      <div className="space-y-3 ml-2">
+                        <div className="flex items-center gap-2 text-sm text-[#0070F4]"><div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></div> Quét vùng: <span className="font-semibold underline underline-offset-2">Xác thực định dạng file</span></div>
+                        <div className="flex items-center gap-2 text-sm text-[#0070F4]"><div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></div> Quét vùng: <span className="font-semibold underline underline-offset-2">Nhận diện Tiêu đề đơn</span></div>
+                        <div className="flex items-center gap-2 text-sm text-[#0070F4]"><div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></div> Quét vùng: <span className="font-semibold underline underline-offset-2">Xác thực chữ ký Người làm đơn</span></div>
+                      </div>
                     </div>
-                  )}
-
-                  {uploadState === 'success' && (
+                  ) : uploadState === 'error' ? (
+                    <div className="bg-white border border-red-200 rounded-xl p-6 shadow-sm">
+                      <div className="flex justify-between items-start mb-6">
+                        <div className="flex gap-3">
+                          <div className="bg-red-500 text-white rounded-full p-1"><X size={20} strokeWidth={3} /></div>
+                          <div>
+                            <h4 className="font-bold text-red-700">Tài liệu không hợp lệ!</h4>
+                            <p className="text-xs text-red-600 mt-1">AI phát hiện có lỗi trong hồ sơ của bạn</p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className={`bg-gray-50 border ${aiResult?.format_valid ? 'border-green-200' : 'border-red-200'} rounded-lg p-3 text-center flex flex-col items-center justify-center gap-2`}>
+                          <FileText size={20} className={aiResult?.format_valid ? "text-green-600" : "text-red-600"} />
+                          <span className={`text-xs font-semibold ${aiResult?.format_valid ? 'text-green-800' : 'text-red-800'}`}>Định dạng File</span>
+                          {aiResult?.format_valid ? <Check size={16} className="text-green-500" /> : <X size={16} className="text-red-500" />}
+                        </div>
+                        <div className={`bg-gray-50 border ${aiResult?.title_valid ? 'border-green-200' : 'border-red-200'} rounded-lg p-3 text-center flex flex-col items-center justify-center gap-2`}>
+                          <ScanSearch size={20} className={aiResult?.title_valid ? "text-green-600" : "text-red-600"} />
+                          <span className={`text-xs font-semibold ${aiResult?.title_valid ? 'text-green-800' : 'text-red-800'}`}>Tiêu đề đơn</span>
+                          {aiResult?.title_valid ? <Check size={16} className="text-green-500" /> : <X size={16} className="text-red-500" />}
+                        </div>
+                        <div className={`bg-gray-50 border ${aiResult?.signature_present ? 'border-green-200' : 'border-red-200'} rounded-lg p-3 text-center flex flex-col items-center justify-center gap-2`}>
+                          <User size={20} className={aiResult?.signature_present ? "text-green-600" : "text-red-600"} />
+                          <span className={`text-xs font-semibold ${aiResult?.signature_present ? 'text-green-800' : 'text-red-800'}`}>Người làm đơn</span>
+                          {aiResult?.signature_present ? <Check size={16} className="text-green-500" /> : <X size={16} className="text-red-500" />}
+                        </div>
+                      </div>
+                      <button onClick={triggerFileInput} className="w-full mt-4 border border-gray-300 text-gray-700 py-2 rounded-lg text-sm font-medium hover:bg-gray-50">Thử tải lại file khác</button>
+                    </div>
+                  ) : uploadState === 'success' ? (
                     <>
                       <div className="border border-green-200 bg-green-50/80 rounded-xl p-5 shadow-sm animate-in fade-in">
                         <div className="flex justify-between items-center mb-4">
@@ -370,12 +422,12 @@ export default function DropoutPage() {
                           </div>
                           <span className="text-xs font-semibold text-green-700 bg-green-100 border border-green-200 px-2 py-1 rounded flex items-center gap-1"><Scan size={14}/> AI Vision</span>
                         </div>
-                        <p className="text-sm text-green-700 mb-4 font-medium">Đã phát hiện đủ 3 vùng chữ ký xác nhận</p>
+                        <p className="text-sm text-green-700 mb-4 font-medium">Đã phát hiện đủ các tiêu chí xác nhận</p>
                         
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                          <div className="bg-green-100/50 border border-green-200 rounded-lg p-3 flex flex-col items-center justify-center gap-1.5"><span className="text-xs font-semibold text-green-800">Phụ huynh/Người giám hộ</span><Check className="text-green-600" size={18} /></div>
-                          <div className="bg-green-100/50 border border-green-200 rounded-lg p-3 flex flex-col items-center justify-center gap-1.5"><span className="text-xs font-semibold text-green-800">Người làm đơn</span><Check className="text-green-600" size={18} /></div>
-                          <div className="bg-green-100/50 border border-green-200 rounded-lg p-3 flex flex-col items-center justify-center gap-1.5"><span className="text-xs font-semibold text-green-800">Lãnh đạo Khoa</span><Check className="text-green-600" size={18} /></div>
+                          <div className="bg-green-100/50 border border-green-200 rounded-lg p-3 flex flex-col items-center justify-center gap-1.5"><FileText className="text-green-600" size={18}/><span className="text-xs font-semibold text-green-800">Định dạng File</span><Check className="text-green-600" size={16} /></div>
+                          <div className="bg-green-100/50 border border-green-200 rounded-lg p-3 flex flex-col items-center justify-center gap-1.5"><ScanSearch className="text-green-600" size={18}/><span className="text-xs font-semibold text-green-800">Tiêu đề đơn</span><Check className="text-green-600" size={16} /></div>
+                          <div className="bg-green-100/50 border border-green-200 rounded-lg p-3 flex flex-col items-center justify-center gap-1.5"><User className="text-green-600" size={18}/><span className="text-xs font-semibold text-green-800">Chữ ký Người làm đơn</span><Check className="text-green-600" size={16} /></div>
                         </div>
                       </div>
 
@@ -385,7 +437,7 @@ export default function DropoutPage() {
                         </button>
                       )}
                     </>
-                  )}
+                  ) : null}
                 </div>
               </>
             )}

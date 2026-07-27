@@ -1,18 +1,2452 @@
 [
   {
     "model": "students.major",
-    "pk": "a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1",
+    "pk": "8173a53c-5772-4a10-abca-40e7980e6cab",
     "fields": {
-      "name": "Công nghệ thông tin",
-      "major_id": "CNTT"
+      "name": "Ngành 1",
+      "major_id": "N001",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
     }
   },
   {
     "model": "students.major",
-    "pk": "b2b2b2b2-b2b2-b2b2-b2b2-b2b2b2b2b2b2",
+    "pk": "c44c2279-f8ea-4be9-97e0-66fde68d5c01",
     "fields": {
-      "name": "Quản trị kinh doanh",
-      "major_id": "QTKD"
+      "name": "Ngành 2",
+      "major_id": "N002",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.major",
+    "pk": "436642f4-ace8-419b-902c-858a3169fc69",
+    "fields": {
+      "name": "Ngành 3",
+      "major_id": "N003",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.major",
+    "pk": "2dcda9e8-b886-4c5c-8c64-898d85936859",
+    "fields": {
+      "name": "Ngành 4",
+      "major_id": "N004",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.major",
+    "pk": "b8ad0071-f6be-4900-a441-00c8b688f42c",
+    "fields": {
+      "name": "Ngành 5",
+      "major_id": "N005",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.major",
+    "pk": "f5fbb714-eae6-4537-8219-426f40be007c",
+    "fields": {
+      "name": "Ngành 6",
+      "major_id": "N006",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.major",
+    "pk": "b8f91e33-68cb-48c8-8e28-abc0b9bc474f",
+    "fields": {
+      "name": "Ngành 7",
+      "major_id": "N007",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.major",
+    "pk": "49b4f613-c121-4d1d-b4c5-3a0dc2c23749",
+    "fields": {
+      "name": "Ngành 8",
+      "major_id": "N008",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.major",
+    "pk": "60ab080d-1abe-452b-8a25-2e96ef2fcb48",
+    "fields": {
+      "name": "Ngành 9",
+      "major_id": "N009",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.major",
+    "pk": "729db3e2-e869-485e-82fa-457e161257be",
+    "fields": {
+      "name": "Ngành 10",
+      "major_id": "N010",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.major",
+    "pk": "1b926c7a-e1cf-471d-af9e-8fd2999d86d5",
+    "fields": {
+      "name": "Ngành 11",
+      "major_id": "N011",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.major",
+    "pk": "cfd079ac-4af5-42ef-a816-07189144b5ab",
+    "fields": {
+      "name": "Ngành 12",
+      "major_id": "N012",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.major",
+    "pk": "938cd4c7-c32c-47f6-ac45-8de22099c317",
+    "fields": {
+      "name": "Ngành 13",
+      "major_id": "N013",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.major",
+    "pk": "ae56c15b-3a7f-486e-95a0-87ac01b0b1f6",
+    "fields": {
+      "name": "Ngành 14",
+      "major_id": "N014",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.major",
+    "pk": "1ab9dee1-0b4c-451c-8825-daab5a4272f3",
+    "fields": {
+      "name": "Ngành 15",
+      "major_id": "N015",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.major",
+    "pk": "d96e1926-7649-465f-84da-bb9f5bb76f18",
+    "fields": {
+      "name": "Ngành 16",
+      "major_id": "N016",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.major",
+    "pk": "ecb9aed2-7712-4fe4-8c24-0a8d5183a505",
+    "fields": {
+      "name": "Ngành 17",
+      "major_id": "N017",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.major",
+    "pk": "c0d52a66-382e-41b3-bdb4-6dc8c0e6c1c8",
+    "fields": {
+      "name": "Ngành 18",
+      "major_id": "N018",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.major",
+    "pk": "a0e7fb99-ef37-4e37-bda8-2d8a118b0df9",
+    "fields": {
+      "name": "Ngành 19",
+      "major_id": "N019",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.major",
+    "pk": "eb9b3337-71c7-44fe-a307-902199739578",
+    "fields": {
+      "name": "Ngành 20",
+      "major_id": "N020",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.major",
+    "pk": "ab7386df-a243-4012-86ee-949959a6bf39",
+    "fields": {
+      "name": "Ngành 21",
+      "major_id": "N021",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.major",
+    "pk": "e7c7992e-65c8-4343-ba00-28f1909e8e12",
+    "fields": {
+      "name": "Ngành 22",
+      "major_id": "N022",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.major",
+    "pk": "73eb5652-856a-45a4-859b-30e35c35e0fb",
+    "fields": {
+      "name": "Ngành 23",
+      "major_id": "N023",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.major",
+    "pk": "ea1e9853-b189-4132-9d08-c82d92dff40e",
+    "fields": {
+      "name": "Ngành 24",
+      "major_id": "N024",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.major",
+    "pk": "800c0b0b-3052-4306-9527-90c09d15058d",
+    "fields": {
+      "name": "Ngành 25",
+      "major_id": "N025",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.major",
+    "pk": "f9c492dc-ec0a-4705-830e-6e7226712025",
+    "fields": {
+      "name": "Ngành 26",
+      "major_id": "N026",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.major",
+    "pk": "8e78f529-5ac4-4742-be49-d219eac8866f",
+    "fields": {
+      "name": "Ngành 27",
+      "major_id": "N027",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.major",
+    "pk": "ca21e846-0100-42e2-b7b6-04f950e2d666",
+    "fields": {
+      "name": "Ngành 28",
+      "major_id": "N028",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.major",
+    "pk": "9195a824-1b30-4433-8fbe-c8c186a14cc7",
+    "fields": {
+      "name": "Ngành 29",
+      "major_id": "N029",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.major",
+    "pk": "c608a26f-8a4a-4382-8b80-e33fa92b849e",
+    "fields": {
+      "name": "Ngành 30",
+      "major_id": "N030",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.major",
+    "pk": "d0297ee3-1e33-4c1f-ad14-35fc0d4fd9ba",
+    "fields": {
+      "name": "Ngành 31",
+      "major_id": "N031",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.major",
+    "pk": "857722b9-3073-4021-af82-2571ef155342",
+    "fields": {
+      "name": "Ngành 32",
+      "major_id": "N032",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.major",
+    "pk": "43d80839-0fe7-438c-9b4a-3c67184c872f",
+    "fields": {
+      "name": "Ngành 33",
+      "major_id": "N033",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.major",
+    "pk": "452d2da3-b1cd-4bfa-ba7c-ea77c6bbfcea",
+    "fields": {
+      "name": "Ngành 34",
+      "major_id": "N034",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.major",
+    "pk": "4f68b0ea-b4f1-427c-a551-54b427042af5",
+    "fields": {
+      "name": "Ngành 35",
+      "major_id": "N035",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.major",
+    "pk": "f3d53690-b7ab-41a1-8bf9-ad9c3851b647",
+    "fields": {
+      "name": "Ngành 36",
+      "major_id": "N036",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.major",
+    "pk": "c026e3bf-4a21-47d1-b949-d3bfa861d2d9",
+    "fields": {
+      "name": "Ngành 37",
+      "major_id": "N037",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.major",
+    "pk": "cc8a0b5e-8acd-46b1-b4ee-4e800e5224f4",
+    "fields": {
+      "name": "Ngành 38",
+      "major_id": "N038",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.major",
+    "pk": "6705695a-ce11-4b6f-a890-3e3a9e0612cf",
+    "fields": {
+      "name": "Ngành 39",
+      "major_id": "N039",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.major",
+    "pk": "996361d5-d79d-450f-8229-4a77f0a80c1d",
+    "fields": {
+      "name": "Ngành 40",
+      "major_id": "N040",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.major",
+    "pk": "9147963c-6a10-4930-aaed-a10b9ca1c29d",
+    "fields": {
+      "name": "Ngành 41",
+      "major_id": "N041",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.major",
+    "pk": "52ffc4c0-94c6-4212-bf39-549fa4b1c8fb",
+    "fields": {
+      "name": "Ngành 42",
+      "major_id": "N042",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.major",
+    "pk": "cff14f5a-bf86-4a65-ab02-d6880979f20d",
+    "fields": {
+      "name": "Ngành 43",
+      "major_id": "N043",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.major",
+    "pk": "bf3afcc4-9f07-4113-b532-ecaf581b2669",
+    "fields": {
+      "name": "Ngành 44",
+      "major_id": "N044",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.major",
+    "pk": "a53057f3-8908-49be-a676-e1f3ac852884",
+    "fields": {
+      "name": "Ngành 45",
+      "major_id": "N045",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.major",
+    "pk": "ed73ac43-5984-4f1f-9e6e-3bb5132318d9",
+    "fields": {
+      "name": "Ngành 46",
+      "major_id": "N046",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.major",
+    "pk": "59ec0b89-b567-4516-8799-d86d189b58e8",
+    "fields": {
+      "name": "Ngành 47",
+      "major_id": "N047",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.major",
+    "pk": "570039b3-77ea-4df8-9079-30dea1f3abaa",
+    "fields": {
+      "name": "Ngành 48",
+      "major_id": "N048",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.major",
+    "pk": "18bbbfe7-ccfa-4d55-b646-27061c489a25",
+    "fields": {
+      "name": "Ngành 49",
+      "major_id": "N049",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.major",
+    "pk": "03de386b-3948-41e5-ba7c-e69a18f2f552",
+    "fields": {
+      "name": "Ngành 50",
+      "major_id": "N050",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.class",
+    "pk": "97202499-3a94-4ee7-b1f6-38335474eadb",
+    "fields": {
+      "name": "Lớp 1",
+      "class_id": "L001",
+      "major": "c0d52a66-382e-41b3-bdb4-6dc8c0e6c1c8",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.class",
+    "pk": "87a43781-ef68-488c-a736-22f26b376ee6",
+    "fields": {
+      "name": "Lớp 2",
+      "class_id": "L002",
+      "major": "bf3afcc4-9f07-4113-b532-ecaf581b2669",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.class",
+    "pk": "4a635c9c-827b-45d9-88af-632adadd7d87",
+    "fields": {
+      "name": "Lớp 3",
+      "class_id": "L003",
+      "major": "ea1e9853-b189-4132-9d08-c82d92dff40e",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.class",
+    "pk": "b101b071-3b3d-4f79-a5d8-ad1d2ec5d8bd",
+    "fields": {
+      "name": "Lớp 4",
+      "class_id": "L004",
+      "major": "570039b3-77ea-4df8-9079-30dea1f3abaa",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.class",
+    "pk": "81afd55d-4711-4a53-b339-0e2c4f462b76",
+    "fields": {
+      "name": "Lớp 5",
+      "class_id": "L005",
+      "major": "9195a824-1b30-4433-8fbe-c8c186a14cc7",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.class",
+    "pk": "258885e9-a7fe-4f6b-8f9a-689f64475d34",
+    "fields": {
+      "name": "Lớp 6",
+      "class_id": "L006",
+      "major": "6705695a-ce11-4b6f-a890-3e3a9e0612cf",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.class",
+    "pk": "32faf752-7870-41a3-bf79-31c0871c340e",
+    "fields": {
+      "name": "Lớp 7",
+      "class_id": "L007",
+      "major": "eb9b3337-71c7-44fe-a307-902199739578",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.class",
+    "pk": "82003ac3-364e-481c-a7fe-bf54aa3e2f1c",
+    "fields": {
+      "name": "Lớp 8",
+      "class_id": "L008",
+      "major": "c608a26f-8a4a-4382-8b80-e33fa92b849e",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.class",
+    "pk": "96e3ede0-6d5d-468a-baea-2d0b3e8b1e69",
+    "fields": {
+      "name": "Lớp 9",
+      "class_id": "L009",
+      "major": "452d2da3-b1cd-4bfa-ba7c-ea77c6bbfcea",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.class",
+    "pk": "cf1e5ca4-7671-4ee7-aa6c-518cd6c685e0",
+    "fields": {
+      "name": "Lớp 10",
+      "class_id": "L010",
+      "major": "73eb5652-856a-45a4-859b-30e35c35e0fb",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.class",
+    "pk": "46118da0-5c64-4303-96cc-7838e684a189",
+    "fields": {
+      "name": "Lớp 11",
+      "class_id": "L011",
+      "major": "996361d5-d79d-450f-8229-4a77f0a80c1d",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.class",
+    "pk": "9dd0b9f4-3227-4676-bcd8-1dfbdb732e51",
+    "fields": {
+      "name": "Lớp 12",
+      "class_id": "L012",
+      "major": "8e78f529-5ac4-4742-be49-d219eac8866f",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.class",
+    "pk": "95c208e9-760f-48a5-a20f-6c7f89b90fbb",
+    "fields": {
+      "name": "Lớp 13",
+      "class_id": "L013",
+      "major": "729db3e2-e869-485e-82fa-457e161257be",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.class",
+    "pk": "8d0bc8c8-5cf3-4051-9b3e-cf85c377a0b3",
+    "fields": {
+      "name": "Lớp 14",
+      "class_id": "L014",
+      "major": "8e78f529-5ac4-4742-be49-d219eac8866f",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.class",
+    "pk": "aab1b738-278c-424f-8c42-cf8accc1c304",
+    "fields": {
+      "name": "Lớp 15",
+      "class_id": "L015",
+      "major": "e7c7992e-65c8-4343-ba00-28f1909e8e12",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.class",
+    "pk": "a55d1b97-b258-4196-9c59-15412b0e71c8",
+    "fields": {
+      "name": "Lớp 16",
+      "class_id": "L016",
+      "major": "59ec0b89-b567-4516-8799-d86d189b58e8",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.class",
+    "pk": "ca7047f9-8c41-4556-8acf-bedb1eca201c",
+    "fields": {
+      "name": "Lớp 17",
+      "class_id": "L017",
+      "major": "ca21e846-0100-42e2-b7b6-04f950e2d666",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.class",
+    "pk": "d116337c-ef77-4b81-ae7d-1b0335a54808",
+    "fields": {
+      "name": "Lớp 18",
+      "class_id": "L018",
+      "major": "857722b9-3073-4021-af82-2571ef155342",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.class",
+    "pk": "9c6319dd-f605-4de2-bb77-82e2d7a3d368",
+    "fields": {
+      "name": "Lớp 19",
+      "class_id": "L019",
+      "major": "cff14f5a-bf86-4a65-ab02-d6880979f20d",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.class",
+    "pk": "a4b835d8-f6f5-4e24-bede-956e41b61d59",
+    "fields": {
+      "name": "Lớp 20",
+      "class_id": "L020",
+      "major": "9147963c-6a10-4930-aaed-a10b9ca1c29d",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.class",
+    "pk": "ee2e5174-6a56-456d-b5b1-fb4cbe2b7610",
+    "fields": {
+      "name": "Lớp 21",
+      "class_id": "L021",
+      "major": "a0e7fb99-ef37-4e37-bda8-2d8a118b0df9",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.class",
+    "pk": "87eb2178-b038-48e4-87b2-aa802e193d47",
+    "fields": {
+      "name": "Lớp 22",
+      "class_id": "L022",
+      "major": "436642f4-ace8-419b-902c-858a3169fc69",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.class",
+    "pk": "9bf9148f-1e91-40b5-a042-2c991bf73750",
+    "fields": {
+      "name": "Lớp 23",
+      "class_id": "L023",
+      "major": "1b926c7a-e1cf-471d-af9e-8fd2999d86d5",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.class",
+    "pk": "0765cae7-7b6b-466c-9b6c-1b424432eae3",
+    "fields": {
+      "name": "Lớp 24",
+      "class_id": "L024",
+      "major": "cfd079ac-4af5-42ef-a816-07189144b5ab",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.class",
+    "pk": "ccb88c49-1693-4687-b6c8-05e227e381dc",
+    "fields": {
+      "name": "Lớp 25",
+      "class_id": "L025",
+      "major": "c608a26f-8a4a-4382-8b80-e33fa92b849e",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.class",
+    "pk": "fc1cc68e-92a6-4273-8414-b66ec1bf66e4",
+    "fields": {
+      "name": "Lớp 26",
+      "class_id": "L026",
+      "major": "1b926c7a-e1cf-471d-af9e-8fd2999d86d5",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.class",
+    "pk": "fef72ae3-8ce8-43b5-b460-21a3446ff238",
+    "fields": {
+      "name": "Lớp 27",
+      "class_id": "L027",
+      "major": "1ab9dee1-0b4c-451c-8825-daab5a4272f3",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.class",
+    "pk": "aea06a38-0b9a-4aba-bb8c-ec49a11b5beb",
+    "fields": {
+      "name": "Lớp 28",
+      "class_id": "L028",
+      "major": "ecb9aed2-7712-4fe4-8c24-0a8d5183a505",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.class",
+    "pk": "614b99f1-783c-4962-9314-327a191a98ce",
+    "fields": {
+      "name": "Lớp 29",
+      "class_id": "L029",
+      "major": "9195a824-1b30-4433-8fbe-c8c186a14cc7",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.class",
+    "pk": "6b48a98a-7e30-4a88-af18-fe10306c00c7",
+    "fields": {
+      "name": "Lớp 30",
+      "class_id": "L030",
+      "major": "a0e7fb99-ef37-4e37-bda8-2d8a118b0df9",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.class",
+    "pk": "f5ce10d4-b396-4b78-bb83-5ac09a865a8d",
+    "fields": {
+      "name": "Lớp 31",
+      "class_id": "L031",
+      "major": "c44c2279-f8ea-4be9-97e0-66fde68d5c01",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.class",
+    "pk": "5ca2f572-d3e2-4f18-b1b9-20009b68a426",
+    "fields": {
+      "name": "Lớp 32",
+      "class_id": "L032",
+      "major": "436642f4-ace8-419b-902c-858a3169fc69",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.class",
+    "pk": "0e3f49a9-d803-446f-9b04-5c7ec4c5fe7a",
+    "fields": {
+      "name": "Lớp 33",
+      "class_id": "L033",
+      "major": "f3d53690-b7ab-41a1-8bf9-ad9c3851b647",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.class",
+    "pk": "e5cbd0fa-7b1d-40fe-94d8-e76aec226c46",
+    "fields": {
+      "name": "Lớp 34",
+      "class_id": "L034",
+      "major": "f3d53690-b7ab-41a1-8bf9-ad9c3851b647",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.class",
+    "pk": "b85a37e3-8e09-474d-8712-3da4b10ee59a",
+    "fields": {
+      "name": "Lớp 35",
+      "class_id": "L035",
+      "major": "9147963c-6a10-4930-aaed-a10b9ca1c29d",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.class",
+    "pk": "8953854b-6739-4df7-aaff-29f5a669dfd6",
+    "fields": {
+      "name": "Lớp 36",
+      "class_id": "L036",
+      "major": "cfd079ac-4af5-42ef-a816-07189144b5ab",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.class",
+    "pk": "fe2e28ba-9b72-4f55-ae7a-80041af4b5a1",
+    "fields": {
+      "name": "Lớp 37",
+      "class_id": "L037",
+      "major": "436642f4-ace8-419b-902c-858a3169fc69",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.class",
+    "pk": "272b712e-25fc-4423-8954-96bd68379995",
+    "fields": {
+      "name": "Lớp 38",
+      "class_id": "L038",
+      "major": "f3d53690-b7ab-41a1-8bf9-ad9c3851b647",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.class",
+    "pk": "33e98c39-293b-4d5c-9a61-932b8e5ae2ea",
+    "fields": {
+      "name": "Lớp 39",
+      "class_id": "L039",
+      "major": "c44c2279-f8ea-4be9-97e0-66fde68d5c01",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.class",
+    "pk": "2affce6e-0d94-40a8-818d-0cd31f43fe5c",
+    "fields": {
+      "name": "Lớp 40",
+      "class_id": "L040",
+      "major": "c608a26f-8a4a-4382-8b80-e33fa92b849e",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.class",
+    "pk": "7da22fa9-464a-422e-a661-ba5ee894d34f",
+    "fields": {
+      "name": "Lớp 41",
+      "class_id": "L041",
+      "major": "eb9b3337-71c7-44fe-a307-902199739578",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.class",
+    "pk": "fb9caef1-28e2-46d8-a0b3-e249c34b3236",
+    "fields": {
+      "name": "Lớp 42",
+      "class_id": "L042",
+      "major": "73eb5652-856a-45a4-859b-30e35c35e0fb",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.class",
+    "pk": "11ec5a00-6c3e-4297-a87e-ea0d9ff76f5e",
+    "fields": {
+      "name": "Lớp 43",
+      "class_id": "L043",
+      "major": "452d2da3-b1cd-4bfa-ba7c-ea77c6bbfcea",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.class",
+    "pk": "7d5be294-8203-4947-9744-bfc37b444835",
+    "fields": {
+      "name": "Lớp 44",
+      "class_id": "L044",
+      "major": "2dcda9e8-b886-4c5c-8c64-898d85936859",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.class",
+    "pk": "984271d1-aa79-4ea9-9ec9-32aa0396d293",
+    "fields": {
+      "name": "Lớp 45",
+      "class_id": "L045",
+      "major": "452d2da3-b1cd-4bfa-ba7c-ea77c6bbfcea",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.class",
+    "pk": "ac43bba3-6617-474e-97dc-6b5aeea17213",
+    "fields": {
+      "name": "Lớp 46",
+      "class_id": "L046",
+      "major": "f5fbb714-eae6-4537-8219-426f40be007c",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.class",
+    "pk": "0625bed2-98ff-4fb1-a66d-fed83668fc80",
+    "fields": {
+      "name": "Lớp 47",
+      "class_id": "L047",
+      "major": "c608a26f-8a4a-4382-8b80-e33fa92b849e",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.class",
+    "pk": "8cd8131c-d3ae-43b4-b6ff-6c26852e7e07",
+    "fields": {
+      "name": "Lớp 48",
+      "class_id": "L048",
+      "major": "2dcda9e8-b886-4c5c-8c64-898d85936859",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.class",
+    "pk": "53a8a9d7-e3ae-40c3-a299-908185a394b4",
+    "fields": {
+      "name": "Lớp 49",
+      "class_id": "L049",
+      "major": "f9c492dc-ec0a-4705-830e-6e7226712025",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.class",
+    "pk": "4146f68d-cc5b-4a88-a51f-5640ab19411c",
+    "fields": {
+      "name": "Lớp 50",
+      "class_id": "L050",
+      "major": "1ab9dee1-0b4c-451c-8825-daab5a4272f3",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": "104b6d25-658d-46f8-8aa1-0a2155d606f2",
+    "fields": {
+      "password": "pbkdf2_sha256$1200000$placeholder$oK9H1MD1r1pZrhNU27dYpSYwxsdk5PY26dPZ1xzkqik=",
+      "is_superuser": false,
+      "username": "231121514201",
+      "first_name": "Khánh",
+      "last_name": "Bùi",
+      "email": "231121514201@example.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-07-27T11:00:56.143796+00:00",
+      "role": "STUDENT"
+    }
+  },
+  {
+    "model": "students.student",
+    "fields": {
+      "user": "104b6d25-658d-46f8-8aa1-0a2155d606f2",
+      "student_id": "231121514201",
+      "full_name": "Bùi Khánh",
+      "date_of_birth": "2006-10-23",
+      "student_class": "fef72ae3-8ce8-43b5-b460-21a3446ff238",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": "05662bf4-817e-4019-a169-132fb8ea7cbb",
+    "fields": {
+      "password": "pbkdf2_sha256$1200000$placeholder$oK9H1MD1r1pZrhNU27dYpSYwxsdk5PY26dPZ1xzkqik=",
+      "is_superuser": false,
+      "username": "231121514202",
+      "first_name": "Hà",
+      "last_name": "Phạm",
+      "email": "231121514202@example.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-07-27T11:00:56.143796+00:00",
+      "role": "STUDENT"
+    }
+  },
+  {
+    "model": "students.student",
+    "fields": {
+      "user": "05662bf4-817e-4019-a169-132fb8ea7cbb",
+      "student_id": "231121514202",
+      "full_name": "Phạm Hà",
+      "date_of_birth": "2004-01-14",
+      "student_class": "272b712e-25fc-4423-8954-96bd68379995",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": "2498d523-d6f7-4928-8477-a887eb768c78",
+    "fields": {
+      "password": "pbkdf2_sha256$1200000$placeholder$oK9H1MD1r1pZrhNU27dYpSYwxsdk5PY26dPZ1xzkqik=",
+      "is_superuser": false,
+      "username": "231121514203",
+      "first_name": "Minh",
+      "last_name": "Bùi",
+      "email": "231121514203@example.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-07-27T11:00:56.143796+00:00",
+      "role": "STUDENT"
+    }
+  },
+  {
+    "model": "students.student",
+    "fields": {
+      "user": "2498d523-d6f7-4928-8477-a887eb768c78",
+      "student_id": "231121514203",
+      "full_name": "Bùi Minh",
+      "date_of_birth": "2004-01-12",
+      "student_class": "a55d1b97-b258-4196-9c59-15412b0e71c8",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": "cf8bafb1-8cfe-4e52-98f5-d09ac00f3051",
+    "fields": {
+      "password": "pbkdf2_sha256$1200000$placeholder$oK9H1MD1r1pZrhNU27dYpSYwxsdk5PY26dPZ1xzkqik=",
+      "is_superuser": false,
+      "username": "231121514204",
+      "first_name": "Bình",
+      "last_name": "Đặng",
+      "email": "231121514204@example.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-07-27T11:00:56.143796+00:00",
+      "role": "STUDENT"
+    }
+  },
+  {
+    "model": "students.student",
+    "fields": {
+      "user": "cf8bafb1-8cfe-4e52-98f5-d09ac00f3051",
+      "student_id": "231121514204",
+      "full_name": "Đặng Bình",
+      "date_of_birth": "2005-07-02",
+      "student_class": "33e98c39-293b-4d5c-9a61-932b8e5ae2ea",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": "50835eac-b034-4f13-8adc-09ea2731a01a",
+    "fields": {
+      "password": "pbkdf2_sha256$1200000$placeholder$oK9H1MD1r1pZrhNU27dYpSYwxsdk5PY26dPZ1xzkqik=",
+      "is_superuser": false,
+      "username": "231121514205",
+      "first_name": "Cường",
+      "last_name": "Đặng",
+      "email": "231121514205@example.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-07-27T11:00:56.143796+00:00",
+      "role": "STUDENT"
+    }
+  },
+  {
+    "model": "students.student",
+    "fields": {
+      "user": "50835eac-b034-4f13-8adc-09ea2731a01a",
+      "student_id": "231121514205",
+      "full_name": "Đặng Cường",
+      "date_of_birth": "2007-03-16",
+      "student_class": "984271d1-aa79-4ea9-9ec9-32aa0396d293",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": "b3e3ca2a-5520-43c4-98b0-9dcf72ef15b0",
+    "fields": {
+      "password": "pbkdf2_sha256$1200000$placeholder$oK9H1MD1r1pZrhNU27dYpSYwxsdk5PY26dPZ1xzkqik=",
+      "is_superuser": false,
+      "username": "231121514206",
+      "first_name": "Dung",
+      "last_name": "Huỳnh",
+      "email": "231121514206@example.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-07-27T11:00:56.143796+00:00",
+      "role": "STUDENT"
+    }
+  },
+  {
+    "model": "students.student",
+    "fields": {
+      "user": "b3e3ca2a-5520-43c4-98b0-9dcf72ef15b0",
+      "student_id": "231121514206",
+      "full_name": "Huỳnh Dung",
+      "date_of_birth": "2007-09-21",
+      "student_class": "9c6319dd-f605-4de2-bb77-82e2d7a3d368",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": "6d5688ed-0b92-4a3e-90b5-b7da09bb2099",
+    "fields": {
+      "password": "pbkdf2_sha256$1200000$placeholder$oK9H1MD1r1pZrhNU27dYpSYwxsdk5PY26dPZ1xzkqik=",
+      "is_superuser": false,
+      "username": "231121514207",
+      "first_name": "Dung",
+      "last_name": "Đỗ",
+      "email": "231121514207@example.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-07-27T11:00:56.143796+00:00",
+      "role": "STUDENT"
+    }
+  },
+  {
+    "model": "students.student",
+    "fields": {
+      "user": "6d5688ed-0b92-4a3e-90b5-b7da09bb2099",
+      "student_id": "231121514207",
+      "full_name": "Đỗ Dung",
+      "date_of_birth": "2001-09-03",
+      "student_class": "8953854b-6739-4df7-aaff-29f5a669dfd6",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": "ca785d16-52e7-4edb-995c-f1b1ce944539",
+    "fields": {
+      "password": "pbkdf2_sha256$1200000$placeholder$oK9H1MD1r1pZrhNU27dYpSYwxsdk5PY26dPZ1xzkqik=",
+      "is_superuser": false,
+      "username": "231121514208",
+      "first_name": "An",
+      "last_name": "Nguyễn",
+      "email": "231121514208@example.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-07-27T11:00:56.143796+00:00",
+      "role": "STUDENT"
+    }
+  },
+  {
+    "model": "students.student",
+    "fields": {
+      "user": "ca785d16-52e7-4edb-995c-f1b1ce944539",
+      "student_id": "231121514208",
+      "full_name": "Nguyễn An",
+      "date_of_birth": "2002-04-24",
+      "student_class": "8953854b-6739-4df7-aaff-29f5a669dfd6",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": "0818daba-a22a-47d5-9ff7-2e0c9d10b5e7",
+    "fields": {
+      "password": "pbkdf2_sha256$1200000$placeholder$oK9H1MD1r1pZrhNU27dYpSYwxsdk5PY26dPZ1xzkqik=",
+      "is_superuser": false,
+      "username": "231121514209",
+      "first_name": "Hà",
+      "last_name": "Hoàng",
+      "email": "231121514209@example.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-07-27T11:00:56.143796+00:00",
+      "role": "STUDENT"
+    }
+  },
+  {
+    "model": "students.student",
+    "fields": {
+      "user": "0818daba-a22a-47d5-9ff7-2e0c9d10b5e7",
+      "student_id": "231121514209",
+      "full_name": "Hoàng Hà",
+      "date_of_birth": "2007-11-29",
+      "student_class": "fef72ae3-8ce8-43b5-b460-21a3446ff238",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": "02945795-7499-4188-956d-79bb916de203",
+    "fields": {
+      "password": "pbkdf2_sha256$1200000$placeholder$oK9H1MD1r1pZrhNU27dYpSYwxsdk5PY26dPZ1xzkqik=",
+      "is_superuser": false,
+      "username": "231121514210",
+      "first_name": "Hải",
+      "last_name": "Trần",
+      "email": "231121514210@example.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-07-27T11:00:56.143796+00:00",
+      "role": "STUDENT"
+    }
+  },
+  {
+    "model": "students.student",
+    "fields": {
+      "user": "02945795-7499-4188-956d-79bb916de203",
+      "student_id": "231121514210",
+      "full_name": "Trần Hải",
+      "date_of_birth": "2007-09-26",
+      "student_class": "32faf752-7870-41a3-bf79-31c0871c340e",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": "b38cc3a9-19df-42a4-980c-385c18f9498d",
+    "fields": {
+      "password": "pbkdf2_sha256$1200000$placeholder$oK9H1MD1r1pZrhNU27dYpSYwxsdk5PY26dPZ1xzkqik=",
+      "is_superuser": false,
+      "username": "231121514211",
+      "first_name": "Bình",
+      "last_name": "Huỳnh",
+      "email": "231121514211@example.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-07-27T11:00:56.143796+00:00",
+      "role": "STUDENT"
+    }
+  },
+  {
+    "model": "students.student",
+    "fields": {
+      "user": "b38cc3a9-19df-42a4-980c-385c18f9498d",
+      "student_id": "231121514211",
+      "full_name": "Huỳnh Bình",
+      "date_of_birth": "2001-08-28",
+      "student_class": "11ec5a00-6c3e-4297-a87e-ea0d9ff76f5e",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": "0a7d41f3-8fc2-414c-b443-2f24d91c85e3",
+    "fields": {
+      "password": "pbkdf2_sha256$1200000$placeholder$oK9H1MD1r1pZrhNU27dYpSYwxsdk5PY26dPZ1xzkqik=",
+      "is_superuser": false,
+      "username": "231121514212",
+      "first_name": "An",
+      "last_name": "Bùi",
+      "email": "231121514212@example.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-07-27T11:00:56.143796+00:00",
+      "role": "STUDENT"
+    }
+  },
+  {
+    "model": "students.student",
+    "fields": {
+      "user": "0a7d41f3-8fc2-414c-b443-2f24d91c85e3",
+      "student_id": "231121514212",
+      "full_name": "Bùi An",
+      "date_of_birth": "2007-05-29",
+      "student_class": "9bf9148f-1e91-40b5-a042-2c991bf73750",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": "ba241930-93e7-4f8b-9794-44ad53ea5717",
+    "fields": {
+      "password": "pbkdf2_sha256$1200000$placeholder$oK9H1MD1r1pZrhNU27dYpSYwxsdk5PY26dPZ1xzkqik=",
+      "is_superuser": false,
+      "username": "231121514213",
+      "first_name": "Hải",
+      "last_name": "Trần",
+      "email": "231121514213@example.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-07-27T11:00:56.143796+00:00",
+      "role": "STUDENT"
+    }
+  },
+  {
+    "model": "students.student",
+    "fields": {
+      "user": "ba241930-93e7-4f8b-9794-44ad53ea5717",
+      "student_id": "231121514213",
+      "full_name": "Trần Hải",
+      "date_of_birth": "2002-07-20",
+      "student_class": "96e3ede0-6d5d-468a-baea-2d0b3e8b1e69",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": "632602b7-18af-42b8-aa30-21cf166dfa82",
+    "fields": {
+      "password": "pbkdf2_sha256$1200000$placeholder$oK9H1MD1r1pZrhNU27dYpSYwxsdk5PY26dPZ1xzkqik=",
+      "is_superuser": false,
+      "username": "231121514214",
+      "first_name": "Minh",
+      "last_name": "Bùi",
+      "email": "231121514214@example.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-07-27T11:00:56.143796+00:00",
+      "role": "STUDENT"
+    }
+  },
+  {
+    "model": "students.student",
+    "fields": {
+      "user": "632602b7-18af-42b8-aa30-21cf166dfa82",
+      "student_id": "231121514214",
+      "full_name": "Bùi Minh",
+      "date_of_birth": "2005-04-16",
+      "student_class": "5ca2f572-d3e2-4f18-b1b9-20009b68a426",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": "ca72029f-7396-45ed-a8a7-6fc11279db26",
+    "fields": {
+      "password": "pbkdf2_sha256$1200000$placeholder$oK9H1MD1r1pZrhNU27dYpSYwxsdk5PY26dPZ1xzkqik=",
+      "is_superuser": false,
+      "username": "231121514215",
+      "first_name": "Hải",
+      "last_name": "Trần",
+      "email": "231121514215@example.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-07-27T11:00:56.143796+00:00",
+      "role": "STUDENT"
+    }
+  },
+  {
+    "model": "students.student",
+    "fields": {
+      "user": "ca72029f-7396-45ed-a8a7-6fc11279db26",
+      "student_id": "231121514215",
+      "full_name": "Trần Hải",
+      "date_of_birth": "2003-10-23",
+      "student_class": "a55d1b97-b258-4196-9c59-15412b0e71c8",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": "cc93c497-dbd7-40f8-87f4-46a5bdd30898",
+    "fields": {
+      "password": "pbkdf2_sha256$1200000$placeholder$oK9H1MD1r1pZrhNU27dYpSYwxsdk5PY26dPZ1xzkqik=",
+      "is_superuser": false,
+      "username": "231121514216",
+      "first_name": "Linh",
+      "last_name": "Hoàng",
+      "email": "231121514216@example.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-07-27T11:00:56.143796+00:00",
+      "role": "STUDENT"
+    }
+  },
+  {
+    "model": "students.student",
+    "fields": {
+      "user": "cc93c497-dbd7-40f8-87f4-46a5bdd30898",
+      "student_id": "231121514216",
+      "full_name": "Hoàng Linh",
+      "date_of_birth": "2002-04-29",
+      "student_class": "0e3f49a9-d803-446f-9b04-5c7ec4c5fe7a",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": "442610b1-63cd-4237-9b0e-e5528e327dec",
+    "fields": {
+      "password": "pbkdf2_sha256$1200000$placeholder$oK9H1MD1r1pZrhNU27dYpSYwxsdk5PY26dPZ1xzkqik=",
+      "is_superuser": false,
+      "username": "231121514217",
+      "first_name": "Hà",
+      "last_name": "Bùi",
+      "email": "231121514217@example.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-07-27T11:00:56.143796+00:00",
+      "role": "STUDENT"
+    }
+  },
+  {
+    "model": "students.student",
+    "fields": {
+      "user": "442610b1-63cd-4237-9b0e-e5528e327dec",
+      "student_id": "231121514217",
+      "full_name": "Bùi Hà",
+      "date_of_birth": "2003-05-30",
+      "student_class": "82003ac3-364e-481c-a7fe-bf54aa3e2f1c",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": "abc20ba5-a709-4bf5-b5ef-d659e1d9767a",
+    "fields": {
+      "password": "pbkdf2_sha256$1200000$placeholder$oK9H1MD1r1pZrhNU27dYpSYwxsdk5PY26dPZ1xzkqik=",
+      "is_superuser": false,
+      "username": "231121514218",
+      "first_name": "Dung",
+      "last_name": "Huỳnh",
+      "email": "231121514218@example.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-07-27T11:00:56.143796+00:00",
+      "role": "STUDENT"
+    }
+  },
+  {
+    "model": "students.student",
+    "fields": {
+      "user": "abc20ba5-a709-4bf5-b5ef-d659e1d9767a",
+      "student_id": "231121514218",
+      "full_name": "Huỳnh Dung",
+      "date_of_birth": "2004-04-30",
+      "student_class": "33e98c39-293b-4d5c-9a61-932b8e5ae2ea",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": "98258b47-a7d3-40de-b24d-0c1ac7ad1d5a",
+    "fields": {
+      "password": "pbkdf2_sha256$1200000$placeholder$oK9H1MD1r1pZrhNU27dYpSYwxsdk5PY26dPZ1xzkqik=",
+      "is_superuser": false,
+      "username": "231121514219",
+      "first_name": "Cường",
+      "last_name": "Bùi",
+      "email": "231121514219@example.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-07-27T11:00:56.143796+00:00",
+      "role": "STUDENT"
+    }
+  },
+  {
+    "model": "students.student",
+    "fields": {
+      "user": "98258b47-a7d3-40de-b24d-0c1ac7ad1d5a",
+      "student_id": "231121514219",
+      "full_name": "Bùi Cường",
+      "date_of_birth": "2001-09-05",
+      "student_class": "33e98c39-293b-4d5c-9a61-932b8e5ae2ea",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": "ed38d4b1-093c-4760-ae03-aa9cca4671f2",
+    "fields": {
+      "password": "pbkdf2_sha256$1200000$placeholder$oK9H1MD1r1pZrhNU27dYpSYwxsdk5PY26dPZ1xzkqik=",
+      "is_superuser": false,
+      "username": "231121514220",
+      "first_name": "Bình",
+      "last_name": "Hoàng",
+      "email": "231121514220@example.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-07-27T11:00:56.143796+00:00",
+      "role": "STUDENT"
+    }
+  },
+  {
+    "model": "students.student",
+    "fields": {
+      "user": "ed38d4b1-093c-4760-ae03-aa9cca4671f2",
+      "student_id": "231121514220",
+      "full_name": "Hoàng Bình",
+      "date_of_birth": "2003-04-05",
+      "student_class": "fc1cc68e-92a6-4273-8414-b66ec1bf66e4",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": "12133822-c706-4b1a-970f-10a95060a905",
+    "fields": {
+      "password": "pbkdf2_sha256$1200000$placeholder$oK9H1MD1r1pZrhNU27dYpSYwxsdk5PY26dPZ1xzkqik=",
+      "is_superuser": false,
+      "username": "231121514221",
+      "first_name": "An",
+      "last_name": "Phạm",
+      "email": "231121514221@example.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-07-27T11:00:56.143796+00:00",
+      "role": "STUDENT"
+    }
+  },
+  {
+    "model": "students.student",
+    "fields": {
+      "user": "12133822-c706-4b1a-970f-10a95060a905",
+      "student_id": "231121514221",
+      "full_name": "Phạm An",
+      "date_of_birth": "2002-07-10",
+      "student_class": "87eb2178-b038-48e4-87b2-aa802e193d47",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": "52d4f627-bd3b-4d2e-b0f2-ec8ee12cf00d",
+    "fields": {
+      "password": "pbkdf2_sha256$1200000$placeholder$oK9H1MD1r1pZrhNU27dYpSYwxsdk5PY26dPZ1xzkqik=",
+      "is_superuser": false,
+      "username": "231121514222",
+      "first_name": "An",
+      "last_name": "Trần",
+      "email": "231121514222@example.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-07-27T11:00:56.143796+00:00",
+      "role": "STUDENT"
+    }
+  },
+  {
+    "model": "students.student",
+    "fields": {
+      "user": "52d4f627-bd3b-4d2e-b0f2-ec8ee12cf00d",
+      "student_id": "231121514222",
+      "full_name": "Trần An",
+      "date_of_birth": "2004-01-17",
+      "student_class": "ac43bba3-6617-474e-97dc-6b5aeea17213",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": "38b834ed-68b0-44a0-ab01-a813c3cb0028",
+    "fields": {
+      "password": "pbkdf2_sha256$1200000$placeholder$oK9H1MD1r1pZrhNU27dYpSYwxsdk5PY26dPZ1xzkqik=",
+      "is_superuser": false,
+      "username": "231121514223",
+      "first_name": "Cường",
+      "last_name": "Bùi",
+      "email": "231121514223@example.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-07-27T11:00:56.143796+00:00",
+      "role": "STUDENT"
+    }
+  },
+  {
+    "model": "students.student",
+    "fields": {
+      "user": "38b834ed-68b0-44a0-ab01-a813c3cb0028",
+      "student_id": "231121514223",
+      "full_name": "Bùi Cường",
+      "date_of_birth": "2003-10-13",
+      "student_class": "0e3f49a9-d803-446f-9b04-5c7ec4c5fe7a",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": "1a21411c-4ee7-4372-9cf7-cda39f8f6607",
+    "fields": {
+      "password": "pbkdf2_sha256$1200000$placeholder$oK9H1MD1r1pZrhNU27dYpSYwxsdk5PY26dPZ1xzkqik=",
+      "is_superuser": false,
+      "username": "231121514224",
+      "first_name": "Cường",
+      "last_name": "Đặng",
+      "email": "231121514224@example.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-07-27T11:00:56.143796+00:00",
+      "role": "STUDENT"
+    }
+  },
+  {
+    "model": "students.student",
+    "fields": {
+      "user": "1a21411c-4ee7-4372-9cf7-cda39f8f6607",
+      "student_id": "231121514224",
+      "full_name": "Đặng Cường",
+      "date_of_birth": "2004-03-09",
+      "student_class": "258885e9-a7fe-4f6b-8f9a-689f64475d34",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": "06c02e92-1990-4af2-aa64-7c5e0885ffb2",
+    "fields": {
+      "password": "pbkdf2_sha256$1200000$placeholder$oK9H1MD1r1pZrhNU27dYpSYwxsdk5PY26dPZ1xzkqik=",
+      "is_superuser": false,
+      "username": "231121514225",
+      "first_name": "Linh",
+      "last_name": "Võ",
+      "email": "231121514225@example.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-07-27T11:00:56.143796+00:00",
+      "role": "STUDENT"
+    }
+  },
+  {
+    "model": "students.student",
+    "fields": {
+      "user": "06c02e92-1990-4af2-aa64-7c5e0885ffb2",
+      "student_id": "231121514225",
+      "full_name": "Võ Linh",
+      "date_of_birth": "2007-11-21",
+      "student_class": "2affce6e-0d94-40a8-818d-0cd31f43fe5c",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": "5f353d02-c11f-4c5b-9b5f-06714088fb40",
+    "fields": {
+      "password": "pbkdf2_sha256$1200000$placeholder$oK9H1MD1r1pZrhNU27dYpSYwxsdk5PY26dPZ1xzkqik=",
+      "is_superuser": false,
+      "username": "231121514226",
+      "first_name": "An",
+      "last_name": "Hoàng",
+      "email": "231121514226@example.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-07-27T11:00:56.143796+00:00",
+      "role": "STUDENT"
+    }
+  },
+  {
+    "model": "students.student",
+    "fields": {
+      "user": "5f353d02-c11f-4c5b-9b5f-06714088fb40",
+      "student_id": "231121514226",
+      "full_name": "Hoàng An",
+      "date_of_birth": "2005-01-01",
+      "student_class": "fc1cc68e-92a6-4273-8414-b66ec1bf66e4",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": "67502df5-8bc7-405b-b75f-57f3e6a292fb",
+    "fields": {
+      "password": "pbkdf2_sha256$1200000$placeholder$oK9H1MD1r1pZrhNU27dYpSYwxsdk5PY26dPZ1xzkqik=",
+      "is_superuser": false,
+      "username": "231121514227",
+      "first_name": "Hải",
+      "last_name": "Võ",
+      "email": "231121514227@example.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-07-27T11:00:56.143796+00:00",
+      "role": "STUDENT"
+    }
+  },
+  {
+    "model": "students.student",
+    "fields": {
+      "user": "67502df5-8bc7-405b-b75f-57f3e6a292fb",
+      "student_id": "231121514227",
+      "full_name": "Võ Hải",
+      "date_of_birth": "2002-09-01",
+      "student_class": "87a43781-ef68-488c-a736-22f26b376ee6",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": "002bf370-563c-4c18-bbc7-7d95ab7dbbec",
+    "fields": {
+      "password": "pbkdf2_sha256$1200000$placeholder$oK9H1MD1r1pZrhNU27dYpSYwxsdk5PY26dPZ1xzkqik=",
+      "is_superuser": false,
+      "username": "231121514228",
+      "first_name": "Hương",
+      "last_name": "Bùi",
+      "email": "231121514228@example.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-07-27T11:00:56.143796+00:00",
+      "role": "STUDENT"
+    }
+  },
+  {
+    "model": "students.student",
+    "fields": {
+      "user": "002bf370-563c-4c18-bbc7-7d95ab7dbbec",
+      "student_id": "231121514228",
+      "full_name": "Bùi Hương",
+      "date_of_birth": "2003-06-19",
+      "student_class": "9dd0b9f4-3227-4676-bcd8-1dfbdb732e51",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": "df724c63-8a14-4b29-8b20-124966004a45",
+    "fields": {
+      "password": "pbkdf2_sha256$1200000$placeholder$oK9H1MD1r1pZrhNU27dYpSYwxsdk5PY26dPZ1xzkqik=",
+      "is_superuser": false,
+      "username": "231121514229",
+      "first_name": "Minh",
+      "last_name": "Bùi",
+      "email": "231121514229@example.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-07-27T11:00:56.143796+00:00",
+      "role": "STUDENT"
+    }
+  },
+  {
+    "model": "students.student",
+    "fields": {
+      "user": "df724c63-8a14-4b29-8b20-124966004a45",
+      "student_id": "231121514229",
+      "full_name": "Bùi Minh",
+      "date_of_birth": "2004-06-09",
+      "student_class": "82003ac3-364e-481c-a7fe-bf54aa3e2f1c",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": "33a85f9d-808a-4049-9eec-2f1f76cb4221",
+    "fields": {
+      "password": "pbkdf2_sha256$1200000$placeholder$oK9H1MD1r1pZrhNU27dYpSYwxsdk5PY26dPZ1xzkqik=",
+      "is_superuser": false,
+      "username": "231121514230",
+      "first_name": "Linh",
+      "last_name": "Bùi",
+      "email": "231121514230@example.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-07-27T11:00:56.143796+00:00",
+      "role": "STUDENT"
+    }
+  },
+  {
+    "model": "students.student",
+    "fields": {
+      "user": "33a85f9d-808a-4049-9eec-2f1f76cb4221",
+      "student_id": "231121514230",
+      "full_name": "Bùi Linh",
+      "date_of_birth": "2005-06-30",
+      "student_class": "97202499-3a94-4ee7-b1f6-38335474eadb",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": "387b48da-9ea0-4fd0-bcf5-616c0b0eac32",
+    "fields": {
+      "password": "pbkdf2_sha256$1200000$placeholder$oK9H1MD1r1pZrhNU27dYpSYwxsdk5PY26dPZ1xzkqik=",
+      "is_superuser": false,
+      "username": "231121514231",
+      "first_name": "Dung",
+      "last_name": "Huỳnh",
+      "email": "231121514231@example.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-07-27T11:00:56.143796+00:00",
+      "role": "STUDENT"
+    }
+  },
+  {
+    "model": "students.student",
+    "fields": {
+      "user": "387b48da-9ea0-4fd0-bcf5-616c0b0eac32",
+      "student_id": "231121514231",
+      "full_name": "Huỳnh Dung",
+      "date_of_birth": "2003-02-25",
+      "student_class": "fe2e28ba-9b72-4f55-ae7a-80041af4b5a1",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": "aee3ba3c-2547-4c7f-bd8c-dc60992a12e9",
+    "fields": {
+      "password": "pbkdf2_sha256$1200000$placeholder$oK9H1MD1r1pZrhNU27dYpSYwxsdk5PY26dPZ1xzkqik=",
+      "is_superuser": false,
+      "username": "231121514232",
+      "first_name": "Khánh",
+      "last_name": "Đặng",
+      "email": "231121514232@example.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-07-27T11:00:56.143796+00:00",
+      "role": "STUDENT"
+    }
+  },
+  {
+    "model": "students.student",
+    "fields": {
+      "user": "aee3ba3c-2547-4c7f-bd8c-dc60992a12e9",
+      "student_id": "231121514232",
+      "full_name": "Đặng Khánh",
+      "date_of_birth": "2003-02-19",
+      "student_class": "fe2e28ba-9b72-4f55-ae7a-80041af4b5a1",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": "7a0a3380-d400-4027-b91b-3f62d3734a49",
+    "fields": {
+      "password": "pbkdf2_sha256$1200000$placeholder$oK9H1MD1r1pZrhNU27dYpSYwxsdk5PY26dPZ1xzkqik=",
+      "is_superuser": false,
+      "username": "231121514233",
+      "first_name": "Minh",
+      "last_name": "Phạm",
+      "email": "231121514233@example.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-07-27T11:00:56.143796+00:00",
+      "role": "STUDENT"
+    }
+  },
+  {
+    "model": "students.student",
+    "fields": {
+      "user": "7a0a3380-d400-4027-b91b-3f62d3734a49",
+      "student_id": "231121514233",
+      "full_name": "Phạm Minh",
+      "date_of_birth": "2008-07-01",
+      "student_class": "87eb2178-b038-48e4-87b2-aa802e193d47",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": "f9c18110-335f-4607-832b-ea4157540e17",
+    "fields": {
+      "password": "pbkdf2_sha256$1200000$placeholder$oK9H1MD1r1pZrhNU27dYpSYwxsdk5PY26dPZ1xzkqik=",
+      "is_superuser": false,
+      "username": "231121514234",
+      "first_name": "Linh",
+      "last_name": "Võ",
+      "email": "231121514234@example.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-07-27T11:00:56.143796+00:00",
+      "role": "STUDENT"
+    }
+  },
+  {
+    "model": "students.student",
+    "fields": {
+      "user": "f9c18110-335f-4607-832b-ea4157540e17",
+      "student_id": "231121514234",
+      "full_name": "Võ Linh",
+      "date_of_birth": "2002-07-01",
+      "student_class": "fe2e28ba-9b72-4f55-ae7a-80041af4b5a1",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": "03d5cf4e-5e62-4f37-8555-e2046e2bfad9",
+    "fields": {
+      "password": "pbkdf2_sha256$1200000$placeholder$oK9H1MD1r1pZrhNU27dYpSYwxsdk5PY26dPZ1xzkqik=",
+      "is_superuser": false,
+      "username": "231121514235",
+      "first_name": "Khánh",
+      "last_name": "Lê",
+      "email": "231121514235@example.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-07-27T11:00:56.143796+00:00",
+      "role": "STUDENT"
+    }
+  },
+  {
+    "model": "students.student",
+    "fields": {
+      "user": "03d5cf4e-5e62-4f37-8555-e2046e2bfad9",
+      "student_id": "231121514235",
+      "full_name": "Lê Khánh",
+      "date_of_birth": "2007-05-16",
+      "student_class": "8953854b-6739-4df7-aaff-29f5a669dfd6",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": "24129aad-8ac1-488c-8527-632132bdaeda",
+    "fields": {
+      "password": "pbkdf2_sha256$1200000$placeholder$oK9H1MD1r1pZrhNU27dYpSYwxsdk5PY26dPZ1xzkqik=",
+      "is_superuser": false,
+      "username": "231121514236",
+      "first_name": "Hà",
+      "last_name": "Lê",
+      "email": "231121514236@example.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-07-27T11:00:56.143796+00:00",
+      "role": "STUDENT"
+    }
+  },
+  {
+    "model": "students.student",
+    "fields": {
+      "user": "24129aad-8ac1-488c-8527-632132bdaeda",
+      "student_id": "231121514236",
+      "full_name": "Lê Hà",
+      "date_of_birth": "2006-04-30",
+      "student_class": "82003ac3-364e-481c-a7fe-bf54aa3e2f1c",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": "9db700d3-209d-4e98-be2e-75325eebcb74",
+    "fields": {
+      "password": "pbkdf2_sha256$1200000$placeholder$oK9H1MD1r1pZrhNU27dYpSYwxsdk5PY26dPZ1xzkqik=",
+      "is_superuser": false,
+      "username": "231121514237",
+      "first_name": "Hà",
+      "last_name": "Lê",
+      "email": "231121514237@example.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-07-27T11:00:56.143796+00:00",
+      "role": "STUDENT"
+    }
+  },
+  {
+    "model": "students.student",
+    "fields": {
+      "user": "9db700d3-209d-4e98-be2e-75325eebcb74",
+      "student_id": "231121514237",
+      "full_name": "Lê Hà",
+      "date_of_birth": "2005-09-28",
+      "student_class": "7d5be294-8203-4947-9744-bfc37b444835",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": "ecafa870-5d5f-4eda-bc28-47fd0b3e45c7",
+    "fields": {
+      "password": "pbkdf2_sha256$1200000$placeholder$oK9H1MD1r1pZrhNU27dYpSYwxsdk5PY26dPZ1xzkqik=",
+      "is_superuser": false,
+      "username": "231121514238",
+      "first_name": "Hà",
+      "last_name": "Huỳnh",
+      "email": "231121514238@example.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-07-27T11:00:56.143796+00:00",
+      "role": "STUDENT"
+    }
+  },
+  {
+    "model": "students.student",
+    "fields": {
+      "user": "ecafa870-5d5f-4eda-bc28-47fd0b3e45c7",
+      "student_id": "231121514238",
+      "full_name": "Huỳnh Hà",
+      "date_of_birth": "2001-09-10",
+      "student_class": "fe2e28ba-9b72-4f55-ae7a-80041af4b5a1",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": "89aae32a-0b3d-4ee4-92ef-4bb0ecbea446",
+    "fields": {
+      "password": "pbkdf2_sha256$1200000$placeholder$oK9H1MD1r1pZrhNU27dYpSYwxsdk5PY26dPZ1xzkqik=",
+      "is_superuser": false,
+      "username": "231121514239",
+      "first_name": "Khánh",
+      "last_name": "Võ",
+      "email": "231121514239@example.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-07-27T11:00:56.143796+00:00",
+      "role": "STUDENT"
+    }
+  },
+  {
+    "model": "students.student",
+    "fields": {
+      "user": "89aae32a-0b3d-4ee4-92ef-4bb0ecbea446",
+      "student_id": "231121514239",
+      "full_name": "Võ Khánh",
+      "date_of_birth": "2005-06-09",
+      "student_class": "0e3f49a9-d803-446f-9b04-5c7ec4c5fe7a",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": "d9a76da1-eafe-4ab5-a6a5-fd27fd34c1c6",
+    "fields": {
+      "password": "pbkdf2_sha256$1200000$placeholder$oK9H1MD1r1pZrhNU27dYpSYwxsdk5PY26dPZ1xzkqik=",
+      "is_superuser": false,
+      "username": "231121514240",
+      "first_name": "Linh",
+      "last_name": "Võ",
+      "email": "231121514240@example.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-07-27T11:00:56.143796+00:00",
+      "role": "STUDENT"
+    }
+  },
+  {
+    "model": "students.student",
+    "fields": {
+      "user": "d9a76da1-eafe-4ab5-a6a5-fd27fd34c1c6",
+      "student_id": "231121514240",
+      "full_name": "Võ Linh",
+      "date_of_birth": "2004-05-17",
+      "student_class": "f5ce10d4-b396-4b78-bb83-5ac09a865a8d",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": "b8c8e9ee-0300-4205-bb3c-9129af520841",
+    "fields": {
+      "password": "pbkdf2_sha256$1200000$placeholder$oK9H1MD1r1pZrhNU27dYpSYwxsdk5PY26dPZ1xzkqik=",
+      "is_superuser": false,
+      "username": "231121514241",
+      "first_name": "Minh",
+      "last_name": "Hoàng",
+      "email": "231121514241@example.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-07-27T11:00:56.143796+00:00",
+      "role": "STUDENT"
+    }
+  },
+  {
+    "model": "students.student",
+    "fields": {
+      "user": "b8c8e9ee-0300-4205-bb3c-9129af520841",
+      "student_id": "231121514241",
+      "full_name": "Hoàng Minh",
+      "date_of_birth": "2003-01-20",
+      "student_class": "33e98c39-293b-4d5c-9a61-932b8e5ae2ea",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": "dc558956-3247-4821-9f65-28a7c4536131",
+    "fields": {
+      "password": "pbkdf2_sha256$1200000$placeholder$oK9H1MD1r1pZrhNU27dYpSYwxsdk5PY26dPZ1xzkqik=",
+      "is_superuser": false,
+      "username": "231121514242",
+      "first_name": "Linh",
+      "last_name": "Bùi",
+      "email": "231121514242@example.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-07-27T11:00:56.143796+00:00",
+      "role": "STUDENT"
+    }
+  },
+  {
+    "model": "students.student",
+    "fields": {
+      "user": "dc558956-3247-4821-9f65-28a7c4536131",
+      "student_id": "231121514242",
+      "full_name": "Bùi Linh",
+      "date_of_birth": "2007-09-07",
+      "student_class": "8953854b-6739-4df7-aaff-29f5a669dfd6",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": "e856036e-709a-4865-bff4-da3fe199fb22",
+    "fields": {
+      "password": "pbkdf2_sha256$1200000$placeholder$oK9H1MD1r1pZrhNU27dYpSYwxsdk5PY26dPZ1xzkqik=",
+      "is_superuser": false,
+      "username": "231121514243",
+      "first_name": "An",
+      "last_name": "Bùi",
+      "email": "231121514243@example.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-07-27T11:00:56.143796+00:00",
+      "role": "STUDENT"
+    }
+  },
+  {
+    "model": "students.student",
+    "fields": {
+      "user": "e856036e-709a-4865-bff4-da3fe199fb22",
+      "student_id": "231121514243",
+      "full_name": "Bùi An",
+      "date_of_birth": "2002-03-13",
+      "student_class": "7d5be294-8203-4947-9744-bfc37b444835",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": "8d252843-3b9e-483c-bf29-c48affe46bfc",
+    "fields": {
+      "password": "pbkdf2_sha256$1200000$placeholder$oK9H1MD1r1pZrhNU27dYpSYwxsdk5PY26dPZ1xzkqik=",
+      "is_superuser": false,
+      "username": "231121514244",
+      "first_name": "Hà",
+      "last_name": "Võ",
+      "email": "231121514244@example.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-07-27T11:00:56.143796+00:00",
+      "role": "STUDENT"
+    }
+  },
+  {
+    "model": "students.student",
+    "fields": {
+      "user": "8d252843-3b9e-483c-bf29-c48affe46bfc",
+      "student_id": "231121514244",
+      "full_name": "Võ Hà",
+      "date_of_birth": "2002-08-07",
+      "student_class": "32faf752-7870-41a3-bf79-31c0871c340e",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": "6c2e1dfb-3018-4dad-8124-74e45ce63de0",
+    "fields": {
+      "password": "pbkdf2_sha256$1200000$placeholder$oK9H1MD1r1pZrhNU27dYpSYwxsdk5PY26dPZ1xzkqik=",
+      "is_superuser": false,
+      "username": "231121514245",
+      "first_name": "Bình",
+      "last_name": "Võ",
+      "email": "231121514245@example.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-07-27T11:00:56.143796+00:00",
+      "role": "STUDENT"
+    }
+  },
+  {
+    "model": "students.student",
+    "fields": {
+      "user": "6c2e1dfb-3018-4dad-8124-74e45ce63de0",
+      "student_id": "231121514245",
+      "full_name": "Võ Bình",
+      "date_of_birth": "2007-10-15",
+      "student_class": "aea06a38-0b9a-4aba-bb8c-ec49a11b5beb",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": "b22241f6-6524-42f2-b996-b15249dd4277",
+    "fields": {
+      "password": "pbkdf2_sha256$1200000$placeholder$oK9H1MD1r1pZrhNU27dYpSYwxsdk5PY26dPZ1xzkqik=",
+      "is_superuser": false,
+      "username": "231121514246",
+      "first_name": "Dung",
+      "last_name": "Đặng",
+      "email": "231121514246@example.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-07-27T11:00:56.143796+00:00",
+      "role": "STUDENT"
+    }
+  },
+  {
+    "model": "students.student",
+    "fields": {
+      "user": "b22241f6-6524-42f2-b996-b15249dd4277",
+      "student_id": "231121514246",
+      "full_name": "Đặng Dung",
+      "date_of_birth": "2001-10-15",
+      "student_class": "8cd8131c-d3ae-43b4-b6ff-6c26852e7e07",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": "1550a8ff-abbb-45c0-b138-a9243fd0c07b",
+    "fields": {
+      "password": "pbkdf2_sha256$1200000$placeholder$oK9H1MD1r1pZrhNU27dYpSYwxsdk5PY26dPZ1xzkqik=",
+      "is_superuser": false,
+      "username": "231121514247",
+      "first_name": "Dung",
+      "last_name": "Hoàng",
+      "email": "231121514247@example.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-07-27T11:00:56.143796+00:00",
+      "role": "STUDENT"
+    }
+  },
+  {
+    "model": "students.student",
+    "fields": {
+      "user": "1550a8ff-abbb-45c0-b138-a9243fd0c07b",
+      "student_id": "231121514247",
+      "full_name": "Hoàng Dung",
+      "date_of_birth": "2007-01-28",
+      "student_class": "0e3f49a9-d803-446f-9b04-5c7ec4c5fe7a",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": "c18cf015-96fb-468f-8937-49d175dc2bd3",
+    "fields": {
+      "password": "pbkdf2_sha256$1200000$placeholder$oK9H1MD1r1pZrhNU27dYpSYwxsdk5PY26dPZ1xzkqik=",
+      "is_superuser": false,
+      "username": "231121514248",
+      "first_name": "Bình",
+      "last_name": "Nguyễn",
+      "email": "231121514248@example.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-07-27T11:00:56.143796+00:00",
+      "role": "STUDENT"
+    }
+  },
+  {
+    "model": "students.student",
+    "fields": {
+      "user": "c18cf015-96fb-468f-8937-49d175dc2bd3",
+      "student_id": "231121514248",
+      "full_name": "Nguyễn Bình",
+      "date_of_birth": "2007-10-08",
+      "student_class": "5ca2f572-d3e2-4f18-b1b9-20009b68a426",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": "c7d5e68f-334a-496f-8680-5c1ba8dcf753",
+    "fields": {
+      "password": "pbkdf2_sha256$1200000$placeholder$oK9H1MD1r1pZrhNU27dYpSYwxsdk5PY26dPZ1xzkqik=",
+      "is_superuser": false,
+      "username": "231121514249",
+      "first_name": "Dung",
+      "last_name": "Nguyễn",
+      "email": "231121514249@example.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-07-27T11:00:56.143796+00:00",
+      "role": "STUDENT"
+    }
+  },
+  {
+    "model": "students.student",
+    "fields": {
+      "user": "c7d5e68f-334a-496f-8680-5c1ba8dcf753",
+      "student_id": "231121514249",
+      "full_name": "Nguyễn Dung",
+      "date_of_birth": "2003-08-30",
+      "student_class": "e5cbd0fa-7b1d-40fe-94d8-e76aec226c46",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": "bcc772ae-768e-45bd-b44f-e6a365129b1b",
+    "fields": {
+      "password": "pbkdf2_sha256$1200000$placeholder$oK9H1MD1r1pZrhNU27dYpSYwxsdk5PY26dPZ1xzkqik=",
+      "is_superuser": false,
+      "username": "231121514250",
+      "first_name": "Dung",
+      "last_name": "Hoàng",
+      "email": "231121514250@example.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-07-27T11:00:56.143796+00:00",
+      "role": "STUDENT"
+    }
+  },
+  {
+    "model": "students.student",
+    "fields": {
+      "user": "bcc772ae-768e-45bd-b44f-e6a365129b1b",
+      "student_id": "231121514250",
+      "full_name": "Hoàng Dung",
+      "date_of_birth": "2008-04-23",
+      "student_class": "8953854b-6739-4df7-aaff-29f5a669dfd6",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
     }
   }
 ]

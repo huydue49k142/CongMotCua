@@ -2,10 +2,16 @@ import json
 import uuid
 import random
 import datetime
+import os
 
 def generate_data():
     data = []
     
+    # Ensure timezone-aware datetime
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    # Hashed password for '123456'
+    password_hash = "pbkdf2_sha256$1200000$placeholder$oK9H1MD1r1pZrhNU27dYpSYwxsdk5PY26dPZ1xzkqik="
+
     # Generate Majors
     majors = []
     for i in range(50):
@@ -15,7 +21,9 @@ def generate_data():
             "pk": major_pk,
             "fields": {
                 "name": f"Ngành {i+1}",
-                "major_id": f"N{i+1:03d}"
+                "major_id": f"N{i+1:03d}",
+                "created_at": now,
+                "updated_at": now
             }
         }
         majors.append(major)
@@ -31,7 +39,9 @@ def generate_data():
             "fields": {
                 "name": f"Lớp {i+1}",
                 "class_id": f"L{i+1:03d}",
-                "major": random.choice(majors)['pk']
+                "major": random.choice(majors)['pk'],
+                "created_at": now,
+                "updated_at": now
             }
         }
         classes.append(class_item)
@@ -45,20 +55,21 @@ def generate_data():
         user_pk = str(uuid.uuid4())
         first = random.choice(first_names)
         last = random.choice(last_names)
+        username = f"2311215142{i+1:02d}"
         
         user = {
             "model": "users.user",
             "pk": user_pk,
             "fields": {
-                "password": "pbkdf2_sha256$720000$placeholder$hash", # Placeholder
+                "password": password_hash,
                 "is_superuser": False,
-                "username": f"sv{i+1:03d}",
+                "username": username,
                 "first_name": first,
                 "last_name": last,
-                "email": f"sv{i+1:03d}@example.com",
+                "email": f"{username}@example.com",
                 "is_staff": False,
                 "is_active": True,
-                "date_joined": datetime.datetime.now().isoformat(),
+                "date_joined": now,
                 "role": "STUDENT"
             }
         }
@@ -69,17 +80,23 @@ def generate_data():
             "model": "students.student",
             "fields": {
                 "user": user_pk,
-                "student_id": f"SV{i+1:03d}",
+                "student_id": username,
                 "full_name": f"{last} {first}",
                 "date_of_birth": dob,
-                "student_class": random.choice(classes)['pk']
+                "student_class": random.choice(classes)['pk'],
+                "created_at": now,
+                "updated_at": now
             }
         }
         data.append(student)
 
-    with open('seed_data.json', 'w', encoding='utf-8') as f:
+    # Output to CongMotCua/seed_data.json
+    output_path = os.path.join('CongMotCua', 'seed_data.json')
+
+    with open(output_path, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
+    
+    print(f"Generated data successfully into {output_path}")
 
 if __name__ == '__main__':
     generate_data()
-    print("Generated seed_data.json successfully. Remember to replace password hashes.")

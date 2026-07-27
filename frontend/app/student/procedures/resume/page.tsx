@@ -26,7 +26,9 @@ export default function ResumePage() {
   const [profile, setProfile] = useState<ResumeProfile | null>(null);
   
   const [courses, setCourses] = useState<CourseForm[]>([
-    { id: Date.now(), code: '', name: '', credits: '' }
+    { id: 1, code: 'CS101', name: 'Nhập môn Lập trình', credits: '3' },
+    { id: 2, code: 'MATH101', name: 'Giải tích 1', credits: '3' },
+    { id: 3, code: 'ENG101', name: 'Tiếng Anh 1', credits: '2' },
   ]);
 
   const [downloadState, setDownloadState] = useState<'idle' | 'downloading' | 'downloaded'>('idle');
@@ -208,14 +210,14 @@ export default function ResumePage() {
                     {courses.map((course) => (
                       <div key={course.id} className="grid grid-cols-1 md:grid-cols-[1.5fr_2fr_0.5fr_40px] gap-4 items-start md:items-center bg-gray-50/50 md:bg-transparent p-4 md:p-0 rounded-lg md:rounded-none border border-gray-100 md:border-none">
                         <div className="md:hidden text-xs font-semibold text-gray-400 uppercase mb-1">Mã học phần</div>
-                        <input type="text" placeholder="VD: CS101" value={course.code} onChange={(e) => handleChangeCourse(course.id, 'code', e.target.value)} disabled={currentStep > 2} className="w-full border border-gray-200 rounded-lg p-2.5 text-sm focus:border-blue-500 outline-none bg-white disabled:bg-gray-50" />
+                        <input type="text" placeholder="VD: CS101" value={course.code} onChange={(e) => handleChangeCourse(course.id, 'code', e.target.value)} disabled={currentStep > 2} className="w-full border border-gray-200 rounded-lg p-2.5 text-sm text-gray-900 focus:border-blue-500 outline-none bg-white disabled:bg-gray-50" />
                         
                         <div className="md:hidden text-xs font-semibold text-gray-400 uppercase mt-2 mb-1">Tên học phần</div>
-                        <input type="text" placeholder="VD: Giải tích 1" value={course.name} onChange={(e) => handleChangeCourse(course.id, 'name', e.target.value)} disabled={currentStep > 2} className="w-full border border-gray-200 rounded-lg p-2.5 text-sm focus:border-blue-500 outline-none bg-white disabled:bg-gray-50" />
+                        <input type="text" placeholder="VD: Giải tích 1" value={course.name} onChange={(e) => handleChangeCourse(course.id, 'name', e.target.value)} disabled={currentStep > 2} className="w-full border border-gray-200 rounded-lg p-2.5 text-sm text-gray-900 focus:border-blue-500 outline-none bg-white disabled:bg-gray-50" />
                         
                         <div className="md:hidden text-xs font-semibold text-gray-400 uppercase mt-2 mb-1">Số TC</div>
                         <div className="flex items-center gap-4">
-                          <input type="number" min="1" max="5" placeholder="3" value={course.credits} onChange={(e) => handleChangeCourse(course.id, 'credits', e.target.value)} disabled={currentStep > 2} className="w-full text-center border border-gray-200 rounded-lg p-2.5 text-sm focus:border-blue-500 outline-none bg-white disabled:bg-gray-50" />
+                          <input type="number" min="1" max="5" placeholder="3" value={course.credits} onChange={(e) => handleChangeCourse(course.id, 'credits', e.target.value)} disabled={currentStep > 2} className="w-full text-center border border-gray-200 rounded-lg p-2.5 text-sm text-gray-900 focus:border-blue-500 outline-none bg-white disabled:bg-gray-50" />
                           {courses.length > 1 && currentStep === 2 && (
                             <button onClick={() => handleRemoveCourse(course.id)} className="text-red-400 hover:text-red-600 transition-colors p-2"><Trash2 size={18} /></button>
                           )}

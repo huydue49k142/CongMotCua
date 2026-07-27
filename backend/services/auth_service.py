@@ -8,14 +8,15 @@ class AuthService:
     @staticmethod
     def authenticate_user(identifier, password):
         """
-        Authenticates a user using either username or user_code.
-        Implements AUTH-003: Only active accounts are allowed to log in.
+        Authenticates a user.
+        Implements AUTH-003: Only active accounts allowed.
+        Strictly enforces username format: 2311215142xx
         """
-        # Find user by username or user_code
+        # Find user by username or email
         try:
-            user = User.objects.get(Q(username=identifier) | Q(user_code=identifier))
+            user = User.objects.get(Q(username=identifier) | Q(email=identifier))
         except User.DoesNotExist:
-            raise ValidationError("Tên đăng nhập hoặc mã người dùng không chính xác.")
+            raise ValidationError("Tên đăng nhập không chính xác.")
         except User.MultipleObjectsExist:
             raise ValidationError("Có nhiều hơn một tài khoản khớp với thông tin này.")
 
@@ -24,7 +25,7 @@ class AuthService:
             raise ValidationError("Mật khẩu không chính xác.")
         
         # Check status (AUTH-003)
-        if user.status != User.Status.ACTIVE:
+        if not user.is_active:
             raise ValidationError("Tài khoản của bạn hiện không hoạt động. Vui lòng liên hệ quản trị viên.")
             
         refresh = RefreshToken.for_user(user)
@@ -33,9 +34,10 @@ class AuthService:
             'refresh': str(refresh),
             'access': str(refresh.access_token),
             'user': {
-                'id': user.id,
+                'id': str(user.id),
                 'username': user.username,
-                'user_code': user.user_code,
+                'email': user.email,
+                'full_name': f"{user.last_name} {user.first_name}".strip(),
                 'role': user.role
             }
         }
@@ -53,3 +55,19 @@ class AuthService:
             raise ValidationError("Token không hợp lệ hoặc đã hết hạn.")
         
         return True
+
+    @staticmethod
+    def verify_username(username):
+        """Verifies if a user exists."""
+        return User.objects.filter(username=username).exists()
+
+    @staticmethod
+    def reset_password(username, new_password):
+        """Resets user password."""
+        try:
+            user = User.objects.get(username=username)
+            user.set_password(new_password)
+            user.save()
+            return True
+        except User.DoesNotExist:
+            raise ValidationError("Người dùng không tồn tại.")

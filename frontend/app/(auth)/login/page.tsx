@@ -45,13 +45,19 @@ export default function LoginPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setError(null);
     
-    // Bypass login and redirect to student dashboard
-    // This is a temporary measure for development/testing
-    router.push('/student/dashboard');
+    try {
+      await authService.login(formData);
+      router.push('/student/dashboard');
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Tên đăng nhập hoặc mật khẩu không chính xác.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -74,23 +80,24 @@ export default function LoginPage() {
     setResetError(null);
   };
 
-  const handleVerifySubmit = (e: React.FormEvent) => {
+  const handleVerifySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setForgotError(null);
+    setIsLoading(true);
 
-    if (forgotId.length < 12) {
-      setForgotError('ID người dùng phải có tối thiểu 12 ký tự.');
-      return;
+    try {
+      const exists = await authService.verifyUsername(forgotId);
+      if (exists) {
+        setForgotStep('reset');
+      }
+    } catch (err: any) {
+      setForgotError('Tên đăng nhập không tồn tại trong hệ thống.');
+    } finally {
+      setIsLoading(false);
     }
-    if (!/^\d+$/.test(forgotId)) {
-      setForgotError('ID người dùng chỉ được chứa chữ số.');
-      return;
-    }
-
-    setForgotStep('reset');
   };
 
-  const handleResetSubmit = (e: React.FormEvent) => {
+  const handleResetSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setResetError(null);
 
@@ -107,7 +114,15 @@ export default function LoginPage() {
       return;
     }
 
-    setForgotStep('success');
+    setIsLoading(true);
+    try {
+      await authService.resetPassword(forgotId, newPassword);
+      setForgotStep('success');
+    } catch (err: any) {
+      setResetError(err.response?.data?.detail || 'Có lỗi xảy ra, vui lòng thử lại.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const renderForgotContent = () => {
@@ -225,8 +240,7 @@ export default function LoginPage() {
               value={forgotId}
               onChange={(e) => setForgotId(e.target.value)}
               className="block w-full px-4 pr-12 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all text-slate-900 font-mono tracking-widest"
-              placeholder="0000 0000 0000"
-              maxLength={12}
+              placeholder="Tên đăng nhập"
             />
             <button
               type="button"
@@ -342,16 +356,11 @@ export default function LoginPage() {
                   name="identifier"
                   type="text"
                   required
-                  className="block w-full pl-10 pr-12 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all text-slate-900"
+                  className="block w-full pl-10 pr-3 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all text-slate-900"
                   placeholder="Nhập mã sinh viên/nhân viên"
                   value={formData.identifier}
                   onChange={handleChange}
                 />
-                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                    <span className="text-xs text-slate-400 font-mono">
-                      {formData.identifier.length}/12
-                    </span>
-                  </div>
                 </div>
               </div>
 

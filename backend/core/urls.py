@@ -23,6 +23,7 @@ urlpatterns = [
     path('api/students/', include('apps.students.urls')),
     path('api/rules/', include('apps.rules.urls')),
     path('api/requests/', include('apps.requests.urls')),
+    path('api/notifications/', include('apps.notifications.urls')),
     path('api/ocr/', include('apps.ocr_integration.urls', namespace='ocr_integration')),
     path('api/thoi-hoc/', include('apps.ai_assist.urls')),
     path('api/', include('apps.users.urls')), # fallback

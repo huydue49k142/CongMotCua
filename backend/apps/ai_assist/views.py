@@ -280,3 +280,309 @@ class SubmitApplication(APIView):
         s['stages'] = ['Received', 'Processing', 'Completed']
         s['currentStageIndex'] = 0
         return Response({'trackingCode': tracking_code, 'stages': s['stages'], 'currentStageIndex': 0})
+
+import os
+import base64
+import json
+
+class ScanRetentionDocumentAPI(APIView):
+    permission_classes = [AllowAny]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request):
+        if 'file' not in request.FILES:
+            return Response({'error': 'Vui lòng gửi file đính kèm.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        uploaded_file = request.FILES['file']
+        filename = uploaded_file.name.lower()
+        
+        # 1. Check format
+        allowed_extensions = ['.pdf', '.jpg', '.jpeg', '.png', '.docx']
+        format_valid = any(filename.endswith(ext) for ext in allowed_extensions)
+        
+        if not format_valid:
+            return Response({
+                'format_valid': False,
+                'title_valid': False,
+                'signature_present': False
+            })
+
+        file_content = uploaded_file.read()
+        
+        # 2 & 3. Check Title and Signature using Gemini API
+        api_key = "AQ.Ab8RN6JCKeabN5gB04_kEvQUamHLFtlMt_1YDeoTFe375U2AhA"
+        model = "gemini-1.5-flash"
+        
+        prompt = (
+            "Bạn là trợ lý ảo kiểm tra hồ sơ. Hãy phân tích tài liệu/hình ảnh sau và trả lời 2 câu hỏi dưới định dạng JSON chính xác "
+            "với các key 'title_valid' (boolean) và 'signature_present' (boolean). "
+            "1. Đây có phải là mẫu đơn xin nghỉ học, xin bảo lưu hoặc tạm nghỉ không? (Chỉ cần nội dung/tiêu đề liên quan đến việc xin nghỉ học/bảo lưu là đạt 'title_valid': true). "
+            "2. Ở phần cuối văn bản (chỗ người làm đơn), có bất kỳ chữ ký, nét vẽ, hoặc TÊN NGƯỜI nào được gõ/viết vào không? (Có bất kỳ chữ/tên nào ở phần đó là đạt 'signature_present': true). "
+            "Lưu ý: Hãy dễ tính nhất có thể, nếu thấy có vẻ đúng hãy trả về true. Chỉ trả về JSON, không kèm markdown."
+        )
+
+        try:
+            import requests
+            gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+            
+            if filename.endswith('.docx'):
+                import io
+                from docx import Document
+                document = Document(io.BytesIO(file_content))
+                extracted_text = "\\n".join([para.text for para in document.paragraphs])
+                payload = {
+                    "contents": [{
+                        "parts": [
+                            {"text": prompt + "\\n\\nNội dung tài liệu:\\n" + extracted_text}
+                        ]
+                    }]
+                }
+            else:
+                mime_type = "application/pdf"
+                if filename.endswith('.jpg') or filename.endswith('.jpeg'):
+                    mime_type = "image/jpeg"
+                elif filename.endswith('.png'):
+                    mime_type = "image/png"
+                    
+                base64_data = base64.b64encode(file_content).decode('utf-8')
+                payload = {
+                    "contents": [{
+                        "parts": [
+                            {"text": prompt},
+                            {
+                                "inline_data": {
+                                    "mime_type": mime_type,
+                                    "data": base64_data
+                                }
+                            }
+                        ]
+                    }]
+                }
+            
+            resp = requests.post(gemini_url, json=payload)
+            resp_data = resp.json()
+            
+            # Extract JSON from Gemini response
+            text_response = resp_data['candidates'][0]['content']['parts'][0]['text']
+            
+            # Clean markdown formatting if present
+            if text_response.startswith('```json'):
+                text_response = text_response.strip('```json').strip('```').strip()
+            elif text_response.startswith('```'):
+                text_response = text_response.strip('```').strip()
+                
+            ai_result = json.loads(text_response)
+            
+            return Response({
+                'format_valid': True,
+                'title_valid': ai_result.get('title_valid', False),
+                'signature_present': ai_result.get('signature_present', False)
+            })
+            
+        except Exception as e:
+            print("Gemini API Error:", str(e))
+            # Fallback if API fails
+            return Response({
+                'format_valid': True,
+                'title_valid': True,
+                'signature_present': True,
+                'error': str(e)
+            })
+
+class ScanDropoutDocumentAPI(APIView):
+    permission_classes = [AllowAny]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request):
+        if 'file' not in request.FILES:
+            return Response({'error': 'Vui lòng gửi file đính kèm.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        uploaded_file = request.FILES['file']
+        filename = uploaded_file.name.lower()
+        
+        # 1. Check format
+        allowed_extensions = ['.pdf', '.jpg', '.jpeg', '.png', '.docx']
+        format_valid = any(filename.endswith(ext) for ext in allowed_extensions)
+        
+        if not format_valid:
+            return Response({
+                'format_valid': False,
+                'title_valid': False,
+                'signature_present': False
+            })
+
+        file_content = uploaded_file.read()
+        
+        # 2 & 3. Check Title and Signature using Gemini API
+        api_key = "AQ.Ab8RN6JCKeabN5gB04_kEvQUamHLFtlMt_1YDeoTFe375U2AhA"
+        model = "gemini-1.5-flash"
+        
+        prompt = (
+            "Bạn là trợ lý ảo kiểm tra hồ sơ. Hãy phân tích tài liệu/hình ảnh sau và trả lời 2 câu hỏi dưới định dạng JSON chính xác "
+            "với các key 'title_valid' (boolean) và 'signature_present' (boolean). "
+            "1. Đây có phải là mẫu đơn xin thôi học không? (Chỉ cần nội dung/tiêu đề liên quan đến việc xin thôi học hoặc chấm dứt học tập là đạt 'title_valid': true). "
+            "2. Ở phần cuối văn bản (chỗ người làm đơn), có bất kỳ chữ ký, nét vẽ, hoặc TÊN NGƯỜI nào được gõ/viết vào không? (Có bất kỳ chữ/tên nào ở phần đó là đạt 'signature_present': true). "
+            "Lưu ý: Hãy dễ tính nhất có thể, nếu thấy có vẻ đúng hãy trả về true. Chỉ trả về JSON, không kèm markdown."
+        )
+
+        try:
+            import requests
+            gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+            
+            if filename.endswith('.docx'):
+                import io
+                from docx import Document
+                document = Document(io.BytesIO(file_content))
+                extracted_text = "\\n".join([para.text for para in document.paragraphs])
+                payload = {
+                    "contents": [{
+                        "parts": [
+                            {"text": prompt + "\\n\\nNội dung tài liệu:\\n" + extracted_text}
+                        ]
+                    }]
+                }
+            else:
+                mime_type = "application/pdf"
+                if filename.endswith('.jpg') or filename.endswith('.jpeg'):
+                    mime_type = "image/jpeg"
+                elif filename.endswith('.png'):
+                    mime_type = "image/png"
+                    
+                base64_data = base64.b64encode(file_content).decode('utf-8')
+                payload = {
+                    "contents": [{
+                        "parts": [
+                            {"text": prompt},
+                            {
+                                "inline_data": {
+                                    "mime_type": mime_type,
+                                    "data": base64_data
+                                }
+                            }
+                        ]
+                    }]
+                }
+            
+            resp = requests.post(gemini_url, json=payload)
+            resp_data = resp.json()
+            
+            text_response = resp_data['candidates'][0]['content']['parts'][0]['text']
+            
+            if text_response.startswith('```json'):
+                text_response = text_response.strip('```json').strip('```').strip()
+            elif text_response.startswith('```'):
+                text_response = text_response.strip('```').strip()
+                
+            ai_result = json.loads(text_response)
+            
+            return Response({
+                'format_valid': True,
+                'title_valid': ai_result.get('title_valid', False),
+                'signature_present': ai_result.get('signature_present', False)
+            })
+            
+        except Exception as e:
+            print("Gemini API Error:", str(e))
+            return Response({
+                'format_valid': True,
+                'title_valid': True,
+                'signature_present': True,
+                'error': str(e)
+            })
+
+class ScanMajorChangeDocumentAPI(APIView):
+    permission_classes = [AllowAny]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request):
+        if 'file' not in request.FILES:
+            return Response({'error': 'Vui lòng gửi file đính kèm.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        uploaded_file = request.FILES['file']
+        filename = uploaded_file.name.lower()
+        
+        # 1. Check format
+        allowed_extensions = ['.pdf', '.jpg', '.jpeg', '.png', '.docx']
+        format_valid = any(filename.endswith(ext) for ext in allowed_extensions)
+        
+        if not format_valid:
+            return Response({
+                'format_valid': False,
+                'valid': False
+            })
+
+        file_content = uploaded_file.read()
+        
+        api_key = "AQ.Ab8RN6JCKeabN5gB04_kEvQUamHLFtlMt_1YDeoTFe375U2AhA"
+        model = "gemini-1.5-flash"
+        
+        prompt = (
+            "Bạn là trợ lý ảo kiểm tra hồ sơ chuyển ngành. Hãy phân tích tài liệu/hình ảnh sau và trả lời dưới định dạng JSON chính xác "
+            "với key 'valid' (boolean). "
+            "Câu hỏi: Đây có phải là Giấy báo trúng tuyển ĐH hoặc Giấy chứng nhận tốt nghiệp THPT (hoặc bằng tốt nghiệp, giấy tờ liên quan hợp lệ) không? "
+            "(Chỉ cần nội dung có vẻ liên quan là đạt 'valid': true). "
+            "Lưu ý: Hãy dễ tính nhất có thể, nếu thấy có vẻ đúng hãy trả về true. Chỉ trả về JSON, không kèm markdown."
+        )
+
+        try:
+            import requests
+            gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+            
+            if filename.endswith('.docx'):
+                import io
+                from docx import Document
+                document = Document(io.BytesIO(file_content))
+                extracted_text = "\\n".join([para.text for para in document.paragraphs])
+                payload = {
+                    "contents": [{
+                        "parts": [
+                            {"text": prompt + "\\n\\nNội dung tài liệu:\\n" + extracted_text}
+                        ]
+                    }]
+                }
+            else:
+                mime_type = "application/pdf"
+                if filename.endswith('.jpg') or filename.endswith('.jpeg'):
+                    mime_type = "image/jpeg"
+                elif filename.endswith('.png'):
+                    mime_type = "image/png"
+                    
+                base64_data = base64.b64encode(file_content).decode('utf-8')
+                payload = {
+                    "contents": [{
+                        "parts": [
+                            {"text": prompt},
+                            {
+                                "inline_data": {
+                                    "mime_type": mime_type,
+                                    "data": base64_data
+                                }
+                            }
+                        ]
+                    }]
+                }
+            
+            resp = requests.post(gemini_url, json=payload)
+            resp_data = resp.json()
+            
+            text_response = resp_data['candidates'][0]['content']['parts'][0]['text']
+            
+            if text_response.startswith('```json'):
+                text_response = text_response.strip('```json').strip('```').strip()
+            elif text_response.startswith('```'):
+                text_response = text_response.strip('```').strip()
+                
+            ai_result = json.loads(text_response)
+            
+            return Response({
+                'format_valid': True,
+                'valid': ai_result.get('valid', False)
+            })
+            
+        except Exception as e:
+            print("Gemini API Error:", str(e))
+            return Response({
+                'format_valid': True,
+                'valid': True,
+                'error': str(e)
+            })

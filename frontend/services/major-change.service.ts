@@ -9,18 +9,44 @@ export interface ExtractedData {
   currentMajor: string;
 }
 
-// Hàm giả lập độ trễ của AI khi quét OCR 2 tài liệu
-export const extractDocumentData = async (): Promise<ExtractedData> => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve({
-        fullName: 'Nguyễn Văn An',
-        studentId: 'DH4a10001',
-        dob: '01/01/2003',
-        classId: 'CNTT01',
-        phone: '0912 345 678',
-        email: 'vanan.2003@ou.edu.vn',
-      });
-    }, 2000); // Giả lập AI quét mất 2 giây
-  });
+import axios from 'axios';
+import { authService } from './auth.service';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+
+export interface MajorChangeProfile {
+  fullName: string;
+  dob: string;
+  enrollmentYear: string;
+  studentId: string;
+  idNumber: string;
+  currentMajor: string;
+}
+
+export const getMajorChangeProfile = async (): Promise<MajorChangeProfile> => {
+  try {
+    const user = authService.getUser();
+    if (!user) {
+      throw new Error("Người dùng chưa đăng nhập");
+    }
+
+    const token = authService.getAccessToken();
+    const response = await axios.get(`${API_URL}/students/${user.username}/profile/`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    
+    const data = response.data;
+    
+    return {
+      fullName: data.full_name,
+      studentId: data.student_id,
+      dob: data.date_of_birth ? data.date_of_birth.split('-').reverse().join('/') : '',
+      currentMajor: data.student_class?.major?.name || 'Công nghệ Thông tin',
+      enrollmentYear: data.student_class?.major?.faculty?.name || '2024',
+      idNumber: '079203001234' // Mocked CCCD as it might not be in DB
+    };
+  } catch (error) {
+    console.error('Lỗi khi lấy dữ liệu sinh viên:', error);
+    throw error;
+  }
 };

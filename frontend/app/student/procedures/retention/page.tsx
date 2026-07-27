@@ -2,23 +2,24 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import ChatInterface from '@/components/student/ChatInterface';
-import { 
-  Archive, Bot, Check, ChevronRight, UploadCloud, X, FileText, 
+import {
+  Archive, Bot, Check, ChevronRight, UploadCloud, X, FileText,
   Download, CheckCircle2, ScanSearch, Clock, CircleDot, AlertCircle, User, Users, ShieldCheck
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { getRetentionProfile, RetentionProfile } from '@/services/retention.service'; 
+import { getRetentionProfile, RetentionProfile } from '@/services/retention.service';
+import axios from 'axios';
 
 export default function RetentionPage() {
   const router = useRouter();
-  
+
   const [isStarted, setIsStarted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  
+
   // Quản lý các bước trong form
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4 | 5>(1);
   const [profile, setProfile] = useState<RetentionProfile | null>(null);
-  
+
   // State: Bước 1 - Form khai báo & File minh chứng
   const [formData, setFormData] = useState({ reason: '', duration: '', attachmentNote: '' });
   const [evidenceFile, setEvidenceFile] = useState<File | null>(null);
@@ -30,7 +31,8 @@ export default function RetentionPage() {
   // State: Bước 3 - Upload đơn đã ký & AI quét
   const [docFile, setDocFile] = useState<File | null>(null);
   const docFileRef = useRef<HTMLInputElement>(null);
-  const [scanState, setScanState] = useState<'idle' | 'scanning' | 'success'>('idle');
+  const [scanState, setScanState] = useState<'idle' | 'scanning' | 'success' | 'error'>('idle');
+  const [aiResult, setAiResult] = useState<{format_valid?: boolean, title_valid?: boolean, signature_present?: boolean} | null>(null);
 
   // State: Bước 5 - Tab trạng thái
   const [activeTab, setActiveTab] = useState<'details' | 'tracking'>('details');
@@ -73,12 +75,12 @@ export default function RetentionPage() {
   const handleDownloadDoc = () => {
     if (downloadState !== 'idle') return;
     setDownloadState('downloading');
-    
+
     // Giả lập tải file thật như đã làm ở chức năng học tiếp
     const fileUrl = '/bieu-mau/don-xin-bao-luu.docx';
     const link = document.createElement('a');
     link.href = fileUrl;
-    link.download = 'Don_xin_nghi_hoc_tam_thoi.docx'; 
+    link.download = 'Don_xin_nghi_hoc_tam_thoi.docx';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -88,14 +90,37 @@ export default function RetentionPage() {
   const handleContinueToUpload = () => setCurrentStep(3);
 
   // --- Handlers Bước 3 ---
-  const handleDocFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleDocFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setDocFile(e.target.files[0]);
+      const file = e.target.files[0];
+      setDocFile(file);
       setScanState('scanning');
-      // Giả lập AI quét chữ ký mất 2.5s
-      setTimeout(() => {
-        setScanState('success');
-      }, 2500);
+      setAiResult(null);
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api'}/thoi-hoc/scan-retention/`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        
+        setAiResult(response.data);
+        
+        if (response.data.format_valid && response.data.title_valid && response.data.signature_present) {
+          setScanState('success');
+        } else {
+          setScanState('error');
+        }
+      } catch (error) {
+        console.error('Lỗi khi quét OCR:', error);
+        setScanState('error');
+      } finally {
+        // Reset file input so user can re-upload the same file if needed
+        if (docFileRef.current) {
+          docFileRef.current.value = '';
+        }
+      }
     }
   };
   const handleContinueToPreview = () => setCurrentStep(4);
@@ -120,7 +145,7 @@ export default function RetentionPage() {
       >
         {isStarted && (
           <div className="flex flex-col gap-8 mt-6 pb-20 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            
+
             {/* ================= BƯỚC 1: ĐIỀN THÔNG TIN ================= */}
             {currentStep >= 1 && (
               <>
@@ -170,7 +195,13 @@ export default function RetentionPage() {
                               </div>
                               <div>
                                 <label className="text-xs font-semibold text-gray-400 mb-2 uppercase block">Thời gian bảo lưu <span className="text-red-500">*</span></label>
-                                <input disabled={currentStep > 1} type="text" placeholder="VD: 1 học kỳ, 1 năm..." value={formData.duration} onChange={(e) => handleInputChange('duration', e.target.value)} className="w-full border border-gray-300 rounded-lg p-2.5 text-sm text-gray-700 outline-none focus:border-blue-500 bg-white disabled:bg-gray-50" />
+                                <select disabled={currentStep > 1} value={formData.duration} onChange={(e) => handleInputChange('duration', e.target.value)} className="w-full border border-gray-300 rounded-lg p-2.5 text-sm text-gray-700 outline-none focus:border-blue-500 bg-white disabled:bg-gray-50">
+                                  <option value="">-- Chọn thời gian bảo lưu --</option>
+                                  <option value="1 kỳ">1 kỳ</option>
+                                  <option value="2 kỳ">2 kỳ</option>
+                                  <option value="3 kỳ">3 kỳ</option>
+                                  <option value="4 kỳ">4 kỳ</option>
+                                </select>
                               </div>
                               <div>
                                 <label className="text-xs font-semibold text-gray-400 mb-2 uppercase block">Tài liệu đính kèm (nếu có)</label>
@@ -198,7 +229,7 @@ export default function RetentionPage() {
                               </div>
                             </div>
                           </div>
-                          
+
                           {currentStep === 1 && (
                             <button onClick={handleSubmitForm} disabled={!formData.reason || !formData.duration} className={`w-full py-3 rounded-md font-medium transition flex justify-center items-center gap-2 mt-4 ${formData.reason && formData.duration ? 'bg-[#0070F4] text-white hover:bg-blue-700' : 'bg-gray-100 text-gray-400 cursor-default'}`}>
                               Lưu thông tin & Khởi tạo đơn <ChevronRight size={18} />
@@ -229,7 +260,7 @@ export default function RetentionPage() {
                     <div className="flex flex-col gap-6 relative">
                       {/* Line connecting steps */}
                       <div className="absolute left-[15px] top-[24px] bottom-[24px] w-[2px] bg-gray-100 z-0"></div>
-                      
+
                       <div className="flex items-start gap-4 relative z-10">
                         <div className="w-8 h-8 rounded-full bg-slate-800 text-white flex items-center justify-center font-bold text-sm shrink-0">1</div>
                         <div>
@@ -254,8 +285,8 @@ export default function RetentionPage() {
                     </div>
                   </div>
 
-                  <button 
-                    onClick={handleDownloadDoc} 
+                  <button
+                    onClick={handleDownloadDoc}
                     disabled={downloadState !== 'idle'}
                     className={`w-full py-3.5 rounded-lg font-medium transition flex justify-center items-center gap-2 text-sm ${downloadState === 'idle' ? 'bg-[#0070F4] text-white hover:bg-blue-700 shadow-sm' : 'bg-blue-600 text-white opacity-80 cursor-default'}`}
                   >
@@ -312,38 +343,68 @@ export default function RetentionPage() {
                         <ScanSearch size={20} className="animate-pulse" /> AI đang kiểm tra chữ ký...
                       </div>
                       <div className="space-y-3 ml-2">
-                        <div className="flex items-center gap-2 text-sm text-[#0070F4]"><div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div> Quét vùng: <span className="font-semibold underline underline-offset-2">Ý kiến của phụ huynh / người giám hộ</span></div>
-                        <div className="flex items-center gap-2 text-sm text-[#0070F4]"><div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></div> Quét vùng: <span className="font-semibold underline underline-offset-2">Người làm đơn (Sinh viên)</span></div>
-                        <div className="flex items-center gap-2 text-sm text-gray-400"><div className="w-1.5 h-1.5 rounded-full bg-gray-300"></div> Quét vùng: <span className="underline underline-offset-2">Ý kiến của Lãnh đạo Khoa</span></div>
+                        <div className="flex items-center gap-2 text-sm text-[#0070F4]"><div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></div> Quét vùng: <span className="font-semibold underline underline-offset-2">Xác thực định dạng file</span></div>
+                        <div className="flex items-center gap-2 text-sm text-[#0070F4]"><div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></div> Quét vùng: <span className="font-semibold underline underline-offset-2">Nhận diện Tiêu đề đơn</span></div>
+                        <div className="flex items-center gap-2 text-sm text-[#0070F4]"><div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></div> Quét vùng: <span className="font-semibold underline underline-offset-2">Xác thực chữ ký Người làm đơn</span></div>
                       </div>
+                    </div>
+                  ) : scanState === 'error' ? (
+                    <div className="bg-white border border-red-200 rounded-xl p-6 shadow-sm">
+                      <div className="flex justify-between items-start mb-6">
+                        <div className="flex gap-3">
+                          <div className="bg-red-500 text-white rounded-full p-1"><X size={20} strokeWidth={3} /></div>
+                          <div>
+                            <h4 className="font-bold text-red-700">Tài liệu không hợp lệ!</h4>
+                            <p className="text-xs text-red-600 mt-1">AI phát hiện có lỗi trong hồ sơ của bạn</p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className={`bg-gray-50 border ${aiResult?.format_valid ? 'border-green-200' : 'border-red-200'} rounded-lg p-3 text-center flex flex-col items-center justify-center gap-2`}>
+                          <FileText size={20} className={aiResult?.format_valid ? "text-green-600" : "text-red-600"} />
+                          <span className={`text-xs font-semibold ${aiResult?.format_valid ? 'text-green-800' : 'text-red-800'}`}>Định dạng File</span>
+                          {aiResult?.format_valid ? <Check size={16} className="text-green-500" /> : <X size={16} className="text-red-500" />}
+                        </div>
+                        <div className={`bg-gray-50 border ${aiResult?.title_valid ? 'border-green-200' : 'border-red-200'} rounded-lg p-3 text-center flex flex-col items-center justify-center gap-2`}>
+                          <ScanSearch size={20} className={aiResult?.title_valid ? "text-green-600" : "text-red-600"} />
+                          <span className={`text-xs font-semibold ${aiResult?.title_valid ? 'text-green-800' : 'text-red-800'}`}>Tiêu đề đơn</span>
+                          {aiResult?.title_valid ? <Check size={16} className="text-green-500" /> : <X size={16} className="text-red-500" />}
+                        </div>
+                        <div className={`bg-gray-50 border ${aiResult?.signature_present ? 'border-green-200' : 'border-red-200'} rounded-lg p-3 text-center flex flex-col items-center justify-center gap-2`}>
+                          <User size={20} className={aiResult?.signature_present ? "text-green-600" : "text-red-600"} />
+                          <span className={`text-xs font-semibold ${aiResult?.signature_present ? 'text-green-800' : 'text-red-800'}`}>Người làm đơn</span>
+                          {aiResult?.signature_present ? <Check size={16} className="text-green-500" /> : <X size={16} className="text-red-500" />}
+                        </div>
+                      </div>
+                      <button onClick={() => docFileRef.current?.click()} className="w-full mt-4 border border-gray-300 text-gray-700 py-2 rounded-lg text-sm font-medium hover:bg-gray-50">Thử tải lại file khác</button>
                     </div>
                   ) : (
                     <div className="bg-white border border-green-200 rounded-xl p-6 shadow-sm">
                       <div className="flex justify-between items-start mb-6">
                         <div className="flex gap-3">
-                          <div className="bg-green-500 text-white rounded-full p-1"><Check size={20} strokeWidth={3}/></div>
+                          <div className="bg-green-500 text-white rounded-full p-1"><Check size={20} strokeWidth={3} /></div>
                           <div>
                             <h4 className="font-bold text-green-700">Tài liệu hợp lệ!</h4>
                             <p className="text-xs text-green-600 mt-1">Đã phát hiện đủ 3 vùng chữ ký xác nhận</p>
                           </div>
                         </div>
-                        <span className="bg-green-50 text-green-700 border border-green-200 text-[10px] font-bold px-2 py-1 rounded flex items-center gap-1"><ScanSearch size={12}/> AI Vision</span>
+                        <span className="bg-green-50 text-green-700 border border-green-200 text-[10px] font-bold px-2 py-1 rounded flex items-center gap-1"><ScanSearch size={12} /> AI Vision</span>
                       </div>
-                      
+
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="bg-green-50/50 border border-green-100 rounded-lg p-3 text-center flex flex-col items-center justify-center gap-2">
-                          <Users size={20} className="text-green-600" />
-                          <span className="text-xs font-semibold text-green-800">Ý kiến của phụ huynh</span>
+                          <FileText size={20} className="text-green-600" />
+                          <span className="text-xs font-semibold text-green-800">Định dạng File</span>
+                          <Check size={16} className="text-green-500" />
+                        </div>
+                        <div className="bg-green-50/50 border border-green-100 rounded-lg p-3 text-center flex flex-col items-center justify-center gap-2">
+                          <ScanSearch size={20} className="text-green-600" />
+                          <span className="text-xs font-semibold text-green-800">Tiêu đề đơn</span>
                           <Check size={16} className="text-green-500" />
                         </div>
                         <div className="bg-green-50/50 border border-green-100 rounded-lg p-3 text-center flex flex-col items-center justify-center gap-2">
                           <User size={20} className="text-green-600" />
-                          <span className="text-xs font-semibold text-green-800">Người làm đơn</span>
-                          <Check size={16} className="text-green-500" />
-                        </div>
-                        <div className="bg-green-50/50 border border-green-100 rounded-lg p-3 text-center flex flex-col items-center justify-center gap-2">
-                          <ShieldCheck size={20} className="text-green-600" />
-                          <span className="text-xs font-semibold text-green-800">Ý kiến của Lãnh đạo Khoa</span>
+                          <span className="text-xs font-semibold text-green-800">Chữ ký Người làm đơn</span>
                           <Check size={16} className="text-green-500" />
                         </div>
                       </div>
@@ -366,7 +427,7 @@ export default function RetentionPage() {
                   <h4 className="font-semibold text-gray-800">Bản xem trước tổng hợp hồ sơ</h4>
                   <span className="bg-orange-100 text-orange-700 text-xs font-bold px-3 py-1 rounded-full">Chờ xác nhận</span>
                 </div>
-                
+
                 <div className="p-5 flex flex-col gap-4">
                   <div className="flex items-center justify-between bg-green-50/50 border border-green-200 p-4 rounded-lg">
                     <div className="flex items-center gap-3">
@@ -390,7 +451,7 @@ export default function RetentionPage() {
             {/* ================= BƯỚC 5: THÀNH CÔNG & TRACKING ================= */}
             {currentStep >= 5 && (
               <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 mt-6">
-                
+
                 <div className="flex gap-4 items-start">
                   <div className="bg-[#0070F4] p-2 rounded-full text-white shrink-0"><Bot size={24} /></div>
                   <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 max-w-[90%]">
@@ -422,7 +483,7 @@ export default function RetentionPage() {
                       Theo dõi trạng thái
                     </button>
                   </div>
-                  
+
                   {activeTab === 'details' && (
                     <div className="p-6 flex flex-col gap-6 animate-in fade-in">
                       <div className="flex justify-between items-start">
@@ -430,7 +491,7 @@ export default function RetentionPage() {
                           <p className="text-xs text-gray-500 mb-1">Mã hồ sơ</p>
                           <h4 className="font-bold text-gray-800 text-lg">BL-2026-1707A</h4>
                           <p className="text-xs text-gray-500 flex items-center gap-1 mt-1">
-                            <Clock size={12}/> Thời gian nộp: 19:01 — {new Date().toLocaleDateString('vi-VN')}
+                            <Clock size={12} /> Thời gian nộp: 19:01 — {new Date().toLocaleDateString('vi-VN')}
                           </p>
                         </div>
                         <span className="bg-orange-100 text-orange-700 text-xs font-semibold px-3 py-1.5 rounded-full">Đang chờ xử lý</span>
@@ -455,7 +516,7 @@ export default function RetentionPage() {
                         <h5 className="text-xs font-bold text-gray-400 mb-4 uppercase tracking-wider">Minh chứng & Dữ liệu đính kèm</h5>
                         <div className="flex items-center justify-between bg-gray-50 p-4 rounded-lg border border-gray-200">
                           <div className="flex items-center gap-3">
-                            <FileText size={18} className="text-gray-400"/>
+                            <FileText size={18} className="text-gray-400" />
                             <div>
                               <p className="text-sm font-medium text-gray-700">Đơn xin nghỉ học tạm thời (Bản scan/ảnh chụp)</p>
                               <p className="text-[10px] text-green-600 font-semibold mt-0.5">AI đã kiểm duyệt: Đủ chữ ký của Người làm đơn, Ý kiến phụ huynh và Ý kiến Lãnh đạo Khoa</p>
@@ -472,19 +533,19 @@ export default function RetentionPage() {
                   {activeTab === 'tracking' && (
                     <div className="p-6 animate-in fade-in">
                       <h4 className="text-xs font-semibold text-gray-400 mb-6 uppercase tracking-wider">Trực tuyến trình xử lý</h4>
-                      
+
                       <div className="relative border-l-2 border-gray-200 ml-4 space-y-8 pb-8">
                         <div className="relative pl-8">
-                          <div className="absolute -left-[17px] top-0 bg-green-500 text-white rounded-full p-1.5 border-4 border-white shadow-sm"><Check size={16} strokeWidth={3}/></div>
+                          <div className="absolute -left-[17px] top-0 bg-green-500 text-white rounded-full p-1.5 border-4 border-white shadow-sm"><Check size={16} strokeWidth={3} /></div>
                           <h5 className="font-semibold text-gray-800 text-sm flex items-center gap-2">
                             Hệ thống tiếp nhận hồ sơ <span className="bg-green-100 text-green-700 text-[10px] px-2 py-0.5 rounded-full font-bold">Đã hoàn tất</span>
                           </h5>
-                          <p className="text-xs text-gray-400 flex items-center gap-1 mt-1"><Clock size={12}/> 04:42 — {new Date().toLocaleDateString('vi-VN')}</p>
+                          <p className="text-xs text-gray-400 flex items-center gap-1 mt-1"><Clock size={12} /> 04:42 — {new Date().toLocaleDateString('vi-VN')}</p>
                           <p className="text-sm text-gray-600 mt-2">Hệ thống đã ghi nhận Đơn xin nghỉ học tạm thời và xác nhận AI kiểm duyệt hợp lệ.</p>
                         </div>
 
                         <div className="relative pl-8">
-                          <div className="absolute -left-[17px] top-0 bg-white text-[#0070F4] rounded-full p-0.5 border-4 border-white"><CircleDot size={22} strokeWidth={3}/></div>
+                          <div className="absolute -left-[17px] top-0 bg-white text-[#0070F4] rounded-full p-0.5 border-4 border-white"><CircleDot size={22} strokeWidth={3} /></div>
                           <h5 className="font-semibold text-[#0070F4] text-sm flex items-center gap-2">
                             Phòng Đào tạo rà soát hồ sơ <span className="bg-blue-50 text-[#0070F4] border border-blue-200 text-[10px] px-2 py-0.5 rounded-full font-bold">Đang xử lý</span>
                           </h5>
@@ -496,7 +557,7 @@ export default function RetentionPage() {
                           <h5 className="font-semibold text-gray-400 text-sm pt-1.5">Lãnh đạo Khoa & Ban Giám hiệu xét duyệt</h5>
                           <p className="text-sm text-gray-400 mt-2">Trình Ban Giám hiệu Trường Đại học Kinh tế xem xét và phê duyệt Quyết định cho phép nghỉ học tạm thời.</p>
                         </div>
-                        
+
                         <div className="relative pl-8">
                           <div className="absolute -left-[17px] top-0 bg-white text-gray-300 rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold border-2 border-gray-200 shadow-sm">4</div>
                           <h5 className="font-semibold text-gray-400 text-sm pt-1.5">Hoàn tất & Cấp Quyết định</h5>
@@ -505,7 +566,7 @@ export default function RetentionPage() {
                       </div>
 
                       <div className="mt-2 bg-red-50 border border-red-200 rounded-lg p-4">
-                        <h5 className="text-red-600 font-bold text-sm flex items-center gap-2 mb-2"><AlertCircle size={18}/> Thông báo từ Phòng Đào tạo</h5>
+                        <h5 className="text-red-600 font-bold text-sm flex items-center gap-2 mb-2"><AlertCircle size={18} /> Thông báo từ Phòng Đào tạo</h5>
                         <p className="text-red-500 text-sm font-medium ml-6">Yêu cầu bổ sung: Ảnh chụp Đơn xin nghỉ học tạm thời bị mờ phần chữ ký phụ huynh. Vui lòng chụp rõ và cập nhật lại.</p>
                       </div>
                     </div>
@@ -513,7 +574,7 @@ export default function RetentionPage() {
                 </div>
               </div>
             )}
-            
+
             <div ref={chatEndRef} />
           </div>
         )}
