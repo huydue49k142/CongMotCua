@@ -92,9 +92,10 @@ const ChatInterface = ({
           <div className="p-2 bg-primary rounded-lg text-white">
             <Bot className="h-5 w-5" />
           </div>
-          <div className="p-4 bg-white border border-gray-200 rounded-2xl rounded-tl-none shadow-sm text-slate-700 text-sm leading-relaxed">
-            <p className="font-semibold text-primary mb-1">Trợ lý AI</p>
-            <p>{finalWelcomeMessage}</p>
+          <div className="p-4 bg-white border border-gray-200 rounded-2xl rounded-tl-none shadow-sm text-slate-700 text-sm leading-relaxed break-words whitespace-pre-wrap">
+          <p className="font-semibold text-primary mb-1">Trợ lý AI</p>
+          <p>{finalWelcomeMessage}</p>
+
             <div className="flex gap-1 mt-2 animate-pulse">
                 <span className="w-1.5 h-1.5 bg-gray-300 rounded-full"></span>
                 <span className="w-1.5 h-1.5 bg-gray-300 rounded-full"></span>

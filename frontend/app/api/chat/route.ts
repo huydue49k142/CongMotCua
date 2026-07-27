@@ -33,8 +33,38 @@ function laCauHoiDonGian(text: string) {
   return !TU_KHOA_CAN_AI.some(k => t.includes(k)) && t.length < 40;
 }
 
+
 function formatThuTucDayDu(item: any) {
-  return `📋 **${item.ten}**\n\n**Điều kiện áp dụng:** ${item.dieu_kien}\n\n**Hồ sơ cần nộp:**\n${item.ho_so.map((h: string) => "- " + h).join("\n")}\n\n**Quy trình:**\n${item.quy_trinh.map((q: string, i: number) => `${i + 1}. ${q}`).join("\n")}\n\n**Nơi nộp:** ${item.noi_nop}\n**Thời hạn:** ${item.thoi_han}\n**Chi phí:** ${item.chi_phi}`;
+  const dongDieuKien = item.dieu_kien.map((d: string) => `• ${d}`).join("\n");
+  const dongHoSo = item.ho_so.map((h: string) => `• ${h}`).join("\n");
+  const dongQuyTrinh = item.quy_trinh.map((q: string, i: number) => `${i + 1}. ${q}`).join("\n");
+
+  const canhBaoDoTinCay =
+    item.do_tin_cay === "trung_binh"
+      ? `\n\n⚠️ *Thông tin này nên được xác nhận lại với Phòng Đào tạo trước khi thực hiện.*`
+      : "";
+
+  return [
+    `📋 **${item.ten}**`,
+    ``,
+    `**Điều kiện áp dụng**`,
+    dongDieuKien,
+    ``,
+    `**Hồ sơ cần nộp**`,
+    dongHoSo,
+    ``,
+    `**Quy trình thực hiện**`,
+    dongQuyTrinh,
+    ``,
+    `**Nơi nộp**`,
+    item.noi_nop,
+    ``,
+    `**Thời hạn**`,
+    item.thoi_han,
+    ``,
+    `**Chi phí**`,
+    item.chi_phi,
+  ].join("\n") + canhBaoDoTinCay;
 }
 
 // ==== Đếm số lần user đã hỏi thực sự (bỏ qua câu chào mặc định của bot) ====

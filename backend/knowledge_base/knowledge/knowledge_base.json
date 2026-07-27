@@ -2,15 +2,13 @@
   "metadata": {
     "school": "Trường Đại học Kinh tế - Đại học Đà Nẵng",
     "data_source": "Quy chế đào tạo hiện hành của DUE",
-    "version": "1.0.0",
-    "last_updated": "2026-07-18"
+    "version": "1.1.0",
+    "last_updated": "2026-07-27"
   },
 
   "verification": {
     "pending": [
       "Số hiệu và ngày ban hành chính thức của quy chế (đặc biệt mục Chuyển ngành)",
-      "Số phòng nộp hồ sơ hiện hành",
-      "Thông tin liên hệ (SĐT/Email/Giờ làm việc) của Phòng Đào tạo",
       "Link tải mẫu đơn chính thức (nếu trường công bố)"
     ],
     "note": "Các thông tin trên cần được xác minh trước khi triển khai thực tế."
@@ -18,10 +16,20 @@
 
   "contact": {
     "office": "Phòng Đào tạo",
-    "phone": "",
-    "email": "",
-    "room": "",
-    "working_time": ""
+    "address": "Phòng H215, Tòa nhà đa năng",
+    "website": "http://due.udn.vn/phongdaotao",
+    "website_intro": "http://due.udn.vn/vi-vn/phong/daotao/daotaogioithieu/cid/508",
+    "email": "daotao@due.edu.vn",
+    "phone": "0236 3950110",
+    "fanpage": "https://www.fb.com/PhongDaoTaoDUE",
+    "working_time": {
+      "days": "Thứ Hai đến Thứ Sáu hàng tuần (trừ ngày nghỉ lễ theo quy định)",
+      "morning": "07h30 - 11h30",
+      "afternoon": "13h00 - 17h00"
+    },
+    "student_reception_hours": {
+      "morning": "08h00 - 11h00"
+    }
   },
 
   "procedures": [
@@ -36,12 +44,23 @@
 
       "description": "Thủ tục hỗ trợ sinh viên có nhu cầu học ngành khác.",
 
-      "conditions": "Sinh viên trúng tuyển ngành nào học ngành đó, KHÔNG được chuyển ngành trực tiếp trong quá trình học. Muốn học ngành khác phải làm đơn xin thôi học, sau đó thi lại đầu vào ngành mới.",
+      "conditions": [
+        "Sinh viên không phải là sinh viên năm thứ nhất hoặc năm cuối khóa",
+        "Không trong thời gian bị kỷ luật từ cảnh cáo trở lên, không bị đình chỉ học tập hoặc thuộc diện buộc thôi học",
+        "Điểm trúng tuyển (điểm thi THPT, ĐGNL, xét học bạ...) phải lớn hơn hoặc bằng điểm chuẩn trúng tuyển của ngành muốn chuyển tới trong cùng năm tuyển sinh",
+        "Ngành muốn chuyển đến phải còn chỉ tiêu tiếp nhận",
+        "Sinh viên chỉ được chuyển ngành 1 lần trong toàn bộ khóa học",
+        "Được sự đồng ý của thủ trưởng các đơn vị chuyên môn phụ trách chương trình, ngành đào tạo (nếu có) và của hiệu trưởng cơ sở đào tạo chuyển đi, chuyển đến"
+      ],
 
       "required_documents": [
-        "Không có hồ sơ chuyển ngành trực tiếp.",
-        "Đơn xin thôi học.",
-        "Hồ sơ xin công nhận tín chỉ (nếu trúng tuyển ngành mới và có nhu cầu)."
+        "Đơn xin chuyển ngành (theo mẫu).",
+        "Giấy báo trúng tuyển (để minh chứng điểm đầu vào).",
+        "Giấy chứng nhận tốt nghiệp THPT.",
+        "Giấy xác nhận không bị buộc thôi học.",
+        "Giấy xác nhận không vi phạm kỷ luật.",
+        "Điểm rèn luyện.",
+        "Bảng điểm."
       ],
 
       "workflow": [
@@ -53,7 +72,7 @@
       "credit_transfer_limit": "Tối đa 50% khối lượng chương trình đào tạo mới.",
 
       "submission": {
-        "location": "Phòng Đào tạo",
+        "location": "Phòng Đào tạo (Phòng H215, Tòa nhà đa năng) hoặc qua cổng thông tin của trường",
         "deadline": "Theo lịch tuyển sinh và thông báo từng học kỳ.",
         "fee": "Lệ phí tuyển sinh theo quy định."
       },
@@ -96,27 +115,40 @@
         "level": "high"
       },
 
-      "conditions": "Sinh viên có lý do chính đáng và được Hiệu trưởng chấp thuận.",
+      "conditions": [
+        "Lý do sức khỏe: bị ốm đau, tai nạn phải điều trị thời gian dài",
+        "Lý do nghĩa vụ: được điều động thực hiện nghĩa vụ quân sự",
+        "Lý do cá nhân: đã học ít nhất 1 học kỳ, không bị kỷ luật, không thuộc diện buộc thôi học và điểm trung bình chung tích lũy (GPA) không dưới mức quy định của trường",
+        "Thời gian nghỉ học tạm thời phải nằm trong quỹ thời gian tối đa được phép học tại trường",
+        "Đã hoàn tất các nghĩa vụ công nợ (học phí, sách thư viện) của học kỳ trước đó",
+        "Tối đa 02 năm kể từ ngày ra quyết định (số tín chỉ bảo lưu không quá 50%)",
+        "Riêng trường hợp nghỉ học vì lý do cá nhân, phải thực hiện thủ tục trong vòng 4 tuần đầu của học kỳ xin nghỉ học"
+      ],
 
       "required_documents": [
-        "Đơn xin nghỉ học tạm thời.",
-        "Giấy tờ minh chứng (nếu có)."
+        "Đơn xin bảo lưu kết quả học tập.",
+        "Giấy xác nhận của Bệnh viện (nếu lý do sức khỏe).",
+        "Lệnh gọi nhập ngũ / Quyết định điều động (nếu đi nghĩa vụ).",
+        "Giấy xác nhận không nợ học phí, thư viện."
       ],
 
       "workflow": [
-        "Điền đơn.",
-        "Nộp tại Phòng Đào tạo.",
-        "Chờ quyết định của Hiệu trưởng."
+        "Tải biểu mẫu Đơn xin nghỉ học tạm thời.",
+        "Điền đầy đủ thông tin vào đơn, ký đơn.",
+        "Xin ý kiến xác nhận của Phụ huynh.",
+        "Xin ý kiến xác nhận của Ban Chủ nhiệm Khoa.",
+        "Nộp đơn về Phòng Đào tạo.",
+        "Nhận Quyết định từ Phòng Đào tạo (sau 7 ngày làm việc)."
       ],
 
       "submission": {
-        "location": "Phòng Đào tạo",
-        "deadline": "Trước khi bắt đầu học kỳ.",
-        "fee": "Không quy định."
+        "location": "Phòng Đào tạo (Phòng H215, Tòa nhà đa năng) hoặc cổng thông tin của trường",
+        "deadline": "Trước khi bắt đầu học kỳ hoặc theo thông báo. Trường hợp nghỉ học vì lý do cá nhân: trong 4 tuần đầu của học kỳ xin nghỉ học.",
+        "fee": "Không quy định; thanh toán học phí còn nợ trước khi nghỉ."
       },
 
       "resources": {
-        "form": "forms/don-xin-bao-luu.docx"
+        "form": "http://due.udn.vn/vi-vn/daotao/daotaochitiet/id/5613/cid/1968"
       },
 
       "tool_support": {
@@ -153,26 +185,35 @@
         "level": "high"
       },
 
-      "conditions": "Áp dụng cho trường hợp tự nguyện hoặc bị buộc thôi học theo quy chế.",
+      "conditions": [
+        "Sinh viên tự nguyện xin chấm dứt học tập (do hoàn cảnh gia đình, đi du học, hoặc nguyện vọng cá nhân)",
+        "Hoặc bị buộc thôi học theo quy chế (cảnh báo học tập quá 4 lần, không đăng ký học,...)",
+        "Không được làm đơn tự nguyện thôi học nếu đang trong thời gian bị xem xét kỷ luật thi hành mức 'Buộc thôi học'",
+        "Đã hoàn thành toàn bộ nghĩa vụ tài chính/công nợ (học phí các kỳ đã học, trả hết sách cho thư viện)"
+      ],
 
       "required_documents": [
-        "Đơn xin thôi học."
+        "Đơn xin thôi học (nếu tự nguyện)."
       ],
 
       "workflow": [
-        "Điền đơn.",
-        "Nộp Phòng Đào tạo.",
-        "Nhận quyết định thôi học."
+        "Tải biểu mẫu Đơn xin thôi học.",
+        "Điền đầy đủ thông tin vào đơn, ký đơn.",
+        "Xin ý kiến xác nhận của Phụ huynh.",
+        "Xin xác nhận của địa phương nơi cư trú.",
+        "Xin ý kiến xác nhận của Ban Chủ nhiệm Khoa.",
+        "Nộp đơn về Phòng Đào tạo.",
+        "Nhận Quyết định từ Phòng Đào tạo (sau 7 ngày làm việc)."
       ],
 
       "submission": {
-        "location": "Phòng Đào tạo",
-        "deadline": "Theo nhu cầu của sinh viên hoặc cuối học kỳ.",
+        "location": "Phòng Đào tạo (Phòng H215, Tòa nhà đa năng)",
+        "deadline": "Tự nguyện: bất cứ khi nào. Buộc thôi học: cuối mỗi học kỳ chính.",
         "fee": "Hoàn thành nghĩa vụ tài chính."
       },
 
       "resources": {
-        "form": "forms/don-xin-thoi-hoc.docx"
+        "form": "http://due.udn.vn/vi-vn/daotao/daotaochitiet/id/5613/cid/1968"
       },
 
       "tool_support": {
@@ -204,27 +245,30 @@
         "level": "high"
       },
 
-      "conditions": "Sinh viên hết thời hạn bảo lưu và muốn quay lại học.",
+      "conditions": [
+        "Thời gian bảo lưu chưa vượt quá thời hạn cho phép (theo Quyết định nghỉ học tạm thời)",
+        "Nộp hồ sơ xin học tiếp đúng hạn (thường là trước khi bắt đầu học kỳ mới ít nhất 2-4 tuần)"
+      ],
 
       "required_documents": [
-        "Đơn xin trở lại học tập."
+        "Đơn xin trở lại học tập.",
+        "Thời khóa biểu dự kiến (mong muốn học trong học kỳ mới)."
       ],
 
       "workflow": [
-        "Điền đơn.",
-        "Xin chữ ký phụ huynh.",
-        "Nộp Phòng Đào tạo.",
-        "Nhận quyết định học tiếp."
+        "Khi hết thời hạn nghỉ học theo Quyết định, làm đơn xin trở lại học tập.",
+        "Chuẩn bị kèm theo thời khóa biểu dự kiến của học kỳ mới.",
+        "Nộp đơn về Phòng Đào tạo."
       ],
 
       "submission": {
-        "location": "Phòng Đào tạo",
-        "deadline": "Trước khi bắt đầu học kỳ.",
+        "location": "Phòng Đào tạo (Phòng H215, Tòa nhà đa năng)",
+        "deadline": "Khi hết thời hạn nghỉ học theo Quyết định, thường trước khi bắt đầu học kỳ mới ít nhất 2-4 tuần.",
         "fee": "Không quy định."
       },
 
       "resources": {
-        "form": "forms/don-xin-tro-lai-hoc.docx"
+        "form": "http://due.udn.vn/vi-vn/daotao/daotaochitiet/id/5613/cid/1968"
       },
 
       "tool_support": {

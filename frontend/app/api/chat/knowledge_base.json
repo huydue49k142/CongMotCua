@@ -1,14 +1,29 @@
 {
   "truong": "Trường Đại học Kinh tế - Đại học Đà Nẵng",
   "nguon_du_lieu": "Quy chế đào tạo hiện hành của DUE",
-  "ngay_cap_nhat": "2026-07-18",
+  "ngay_cap_nhat": "2026-07-27",
   "can_xac_minh_them": [
     "Số hiệu và ngày ban hành chính thức của quy chế (đặc biệt mục Chuyển ngành, hiện đang ghi nguồn là 'thông tin tư vấn đào tạo')",
-    "Số phòng nộp hồ sơ hiện hành H212",
-    "Thông tin liên hệ (SĐT/email/giờ làm việc) của Phòng Đào tạo",
     "Link tải các mẫu đơn (nếu có cổng thông tin/website mẫu biểu)"
   ],
-  "lien_he_du_phong": "Chưa có - CẦN BỔ SUNG số điện thoại/email Phòng Đào tạo trước khi triển khai thật",
+
+  "lien_he": {
+    "dia_chi": "Phòng H215, Tòa nhà đa năng",
+    "website": "http://due.udn.vn/phongdaotao",
+    "website_gioi_thieu": "http://due.udn.vn/vi-vn/phong/daotao/daotaogioithieu/cid/508",
+    "email": "daotao@due.edu.vn",
+    "sdt": "0236 3950110",
+    "fanpage": "https://www.fb.com/PhongDaoTaoDUE",
+    "gio_lam_viec": {
+      "ngay": "Thứ Hai đến Thứ Sáu hàng tuần (trừ ngày nghỉ lễ theo quy định)",
+      "sang": "07h30 - 11h30",
+      "chieu": "13h00 - 17h00"
+    },
+    "gio_tiep_sinh_vien": {
+      "sang": "08h00 - 11h00"
+    }
+  },
+  "lien_he_du_phong": "**Thông tin liên hệ**\n\n- **Địa chỉ:** Phòng H215, Tòa nhà đa năng\n- **Website:** [http://due.udn.vn/phongdaotao](http://due.udn.vn/phongdaotao)\n- **Email:** [daotao@due.edu.vn](mailto:daotao@due.edu.vn)\n- **Số điện thoại (liên hệ trong giờ hành chính):** [0236 3950110](tel:02363950110)\n- **Fanpage:** [https://www.fb.com/PhongDaoTaoDUE](https://www.fb.com/PhongDaoTaoDUE)\n- **Giờ làm việc:** Thứ Hai - Thứ Sáu, sáng 07h30-11h30, chiều 13h00-17h00 (giờ tiếp sinh viên: sáng 08h00-11h00)",
 
   "thu_tuc": [
     {
@@ -18,10 +33,25 @@
       "link_tai_mau_don": "[Đơn xin chuyển ngành](/bieu-mau/don-xin-chuyen-nganh.docx)",
       "do_tin_cay": "trung_binh",
       "ghi_chu_do_tin_cay": "Nguồn là tư vấn đào tạo, chưa xác nhận bằng văn bản quy chế chính thức",
-      "dieu_kien": "Sinh viên trúng tuyển ngành nào học ngành đó, KHÔNG được chuyển ngành trực tiếp trong quá trình học. Muốn học ngành khác phải làm đơn xin thôi học, sau đó thi lại đầu vào ngành mới.",
-      "ho_so": ["Đơn xin thôi học", "Hồ sơ xin xét công nhận điểm/tín chỉ"],
+      "dieu_kien": [
+        "Sinh viên không phải là sinh viên năm thứ nhất hoặc năm cuối khóa",
+        "Không trong thời gian bị kỷ luật từ cảnh cáo trở lên, không bị đình chỉ học tập hoặc thuộc diện buộc thôi học",
+        "Điểm trúng tuyển (điểm thi THPT, ĐGNL, xét học bạ...) phải lớn hơn hoặc bằng điểm chuẩn trúng tuyển của ngành muốn chuyển tới trong cùng năm tuyển sinh",
+        "Ngành muốn chuyển đến phải còn chỉ tiêu tiếp nhận",
+        "Sinh viên chỉ được chuyển ngành 1 lần trong toàn bộ khóa học",
+        "Được sự đồng ý của thủ trưởng các đơn vị chuyên môn phụ trách chương trình, ngành đào tạo (nếu có) và của hiệu trưởng cơ sở đào tạo chuyển đi, chuyển đến"
+      ],
+      "ho_so": [
+        "Đơn xin chuyển ngành (theo mẫu)",
+        "Giấy báo trúng tuyển (để minh chứng điểm đầu vào)",
+        "Giấy chứng nhận tốt nghiệp THPT",
+        "Giấy xác nhận không bị buộc thôi học",
+        "Giấy xác nhận không vi phạm kỷ luật",
+        "Điểm rèn luyện",
+        "Bảng điểm"
+      ],
       "quy_trinh": ["Nộp đơn xin thôi học", "Thi lại vào ngành mới", "Xét miễn học và công nhận tín chỉ"],
-      "noi_nop": "Phòng Đào tạo",
+      "noi_nop": "Phòng Đào tạo (Phòng H215, Tòa nhà đa năng) hoặc qua cổng thông tin của trường",
       "thoi_han": "Theo lịch tuyển sinh",
       "chi_phi": "Lệ phí thi tuyển sinh",
       "faq": [
@@ -35,13 +65,33 @@
       "id": "bao_luu",
       "ten": "Nghỉ học tạm thời (Bảo lưu kết quả học tập)",
       "tu_khoa": ["bảo lưu", "bao luu", "tạm dừng", "tam dung", "nghỉ học tạm thời", "nghi hoc tam thoi", "gia hạn bảo lưu", "gia han bao luu"],
-      "link_tai_mau_don": "[Đơn xin bảo lưu](/bieu-mau/don-xin-bao-luu.docx)",
+      "link_tai_mau_don": "[Đơn xin nghỉ học tạm thời](http://due.udn.vn/vi-vn/daotao/daotaochitiet/id/5613/cid/1968)",
       "do_tin_cay": "cao",
-      "dieu_kien": "Sinh viên có lý do chính đáng, được sự đồng ý của Hiệu trưởng. Tối đa 02 năm kể từ ngày ra quyết định (số tín chỉ bảo lưu không quá 50%).",
-      "ho_so": ["Đơn xin nghỉ học tạm thời", "Minh chứng (giấy khám sức khỏe,...)"],
-      "quy_trinh": ["Điền đơn", "Nộp đơn tại Phòng Đào tạo/Online", "Chờ Quyết định của Hiệu trưởng"],
-      "noi_nop": "Phòng Đào tạo (Phòng H212) hoặc cổng thông tin",
-      "thoi_han": "Trước khi bắt đầu học kỳ hoặc theo thông báo",
+      "dieu_kien": [
+        "Lý do sức khỏe: bị ốm đau, tai nạn phải điều trị thời gian dài",
+        "Lý do nghĩa vụ: được điều động thực hiện nghĩa vụ quân sự",
+        "Lý do cá nhân: đã học ít nhất 1 học kỳ, không bị kỷ luật, không thuộc diện buộc thôi học và điểm trung bình chung tích lũy (GPA) không dưới mức quy định của trường",
+        "Thời gian nghỉ học tạm thời phải nằm trong quỹ thời gian tối đa được phép học tại trường",
+        "Đã hoàn tất các nghĩa vụ công nợ (học phí, sách thư viện) của học kỳ trước đó",
+        "Tối đa 02 năm kể từ ngày ra quyết định (số tín chỉ bảo lưu không quá 50%)",
+        "Riêng trường hợp nghỉ học vì lý do cá nhân, phải thực hiện thủ tục trong vòng 4 tuần đầu của học kỳ xin nghỉ học"
+      ],
+      "ho_so": [
+        "Đơn xin bảo lưu kết quả học tập",
+        "Giấy xác nhận của Bệnh viện (nếu lý do sức khỏe)",
+        "Lệnh gọi nhập ngũ / Quyết định điều động (nếu đi nghĩa vụ)",
+        "Giấy xác nhận không nợ học phí, thư viện"
+      ],
+      "quy_trinh": [
+        "Tải biểu mẫu Đơn xin nghỉ học tạm thời",
+        "Điền đầy đủ thông tin vào đơn, ký đơn",
+        "Xin ý kiến xác nhận của Phụ huynh",
+        "Xin ý kiến xác nhận của Ban Chủ nhiệm Khoa",
+        "Nộp đơn về Phòng Đào tạo",
+        "Nhận Quyết định từ Phòng Đào tạo (sau 7 ngày làm việc)"
+      ],
+      "noi_nop": "Phòng Đào tạo (Phòng H215, Tòa nhà đa năng) hoặc cổng thông tin của trường",
+      "thoi_han": "Trước khi bắt đầu học kỳ hoặc theo thông báo. Trường hợp nghỉ học vì lý do cá nhân: trong 4 tuần đầu của học kỳ xin nghỉ học.",
       "chi_phi": "Không quy định phí; thanh toán học phí còn nợ trước khi nghỉ",
       "faq": [
         {
@@ -58,12 +108,25 @@
       "id": "thoi_hoc",
       "ten": "Thôi học",
       "tu_khoa": ["thôi học", "thoi hoc", "nghỉ học", "nghi hoc", "bị buộc thôi học", "buoc thoi hoc"],
-      "link_tai_mau_don": "[Đơn xin thôi học](/bieu-mau/don-xin-thoi-hoc.docx)",
+      "link_tai_mau_don": "[Đơn xin thôi học](http://due.udn.vn/vi-vn/daotao/daotaochitiet/id/5613/cid/1968)",
       "do_tin_cay": "cao",
-      "dieu_kien": "Tự nguyện (lý do cá nhân) hoặc Bị buộc thôi học (cảnh báo học tập quá 4 lần, không đăng ký học,...)",
+      "dieu_kien": [
+        "Sinh viên tự nguyện xin chấm dứt học tập (do hoàn cảnh gia đình, đi du học, hoặc nguyện vọng cá nhân)",
+        "Hoặc bị buộc thôi học (cảnh báo học tập quá 4 lần, không đăng ký học,...)",
+        "Không được làm đơn tự nguyện thôi học nếu đang trong thời gian bị xem xét kỷ luật thi hành mức 'Buộc thôi học'",
+        "Đã hoàn thành toàn bộ nghĩa vụ tài chính/công nợ (học phí các kỳ đã học, trả hết sách cho thư viện)"
+      ],
       "ho_so": ["Đơn xin thôi học (nếu tự nguyện)"],
-      "quy_trinh": ["Nộp đơn (tự nguyện) hoặc nhận Quyết định từ Nhà trường (bị buộc thôi học)"],
-      "noi_nop": "Phòng Đào tạo",
+      "quy_trinh": [
+        "Tải biểu mẫu Đơn xin thôi học",
+        "Điền đầy đủ thông tin vào đơn, ký đơn",
+        "Xin ý kiến xác nhận của Phụ huynh",
+        "Xin xác nhận của địa phương nơi cư trú",
+        "Xin ý kiến xác nhận của Ban Chủ nhiệm Khoa",
+        "Nộp đơn về Phòng Đào tạo",
+        "Nhận Quyết định từ Phòng Đào tạo (sau 7 ngày làm việc)"
+      ],
+      "noi_nop": "Phòng Đào tạo (Phòng H215, Tòa nhà đa năng)",
       "thoi_han": "Tự nguyện: bất cứ khi nào. Buộc thôi học: cuối mỗi học kỳ chính.",
       "chi_phi": "Hoàn thành nghĩa vụ tài chính trước khi rút hồ sơ",
       "faq": [
@@ -77,13 +140,20 @@
       "id": "hoc_tiep",
       "ten": "Xin học tiếp (Học tiếp sau khi nghỉ tạm thời)",
       "tu_khoa": ["học tiếp", "hoc tiep", "trở lại học", "tro lai hoc", "đi học lại", "di hoc lai"],
-      "link_tai_mau_don": "[Đơn xin trở lại học tập](/bieu-mau/don-xin-tro-lai-hoc.docx)",
+      "link_tai_mau_don": "[Đơn xin trở lại học tập](http://due.udn.vn/vi-vn/daotao/daotaochitiet/id/5613/cid/1968)",
       "do_tin_cay": "cao",
-      "dieu_kien": "Sinh viên đã hết thời hạn nghỉ học tạm thời và có nguyện vọng trở lại.",
-      "ho_so": ["Đơn xin trở lại học tập (có chữ ký sinh viên và phụ huynh)"],
-      "quy_trinh": ["Điền đơn", "Xin chữ ký phụ huynh", "Nộp Phòng Đào tạo", "Nhận Quyết định"],
-      "noi_nop": "Phòng Đào tạo (Phòng H212)",
-      "thoi_han": "Trước khi bắt đầu học kỳ mới.",
+      "dieu_kien": [
+        "Thời gian bảo lưu chưa vượt quá thời hạn cho phép (theo Quyết định nghỉ học tạm thời)",
+        "Nộp hồ sơ xin học tiếp đúng hạn (thường là trước khi bắt đầu học kỳ mới ít nhất 2-4 tuần)"
+      ],
+      "ho_so": ["Đơn xin trở lại học tập", "Thời khóa biểu dự kiến (mong muốn học trong học kỳ mới)"],
+      "quy_trinh": [
+        "Khi hết thời hạn nghỉ học theo Quyết định, làm đơn xin trở lại học tập",
+        "Chuẩn bị kèm theo thời khóa biểu dự kiến của học kỳ mới",
+        "Nộp đơn về Phòng Đào tạo"
+      ],
+      "noi_nop": "Phòng Đào tạo (Phòng H215, Tòa nhà đa năng)",
+      "thoi_han": "Khi hết thời hạn nghỉ học theo Quyết định, thường trước khi bắt đầu học kỳ mới ít nhất 2-4 tuần.",
       "chi_phi": "Không quy định phí nộp đơn; đóng học phí theo tín chỉ học lại",
       "faq": [
         {
