@@ -1,10 +1,24 @@
 "use client";
 
-import React from 'react';
-import { LogOut, User, Search, GraduationCap, FileText } from 'lucide-react';
+import React, { useState } from 'react';
+import { LogOut, User, GraduationCap, FileText } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import LogoutConfirmDialog from '@/components/student/LogoutConfirmDialog';
+import { authService } from '@/services/auth.service';
 
 export default function StaffLayout({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+  const [isLogoutOpen, setIsLogoutOpen] = useState(false);
+
+  const handleOpenLogout = () => setIsLogoutOpen(true);
+  const handleCloseLogout = () => setIsLogoutOpen(false);
+  const handleConfirmLogout = () => {
+    setIsLogoutOpen(false);
+    authService.logout();
+    router.push('/login');
+  };
+
   return (
     <div className="flex h-screen bg-slate-50 font-sans">
       {/* Sidebar */}
@@ -32,7 +46,11 @@ export default function StaffLayout({ children }: { children: React.ReactNode })
 
         {/* Bottom User Area */}
         <div>
-          <button className="flex items-center gap-3 px-8 py-4 text-slate-600 hover:text-slate-800 text-sm font-medium w-full text-left">
+          <button 
+            type="button"
+            onClick={handleOpenLogout}
+            className="flex items-center gap-3 px-8 py-4 text-slate-600 hover:text-slate-800 text-sm font-medium w-full text-left"
+          >
             <LogOut className="h-4 w-4" />
             Đăng xuất
           </button>
@@ -53,15 +71,7 @@ export default function StaffLayout({ children }: { children: React.ReactNode })
         {/* Topbar */}
         <header className="h-16 bg-[#18538E] flex items-center justify-between px-6 shrink-0">
           <div className="flex-1 max-w-xl">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/50" />
-              <input 
-                type="text" 
-                placeholder="" 
-                className="w-full bg-transparent border-none text-white focus:ring-0 placeholder:text-white/50 pl-10"
-                readOnly
-              />
-            </div>
+            {/* Search input removed */}
           </div>
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-2 bg-white/10 hover:bg-white/20 transition cursor-pointer px-4 py-1.5 rounded-full">
@@ -78,6 +88,12 @@ export default function StaffLayout({ children }: { children: React.ReactNode })
           {children}
         </div>
       </main>
+
+      <LogoutConfirmDialog
+        isOpen={isLogoutOpen}
+        onClose={handleCloseLogout}
+        onConfirm={handleConfirmLogout}
+      />
     </div>
   );
 }

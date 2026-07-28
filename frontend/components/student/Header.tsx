@@ -45,6 +45,25 @@ const Header = () => {
     }
   };
 
+  const handleMarkAllAsRead = async () => {
+    try {
+      await notificationService.markAllAsRead();
+      setNotifications(notifications.map(n => ({ ...n, is_read: true })));
+    } catch (error) {
+      console.error('Failed to mark all as read', error);
+    }
+  };
+
+  const handleDeleteAll = async () => {
+    if (!confirm('Bạn có chắc chắn muốn xóa tất cả thông báo?')) return;
+    try {
+      await notificationService.deleteAll();
+      setNotifications([]);
+    } catch (error) {
+      console.error('Failed to delete all notifications', error);
+    }
+  };
+
   const unreadCount = notifications.filter(n => !n.is_read).length;
   const displayName = user?.full_name || user?.name || 'Người dùng';
   const initial = displayName.charAt(0).toUpperCase();
@@ -112,20 +131,27 @@ const Header = () => {
                             {new Date(notif.created_at).toLocaleString('vi-VN')}
                           </p>
                         </div>
-                        {!notif.is_read && (
-                          <button 
-                            onClick={() => handleMarkAsRead(notif.id)}
-                            className="text-primary hover:text-blue-700 p-1"
-                            title="Đánh dấu đã đọc"
-                          >
-                            <Check className="h-4 w-4" />
-                          </button>
-                        )}
                       </div>
                     ))}
                   </div>
                 )}
               </div>
+              {notifications.length > 0 && (
+                <div className="p-3 border-t border-slate-100 bg-slate-50 flex justify-between items-center gap-2">
+                  <button 
+                    onClick={handleMarkAllAsRead}
+                    className="text-xs font-semibold text-blue-600 hover:text-blue-800 transition"
+                  >
+                    Đã đọc
+                  </button>
+                  <button 
+                    onClick={handleDeleteAll}
+                    className="text-xs font-semibold text-red-500 hover:text-red-700 transition"
+                  >
+                    Xóa hết thông báo
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>

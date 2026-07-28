@@ -51,8 +51,12 @@ export default function LoginPage() {
     setError(null);
     
     try {
-      await authService.login(formData);
-      router.push('/student/dashboard');
+      const res = await authService.login(formData);
+      if (res.user.role === 'STAFF') {
+        router.push('/staff');
+      } else {
+        router.push('/student/dashboard');
+      }
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Tên đăng nhập hoặc mật khẩu không chính xác.');
     } finally {

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import ChatInterface from '@/components/student/ChatInterface';
-import { LogOut, Bot, AlertTriangle, Download, CheckCircle2, ChevronRight, UploadCloud, Loader2, Scan, Check, Clock, CircleDot, FileText, X, ScanSearch, User } from 'lucide-react';
+import { LogOut, Bot, AlertTriangle, Download, CheckCircle2, ChevronRight, UploadCloud, Loader2, Scan, Check, Clock, CircleDot, FileText, X, ScanSearch, User, RefreshCw, AlertCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { getStudentProfile, StudentProfile, DropoutFormData } from '@/services/dropout.service';
 import axios from 'axios';
@@ -20,6 +20,8 @@ export default function DropoutPage() {
   const [aiResult, setAiResult] = useState<{format_valid?: boolean, title_valid?: boolean, signature_present?: boolean} | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState<'details' | 'tracking'>('details');
+  const [toastMessage, setToastMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
+  const [draftToRestore, setDraftToRestore] = useState<any | null>(null);
   
   const [studentProfile, setStudentProfile] = useState<StudentProfile | null>(null);
   const [formData, setFormData] = useState<DropoutFormData>({
@@ -45,6 +47,39 @@ export default function DropoutPage() {
     }
   }, [isStarted]);
 
+  useEffect(() => {
+    if (!isStarted || !studentProfile) return;
+
+    const accessToken = localStorage.getItem("access_token") || localStorage.getItem("access");
+    if (!accessToken) return;
+
+    const apiBase = (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api").replace(/\/$/, "");
+
+    axios.get(`${apiBase}/thoi-hoc/draft/dropout/get/`, {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    })
+    .then(res => {
+      if (res.data.hasDraft && res.data.draft) {
+        setDraftToRestore(res.data.draft);
+      }
+    })
+    .catch(err => console.error("Lỗi khi tải bản nháp:", err));
+  }, [isStarted, studentProfile]);
+
+  const handleRestoreDraft = () => {
+    if (!draftToRestore) return;
+    setFormData(draftToRestore.formData || { reason: '', expectedDate: '', contactAddress: '', notes: '' });
+    setCurrentStep(draftToRestore.step || 1);
+    if (draftToRestore.step >= 4) {
+      setIsDownloaded(true);
+    }
+    setDraftToRestore(null);
+  };
+
+  const handleIgnoreDraft = () => {
+    setDraftToRestore(null);
+  };
+
   // Cuộn xuống cuối mỗi khi chuyển sang bước mới
   const chatEndRef = React.useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -59,6 +94,28 @@ export default function DropoutPage() {
   ) => {
     const { name, value } = e.target;
     setFormData((prev: DropoutFormData) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSaveDraft = async () => {
+    try {
+      const accessToken = localStorage.getItem("access_token") || localStorage.getItem("access");
+      const apiBase = (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api").replace(/\/$/, "");
+
+      const res = await axios.post(`${apiBase}/thoi-hoc/draft/dropout/save/`, {
+        step: currentStep,
+        formData: formData
+      }, {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      });
+      
+      if (res.data.success) {
+        setToastMessage({type: 'success', text: "Đã lưu nháp thành công! Bạn có thể tắt trang này và tiếp tục sau."});
+        setTimeout(() => setToastMessage(null), 3000);
+      }
+    } catch (error: any) {
+      setToastMessage({type: 'error', text: error.response?.data?.error || "Có lỗi xảy ra khi lưu nháp."});
+      setTimeout(() => setToastMessage(null), 3000);
+    }
   };
 
   const handleSubmitForm = (e: React.FormEvent) => {
@@ -226,7 +283,33 @@ export default function DropoutPage() {
   };
 
   const handleSubmitFinal = async () => {
-    setCurrentStep(6);
+    try {
+      setIsLoading(true);
+      const accessToken = localStorage.getItem("access_token") || localStorage.getItem("access");
+      const apiBase = (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api").replace(/\/$/, "");
+
+      const res = await fetch(`${apiBase}/thoi-hoc/submit-dropout/`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ reason: formData.reason }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        if (data.requestId) setRequestId(data.requestId);
+        setCurrentStep(6);
+      } else {
+        alert(data.error || "Có lỗi xảy ra khi nộp hồ sơ.");
+      }
+    } catch (error: any) {
+      console.error("Lỗi khi nộp hồ sơ:", error);
+      alert("Có lỗi xảy ra khi nộp hồ sơ. Vui lòng thử lại.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -435,10 +518,10 @@ export default function DropoutPage() {
                         {/* Chỉ hiện nút tiếp tục nếu chưa qua bước 4 */}
                         {currentStep === 3 && (
                           <div className="flex items-center gap-4">
+                            <button onClick={handleSaveDraft} className="text-sm font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap px-2 transition-colors">Lưu nháp và tạm dừng</button>
                             <button onClick={handleNextToUpload} className="flex-1 bg-[#0070F4] text-white py-3 rounded-md font-medium hover:bg-blue-700 transition flex justify-center items-center gap-2">
                               Tiếp tục tải lên hồ sơ đã ký <ChevronRight size={18} />
                             </button>
-                            <button className="text-sm font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap px-2 transition-colors">Lưu nháp và tạm dừng</button>
                           </div>
                         )}
                       </div>
@@ -574,134 +657,30 @@ export default function DropoutPage() {
               </div>
             )}
 
-            {/* --- BƯỚC 6: SUCCESS & TRACKING --- */}
+            {/* --- BƯỚC 6: SUCCESS & ĐIỀU HƯỚNG --- */}
             {currentStep >= 6 && (
               <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <div className="bg-[#0070F4] text-white p-4 rounded-xl flex justify-center items-center gap-2 font-medium shadow-sm">
-                  <CheckCircle2 size={20} /> Nộp toàn bộ hồ sơ thành công
-                </div>
-
+                
                 <div className="flex gap-4 items-start">
-                  <div className="bg-blue-100 p-2 rounded-full text-blue-600 shrink-0"><Bot size={24} /></div>
+                  <div className="bg-[#0070F4] p-2 rounded-full text-white shrink-0"><Bot size={24} /></div>
                   <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 max-w-[90%]">
                     <p className="text-gray-700 font-medium text-sm mb-1">Trợ lý AI</p>
-                    <p className="text-gray-600 text-sm">Hồ sơ xin thôi học của bạn đã được gửi thành công đến Phòng Đào tạo! Quyết định chính thức sẽ được ban hành sau khi Ban Giám hiệu phê duyệt.</p>
+                    <p className="text-gray-600 text-sm">Hồ sơ xin thôi học của bạn đã được gửi thành công đến hệ thống tiếp nhận của Phòng Đào tạo! Bạn có thể xem lại hoặc theo dõi tiến trình xử lý tại trang chi tiết hồ sơ.</p>
                   </div>
                 </div>
 
-                <div className="ml-12 border border-green-200 bg-green-50 rounded-xl p-5 shadow-sm flex justify-between items-center">
-                  <div>
-                    <h3 className="font-semibold text-green-700 flex items-center gap-2"><CheckCircle2 size={20}/> Nộp hồ sơ thành công!</h3>
-                    <p className="text-green-600 text-xs mt-1">Quyết định thôi học sẽ được cấp sau khi Ban Giám hiệu phê duyệt.</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs text-gray-500 mb-0.5">Mã hồ sơ</p>
-                    <p className="font-bold text-gray-800">TH-2026-1707A</p>
-                  </div>
-                </div>
-
-                <div className="ml-12 bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-                  {/* NÚT ĐIỀU HƯỚNG TAB */}
-                  <div className="flex border-b border-gray-200 text-sm font-medium">
+                <div className="ml-12 border border-green-200 bg-green-50 rounded-xl p-8 shadow-sm flex flex-col justify-center items-center text-center">
+                    <div className="bg-green-500 text-white rounded-full p-3 mb-4"><CheckCircle2 size={40} /></div>
+                    <h3 className="font-bold text-green-700 text-2xl mb-2">Nộp hồ sơ thành công!</h3>
+                    <p className="text-green-600 text-sm mb-1">Mã hồ sơ của bạn là: <strong className="font-semibold text-lg ml-1">TH-{new Date().getFullYear()}-{Math.floor(Math.random() * 10000)}</strong></p>
+                    <p className="text-green-600/80 text-sm mb-8">Phòng Đào tạo sẽ rà soát và phản hồi trong vòng 3-5 ngày làm việc.</p>
+                    
                     <button 
-                      onClick={() => setActiveTab('details')}
-                      className={`flex-1 py-3 transition-colors ${activeTab === 'details' ? 'text-[#0070F4] border-b-2 border-[#0070F4]' : 'text-gray-500 hover:text-gray-700'}`}
+                      onClick={() => router.push(requestId ? `/student/submissions/${requestId}` : '/student/submissions')} 
+                      className="px-6 py-3 bg-[#0070F4] text-white rounded-lg font-semibold hover:bg-blue-700 transition flex items-center gap-2 shadow-md"
                     >
-                      Xem chi tiết hồ sơ
+                      <FileText size={18} /> Xem chi tiết và Theo dõi trạng thái
                     </button>
-                    <button 
-                      onClick={() => setActiveTab('tracking')}
-                      className={`flex-1 py-3 transition-colors ${activeTab === 'tracking' ? 'text-[#0070F4] border-b-2 border-[#0070F4]' : 'text-gray-500 hover:text-gray-700'}`}
-                    >
-                      Theo dõi trạng thái
-                    </button>
-                  </div>
-                  
-                  {/* NỘI DUNG TỪNG TAB */}
-                  {activeTab === 'details' && (
-                    <div className="p-6 flex flex-col gap-6 animate-in fade-in">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <p className="text-xs text-gray-500 mb-1">Mã hồ sơ</p>
-                          <h4 className="font-bold text-gray-800 text-lg">TH-2026-1707A</h4>
-                          <p className="text-xs text-gray-500 flex items-center gap-1 mt-1">
-                            <Clock size={12}/> Thời gian nộp: {new Date().toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'})} — {new Date().toLocaleDateString('vi-VN')}
-                          </p>
-                        </div>
-                        <span className="bg-yellow-100 text-yellow-700 text-xs font-semibold px-3 py-1 rounded-full">Đang chờ xử lý</span>
-                      </div>
-
-                      <div className="border-t border-dashed border-gray-200"></div>
-
-                      <div>
-                        <h5 className="text-xs font-bold text-gray-400 mb-4 uppercase tracking-wider">Thông tin sinh viên & Nội dung thôi học</h5>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-y-5 gap-x-6 text-sm">
-                          <div><p className="text-gray-500 text-xs mb-1">Người làm đơn</p><p className="font-semibold text-gray-800">{studentProfile?.fullName}</p></div>
-                          <div><p className="text-gray-500 text-xs mb-1">Mã số sinh viên</p><p className="font-semibold text-gray-800">{studentProfile?.studentId}</p></div>
-                          <div><p className="text-gray-500 text-xs mb-1">Lớp sinh viên</p><p className="font-semibold text-gray-800">{studentProfile?.classId}</p></div>
-                          <div><p className="text-gray-500 text-xs mb-1">Ngành học</p><p className="font-semibold text-gray-800">{studentProfile?.major}</p></div>
-                          <div><p className="text-gray-500 text-xs mb-1">Lý do thôi học</p><p className="font-semibold text-gray-800">{formData.reason === 'ca_nhan' ? 'Lý do cá nhân' : (formData.reason || 'Lý do cá nhân')}</p></div>
-                          <div><p className="text-gray-500 text-xs mb-1">Ngày dự kiến thôi học</p><p className="font-semibold text-gray-800">{formData.expectedDate}</p></div>
-                          <div className="md:col-span-2"><p className="text-gray-500 text-xs mb-1">Địa chỉ liên hệ</p><p className="font-semibold text-gray-800">{formData.contactAddress}</p></div>
-                        </div>
-                      </div>
-
-                      <div className="border-t border-dashed border-gray-200"></div>
-
-                      <div>
-                        <h5 className="text-xs font-bold text-gray-400 mb-4 uppercase tracking-wider">Minh chứng & Dữ liệu đính kèm</h5>
-                        <div className="flex items-center justify-between bg-gray-50 p-4 rounded-lg border border-gray-200">
-                          <div className="flex items-start gap-3">
-                            <FileText size={20} className="text-gray-400 mt-0.5"/>
-                            <div>
-                              <p className="text-sm font-medium text-gray-800">Đơn xin thôi học (Bản scan/ảnh chụp)</p>
-                              <p className="text-xs text-green-600 font-medium mt-1">AI đã kiểm duyệt: Đủ chữ ký của Người làm đơn, Ý kiến phụ huynh và Ý kiến Lãnh đạo Khoa</p>
-                            </div>
-                          </div>
-                          <button className="flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-700 whitespace-nowrap">
-                            <Download size={16} /> Tải về
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {activeTab === 'tracking' && (
-                    <div className="p-6 animate-in fade-in">
-                      <h4 className="text-xs font-semibold text-gray-400 mb-6 uppercase tracking-wider">Trực tuyến trình xử lý</h4>
-                      
-                      <div className="relative border-l-2 border-gray-200 ml-3 space-y-8">
-                        <div className="relative pl-6">
-                          <div className="absolute -left-[11px] top-0 bg-green-500 text-white rounded-full p-0.5 border-4 border-white"><Check size={14}/></div>
-                          <h5 className="font-semibold text-gray-800 text-sm flex items-center gap-2">
-                            Hệ thống tiếp nhận hồ sơ <span className="bg-green-100 text-green-700 text-[10px] px-2 py-0.5 rounded-full">Đã hoàn tất</span>
-                          </h5>
-                          <p className="text-xs text-gray-500 flex items-center gap-1 mt-1"><Clock size={12}/> {new Date().toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'})} — {new Date().toLocaleDateString('vi-VN')}</p>
-                          <p className="text-xs text-gray-500 mt-1">Hệ thống đã ghi nhận Đơn xin thôi học và xác nhận AI kiểm duyệt hợp lệ.</p>
-                        </div>
-
-                        <div className="relative pl-6">
-                          <div className="absolute -left-[11px] top-0 bg-white text-[#0070F4] rounded-full p-0.5"><CircleDot size={18}/></div>
-                          <h5 className="font-semibold text-gray-800 text-sm flex items-center gap-2">
-                            Phòng Đào tạo rà soát hồ sơ <span className="bg-blue-50 text-blue-600 border border-blue-200 text-[10px] px-2 py-0.5 rounded-full">Đang xử lý</span>
-                          </h5>
-                          <p className="text-xs text-gray-500 mt-1">Chuyên viên đang kiểm tra tính hợp lệ của chữ ký, đối chiếu thông tin sinh viên và xác minh tình trạng học phí.</p>
-                        </div>
-
-                        <div className="relative pl-6">
-                          <div className="absolute -left-[11px] top-0 bg-white text-gray-300 rounded-full w-5 h-5 flex items-center justify-center text-xs font-semibold border-2 border-gray-200">3</div>
-                          <h5 className="font-semibold text-gray-400 text-sm">Lãnh đạo Khoa & Ban Giám hiệu xét duyệt</h5>
-                          <p className="text-xs text-gray-400 mt-1">Trình Ban Giám hiệu Trường Đại học Kinh tế xem xét và phê duyệt Quyết định thôi học chính thức.</p>
-                        </div>
-                        
-                        <div className="relative pl-6">
-                          <div className="absolute -left-[11px] top-0 bg-white text-gray-300 rounded-full w-5 h-5 flex items-center justify-center text-xs font-semibold border-2 border-gray-200">4</div>
-                          <h5 className="font-semibold text-gray-400 text-sm">Hoàn tất & Cấp Quyết định</h5>
-                          <p className="text-xs text-gray-400 mt-1">Phòng Đào tạo cập nhật trạng thái, gửi Quyết định thôi học bản mềm và xử lý các nghĩa vụ tài chính còn lại.</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
             )}
@@ -711,6 +690,53 @@ export default function DropoutPage() {
           </div>
         )}
       </ChatInterface>
+
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed top-8 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-6 py-3 rounded-xl shadow-2xl animate-in fade-in slide-in-from-top-4 duration-300" 
+             style={{ backgroundColor: toastMessage.type === 'success' ? '#ECFDF5' : '#FEF2F2', border: `1px solid ${toastMessage.type === 'success' ? '#10B981' : '#EF4444'}` }}>
+          {toastMessage.type === 'success' ? (
+            <CheckCircle2 className="h-5 w-5 text-[#10B981]" />
+          ) : (
+            <AlertCircle className="h-5 w-5 text-[#EF4444]" />
+          )}
+          <span className={`text-sm font-medium ${toastMessage.type === 'success' ? 'text-[#065F46]' : 'text-[#991B1B]'}`}>
+            {toastMessage.text}
+          </span>
+          <button onClick={() => setToastMessage(null)} className={`ml-4 ${toastMessage.type === 'success' ? 'text-[#065F46]' : 'text-[#991B1B]'} hover:opacity-70 transition-opacity`}>
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
+      {/* Restore Draft Confirmation Modal */}
+      {draftToRestore && (
+        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl w-full max-w-md p-8 text-center animate-in zoom-in-95 duration-200 shadow-2xl">
+            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-5">
+              <RefreshCw className="text-[#0070F4] h-8 w-8" />
+            </div>
+            <h3 className="text-xl font-bold text-gray-900 mb-3">Khôi phục bản nháp</h3>
+            <p className="text-gray-600 mb-8 text-sm">
+              Hệ thống tìm thấy một bản nháp bạn đang làm dở. Bạn có muốn khôi phục lại dữ liệu để tiếp tục không?
+            </p>
+            <div className="flex gap-4">
+              <button 
+                onClick={handleIgnoreDraft}
+                className="flex-1 py-2.5 border border-gray-400 rounded-lg text-gray-800 font-medium hover:bg-gray-50 transition-colors"
+              >
+                Tạo mới
+              </button>
+              <button 
+                onClick={handleRestoreDraft}
+                className="flex-1 py-2.5 bg-[#0070F4] text-white rounded-lg font-medium hover:bg-blue-700 transition-colors shadow-sm flex justify-center items-center gap-2"
+              >
+                <RefreshCw size={18} /> Khôi phục
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
