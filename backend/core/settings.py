@@ -9,6 +9,30 @@ env = environ.Env(
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+DROPOUT_FORM_TEMPLATE = (
+    BASE_DIR
+    / "document_templates"
+    / "Don_xin_thoi_hoc_template.docx"
+)
+
+RETENTION_FORM_TEMPLATE = (
+    BASE_DIR
+    / "document_templates"
+    / "Don_xin_bao_luu_template.docx"
+)
+
+RESUME_FORM_TEMPLATE = (
+    BASE_DIR
+    / "document_templates"
+    / "Don_xin_tro_lai_hoc_tap_template.docx"
+)
+
+
+MAJOR_CHANGE_FORM_TEMPLATE = (
+    BASE_DIR
+    / "document_templates"
+    / "Don_xin_chuyen_nganh_template.docx"
+)
 # Take environment variables from .env file
 environ.Env.read_env(BASE_DIR / '.env')
 
@@ -38,6 +62,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'rest_framework',
     'rest_framework_simplejwt',
+    "rest_framework_simplejwt.token_blacklist",
     
     # Local apps
     'apps.users',
@@ -157,6 +182,7 @@ SIMPLE_JWT = {
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
     'AUTH_HEADER_TYPES': ('Bearer',),
+    "SIGNING_KEY": SECRET_KEY,
 }
 
 

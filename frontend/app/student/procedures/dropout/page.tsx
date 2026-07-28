@@ -14,6 +14,7 @@ export default function DropoutPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4 | 5 | 6>(1);
   const [isAgreed, setIsAgreed] = useState(false);
+  const [requestId, setRequestId] = useState<string | null>(null);
   const [isDownloaded, setIsDownloaded] = useState(false);
   const [uploadState, setUploadState] = useState<'idle' | 'analyzing' | 'success' | 'error'>('idle');
   const [aiResult, setAiResult] = useState<{format_valid?: boolean, title_valid?: boolean, signature_present?: boolean} | null>(null);
@@ -70,17 +71,114 @@ export default function DropoutPage() {
     setCurrentStep(3);
   };
 
-  const handleDownloadDoc = () => {
-    const link = document.createElement('a');
-    link.href = '/bieu-mau/don-xin-thoi-hoc.docx';
-    link.download = 'Don_xin_thoi_hoc.docx';
+ const handleDownloadDoc = async () => {
+  try {
+    setIsLoading(true);
+    setIsDownloaded(false);
+
+    const accessToken =
+      localStorage.getItem("access_token") ||
+      localStorage.getItem("access");
+
+    if (!accessToken) {
+      throw new Error(
+        "Phiên đăng nhập không tồn tại. Vui lòng đăng nhập lại."
+      );
+    }
+
+    // Lấy lý do từ formData hiện tại.
+    const reason = formData.reason.trim();
+
+    if (!reason) {
+      throw new Error(
+        "Vui lòng nhập lý do thôi học trước khi tải đơn."
+      );
+    }
+
+    const apiUrl =
+      process.env.NEXT_PUBLIC_API_URL ||
+      "http://127.0.0.1:8000";
+
+    const response = await fetch(
+      `${apiUrl}/api/documents/dropout/download/`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          reason: reason,
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response
+        .json()
+        .catch(() => null);
+
+      const missingFields: string[] =
+        errorData?.missing_fields ?? [];
+
+      if (
+        Array.isArray(missingFields) &&
+        missingFields.length > 0
+      ) {
+        throw new Error(
+          `Thiếu thông tin: ${missingFields.join(", ")}`
+        );
+      }
+
+      let errorMessage =
+        errorData?.message ||
+        errorData?.detail ||
+        "Không thể tạo đơn xin thôi học.";
+
+      if (errorData?.reason) {
+        errorMessage = Array.isArray(errorData.reason)
+          ? errorData.reason.join(", ")
+          : errorData.reason;
+      }
+
+      throw new Error(errorMessage);
+    }
+
+    const fileBlob = await response.blob();
+    const downloadUrl =
+      window.URL.createObjectURL(fileBlob);
+
+    const link = document.createElement("a");
+
+    link.href = downloadUrl;
+    link.download = studentProfile?.student_id
+      ? `Don_xin_thoi_hoc_${studentProfile.student_id}.docx`
+      : "Don_xin_thoi_hoc.docx";
+
     document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
+    link.remove();
+
     setTimeout(() => {
-      setIsDownloaded(true);
-    }, 1500);
-  };
+      window.URL.revokeObjectURL(downloadUrl);
+    }, 1000);
+
+    setIsDownloaded(true);
+  } catch (error) {
+    console.error(
+      "Lỗi tải đơn xin thôi học:",
+      error
+    );
+
+    alert(
+      error instanceof Error
+        ? error.message
+        : "Không thể tải đơn xin thôi học."
+    );
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const handleNextToUpload = () => {
     setCurrentStep(4);

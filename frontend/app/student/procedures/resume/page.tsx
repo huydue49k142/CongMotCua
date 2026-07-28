@@ -26,9 +26,12 @@ export default function ResumePage() {
   const [profile, setProfile] = useState<ResumeProfile | null>(null);
   
   const [courses, setCourses] = useState<CourseForm[]>([
-    { id: 1, code: 'CS101', name: 'Nhập môn Lập trình', credits: '3' },
-    { id: 2, code: 'MATH101', name: 'Giải tích 1', credits: '3' },
-    { id: 3, code: 'ENG101', name: 'Tiếng Anh 1', credits: '2' },
+    {
+      id: 1,
+      code: "",
+      name: "",
+      credits: "",
+    },
   ]);
 
   const [downloadState, setDownloadState] = useState<'idle' | 'downloading' | 'downloaded'>('idle');
@@ -68,29 +71,168 @@ export default function ResumePage() {
     setCourses(courses.map(course => course.id === id ? { ...course, [field]: value } : course));
   };
 
-  const handleSubmitCourses = () => setCurrentStep(3);
+  const handleSubmitCourses = () => {
+  if (completedCourseCount === 0) {
+    alert("Vui lòng nhập ít nhất một học phần.");
+    return;
+  }
+
+  const hasIncompleteCourse = courses.some(
+      (course) =>
+        course.code.trim() === "" ||
+        course.name.trim() === "" ||
+        course.credits.trim() === ""
+    );
+
+    if (hasIncompleteCourse) {
+      alert(
+        "Vui lòng nhập đầy đủ mã học phần, tên học phần và số tín chỉ."
+      );
+      return;
+    }
+
+    setCurrentStep(3);
+  };
 
   // LOGIC ĐÃ SỬA: Tải đơn thật
-  const handleDownloadDoc = () => {
-    if (downloadState !== 'idle') return;
-    
-    setDownloadState('downloading');
-    
-    // Tải file thật
-    const fileUrl = '/bieu-mau/don-xin-tro-lai-hoc.docx';
-    const link = document.createElement('a');
-    link.href = fileUrl;
-    link.download = 'Don_xin_tro_lai_hoc.docx'; 
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    setTimeout(() => {
-      setDownloadState('downloaded');
+  const handleDownloadDoc = async () => {
+    if (downloadState === "downloading") {
+      return;
+    }
+
+    try {
+      setDownloadState("downloading");
+
+      const accessToken =
+        localStorage.getItem("access_token") ||
+        localStorage.getItem("access");
+
+      if (!accessToken) {
+        throw new Error(
+          "Phiên đăng nhập không tồn tại. " +
+          "Vui lòng đăng nhập lại."
+        );
+      }
+
+      if (!profile) {
+        throw new Error(
+          "Chưa tải được thông tin sinh viên " +
+          "và hồ sơ bảo lưu."
+        );
+      }
+
+      const decisionNumber = String(
+        profile.reservedDecisionNo || "1284"
+      ).trim();
+
+      const reservedDate = String(
+        profile.reservedDate || ""
+      ).trim();
+
+      if (!reservedDate) {
+        throw new Error(
+          "Không tìm thấy ngày quyết định bảo lưu."
+        );
+      }
+
+      const apiBase = (
+        process.env.NEXT_PUBLIC_API_URL ||
+        "http://127.0.0.1:8000/api"
+      ).replace(/\/$/, "");
+
+      const response = await fetch(
+        `${apiBase}/documents/resume/download/`,
+        {
+          method: "POST",
+
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+
+          body: JSON.stringify({
+            decision_number: decisionNumber,
+            reserved_date: reservedDate,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response
+          .json()
+          .catch(() => null);
+
+        const missingFields: string[] =
+          errorData?.missing_fields ?? [];
+
+        if (
+          Array.isArray(missingFields) &&
+          missingFields.length > 0
+        ) {
+          throw new Error(
+            `Thiếu thông tin: ${
+              missingFields.join(", ")
+            }`
+          );
+        }
+
+        let errorMessage =
+          errorData?.message ||
+          errorData?.detail ||
+          "Không thể tạo đơn xin trở lại học tập.";
+
+        if (errorData?.reserved_date) {
+          errorMessage = Array.isArray(
+            errorData.reserved_date
+          )
+            ? errorData.reserved_date.join(", ")
+            : errorData.reserved_date;
+        }
+
+        throw new Error(errorMessage);
+      }
+
+      const fileBlob = await response.blob();
+
+      const downloadUrl =
+        window.URL.createObjectURL(fileBlob);
+
+      const link =
+        document.createElement("a");
+
+      link.href = downloadUrl;
+
+      link.download = profile.studentId
+        ? `Don_xin_tro_lai_hoc_tap_${profile.studentId}.docx`
+        : "Don_xin_tro_lai_hoc_tap.docx";
+
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      setTimeout(() => {
+        window.URL.revokeObjectURL(downloadUrl);
+      }, 1000);
+
+      setDownloadState("downloaded");
+
       setTimeout(() => {
         setShowUploadAI(true);
       }, 1000);
-    }, 1500);
+    } catch (error) {
+      console.error(
+        "Lỗi tải đơn xin trở lại học tập:",
+        error
+      );
+
+      setDownloadState("idle");
+
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Không thể tải đơn xin trở lại học tập."
+      );
+    }
   };
 
   const triggerFileInput = () => {
@@ -106,7 +248,17 @@ export default function ResumePage() {
 
   const handleSubmitFinal = () => setCurrentStep(5);
 
-  const totalCredits = courses.reduce((sum, course) => sum + (parseInt(course.credits) || 0), 0);
+  const completedCourseCount = courses.filter(
+    (course) =>
+      course.code.trim() !== "" &&
+      course.name.trim() !== "" &&
+      course.credits.trim() !== ""
+  ).length;
+  const totalCredits = courses.reduce(
+    (sum, course) =>
+      sum + (parseInt(course.credits) || 0),
+    0
+  );
 
   return (
     <div className="h-full w-full">
@@ -196,7 +348,7 @@ export default function ResumePage() {
                 <div className="ml-12 bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4">
                   <div className="flex justify-between items-center border-b border-gray-100 pb-4">
                     <h4 className="font-bold text-gray-800">Danh sách học phần dự kiến</h4>
-                    <span className="text-xs text-gray-400">{courses.length} học phần</span>
+                    <span className="text-xs text-gray-400">{completedCourseCount} học phần</span>
                   </div>
 
                   <div className="space-y-4">

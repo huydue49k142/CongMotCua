@@ -1,10 +1,9 @@
-// frontend/app/student/procedures/major-change/page.tsx
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
 import ChatInterface from '@/components/student/ChatInterface';
 import { 
-  ArrowLeftRight, Bot, CheckCircle2, Upload, Check, ChevronRight, FileText, X
+  ArrowLeftRight, Bot, CheckCircle2, Upload, Check, ChevronRight, FileText, X, Download, Clock, CheckCircle, Eye
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { getMajorChangeProfile, MajorChangeProfile } from '@/services/major-change.service';
@@ -15,23 +14,43 @@ export default function MajorChangePage() {
   
   const [isStarted, setIsStarted] = useState(false);
   
-  // Các bước: 1 - Upload | 2 - Form OCR | 3 - Kiểm tra điều kiện | 4 - Chọn ngành | 5 - Hoàn tất
-  const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4 | 5>(1);
+  // Các bước: 
+  // 1: Upload, 2: Form OCR, 3: Check điều kiện, 4: Ngành & Excel, 5: Điền Form, 6: Xem trước, 7: Hoàn tất
+  const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4 | 5 | 6 | 7>(1);
   
   // Trạng thái upload file
   const [file1Status, setFile1Status] = useState<'idle' | 'uploading' | 'done' | 'error'>('idle');
   const [file2Status, setFile2Status] = useState<'idle' | 'uploading' | 'done' | 'error'>('idle');
-  
   const file1InputRef = useRef<HTMLInputElement>(null);
   const file2InputRef = useRef<HTMLInputElement>(null);
   
   // Dữ liệu OCR
   const [isExtracting, setIsExtracting] = useState(false);
   const [formData, setFormData] = useState<MajorChangeProfile | null>(null);
+  const [studentName, setStudentName] = useState<string>("bạn");
 
   // Trạng thái kiểm tra học vụ (Bước 3)
   const [isCheckingAcademic, setIsCheckingAcademic] = useState(false);
-  const [academicChecked, setAcademicChecked] = useState(false);
+  const [academicChecked, setAcademicChecked] = useState(false)
+  ;
+
+  // Trạng thái Bước 4 & 5 (Form điền thêm)
+  const [targetMajor, setTargetMajor] = useState('');
+  const [hasDownloadedExcel, setHasDownloadedExcel] = useState(false);
+  const [isQualified, setIsQualified] = useState<boolean | null>(null);
+  const [admissionMethod, setAdmissionMethod] = useState('Xét điểm THPT');
+  
+  const [admissionScores, setAdmissionScores] = useState({ combo: '', score: '', priority: '', threshold: '' });
+  const [additionalInfo, setAdditionalInfo] = useState({ dob: '', pob: '', phone: '', cccd: '', issueDate: '', issuePlace: '' });
+  const [reason, setReason] = useState('');
+
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+
+  // Trạng thái nộp cuối cùng
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [downloadState, setDownloadState] = useState<"idle" | "downloading" | "downloaded">("idle");
+  const [activeTab, setActiveTab] = useState<'details' | 'tracking'>('details');
 
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -39,21 +58,68 @@ export default function MajorChangePage() {
     setTimeout(() => {
       chatEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
     }, 100);
-  }, [isStarted, currentStep, file1Status, file2Status, isExtracting, academicChecked]);
+  }, [isStarted, currentStep, file1Status, file2Status, isExtracting, academicChecked, hasDownloadedExcel, isQualified, isSubmitting]);
 
-  // Lắng nghe: Nếu cả 2 file tải lên xong thì tự động chạy AI OCR
+
+  // MOCK OCR TẠM THỜI
+useEffect(() => {
+  if (
+    file1Status !== "done" ||
+    file2Status !== "done" ||
+    currentStep !== 1
+  ) {
+    return;
+  }
+
+  setIsExtracting(true);
+
+  const timer = setTimeout(() => {
+    const mockData: MajorChangeProfile = {
+      fullName: "Nguyễn Văn An",
+      studentId: "DH4a10001",
+      dob: "01/01/2003",
+      idNumber: "048205000123",
+      phone: "0901234567",
+      enrollmentYear: "2024",
+      currentMajor: "Công nghệ Thông tin",
+    };
+
+    setFormData(mockData);
+
+    setAdditionalInfo((prev) => ({
+      ...prev,
+      dob: mockData.dob || "",
+      cccd: mockData.idNumber || "",
+      phone: mockData.phone || "",
+    }));
+
+    setIsExtracting(false);
+    setCurrentStep(2);
+  }, 800);
+
+  return () => {
+    clearTimeout(timer);
+  };
+}, [file1Status, file2Status, currentStep]);
+
+
   useEffect(() => {
-    if (file1Status === 'done' && file2Status === 'done' && currentStep === 1) {
-      setIsExtracting(true);
-      getMajorChangeProfile().then((data) => {
-        setFormData(data);
-        setIsExtracting(false);
-        setCurrentStep(2);
-      });
-    }
-  }, [file1Status, file2Status, currentStep]);
+  if (!isStarted) return;
 
-  // Hành động các nút
+  getMajorChangeProfile()
+    .then((data) => {
+      setStudentName(data.fullName || "bạn");
+    })
+    .catch((error) => {
+      console.error(
+        "Lỗi khi lấy tên sinh viên:",
+        error
+      );
+
+      setStudentName("bạn");
+    });
+}, [isStarted]);
+
   const handleStart = () => setIsStarted(true);
   const handleCancel = () => router.push('/student/dashboard');
 
@@ -62,14 +128,9 @@ export default function MajorChangePage() {
     if (!file) return;
     setFile1Status('uploading');
     try {
-      const formData = new FormData(); formData.append('file', file);
-      const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api'}/thoi-hoc/scan-major-change/`, formData);
-      if (response.data.valid) setFile1Status('done');
-      else setFile1Status('error');
+      setTimeout(() => setFile1Status('done'), 1000); // Giả lập
     } catch {
       setFile1Status('error');
-    } finally {
-      if (file1InputRef.current) file1InputRef.current.value = '';
     }
   };
 
@@ -78,30 +139,409 @@ export default function MajorChangePage() {
     if (!file) return;
     setFile2Status('uploading');
     try {
-      const formData = new FormData(); formData.append('file', file);
-      const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api'}/thoi-hoc/scan-major-change/`, formData);
-      if (response.data.valid) setFile2Status('done');
-      else setFile2Status('error');
+      setTimeout(() => setFile2Status('done'), 1000); // Giả lập
     } catch {
       setFile2Status('error');
-    } finally {
-      if (file2InputRef.current) file2InputRef.current.value = '';
     }
   };
 
   const handleConfirmData = () => {
     setCurrentStep(3);
     setIsCheckingAcademic(true);
-    // Giả lập hệ thống đồng bộ dữ liệu mất 1.5s
     setTimeout(() => {
       setIsCheckingAcademic(false);
       setAcademicChecked(true);
     }, 1500);
   };
 
-  const handleContinue = () => {
-    setCurrentStep(4);
+  const handleDownloadExcel = () => {
+    const link = document.createElement("a");
+
+    link.href =
+      "/bieu-mau/Kiem_tra_dieu_kien.xlsm";
+
+    link.download =
+      "Kiem_tra_dieu_kien.xlsm";
+
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    setHasDownloadedExcel(true);
   };
+
+  const handleConfirmQualification = (status: boolean) => {
+    setIsQualified(status);
+    if (status) setCurrentStep(5);
+  };
+
+  const handleFinalSubmit = () => {
+    setIsSubmitting(true);
+    setTimeout(() => {
+      setIsSubmitting(false);
+      setCurrentStep(7);
+    }, 1500);
+  };
+
+  // Check form validation bước 5
+  const isForm5Valid = Boolean(
+    targetMajor.trim() &&
+    additionalInfo.pob.trim() &&
+    additionalInfo.phone.trim() &&
+    additionalInfo.cccd.trim() &&
+    additionalInfo.issueDate.trim() &&
+    additionalInfo.issuePlace.trim() &&
+    reason.trim()
+  );
+
+
+  const buildMajorChangePayload = () => ({
+    target_major: targetMajor.trim(),
+
+    enrollment_year: String(
+      formData?.enrollmentYear || ""
+    ).trim(),
+
+    training_type: "Chính quy",
+
+    place_of_birth: additionalInfo.pob.trim(),
+    phone: additionalInfo.phone.trim(),
+
+    id_number: additionalInfo.cccd.trim(),
+    id_issue_date: additionalInfo.issueDate.trim(),
+    id_issue_place: additionalInfo.issuePlace.trim(),
+
+    admission_method: admissionMethod,
+
+    admission_combo: admissionScores.combo.trim(),
+    admission_score: admissionScores.score.trim(),
+    priority_score: admissionScores.priority.trim(),
+    admission_threshold: admissionScores.threshold.trim(),
+
+    transfer_reason: reason.trim(),
+
+    evidence_note: [
+      "Giấy báo trúng tuyển",
+      "Giấy báo kết quả thi tốt nghiệp THPT",
+      "Bảng điểm",
+      "Giấy xác nhận điều kiện học vụ",
+      "Giấy xác nhận không vi phạm kỷ luật",
+      "Điểm rèn luyện",
+    ].join("; "),
+
+    application_place: "Đà Nẵng",
+  });
+
+  const handlePreviewDocument = async () => {
+    const accessToken =
+      localStorage.getItem("access_token") ||
+      localStorage.getItem("access");
+
+    if (!accessToken) {
+      alert(
+        "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại."
+      );
+      return;
+    }
+
+    if (!formData) {
+      alert("Chưa có thông tin sinh viên.");
+      return;
+    }
+
+    if (!isForm5Valid) {
+      alert("Vui lòng nhập đầy đủ thông tin bắt buộc.");
+      return;
+    }
+
+    try {
+      setIsPreviewLoading(true);
+
+      const apiBase = (
+        process.env.NEXT_PUBLIC_API_URL ||
+        "http://127.0.0.1:8000/api"
+      ).replace(/\/$/, "");
+
+      const response = await fetch(
+        `${apiBase}/documents/major-change/preview/`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(
+            buildMajorChangePayload()
+          ),
+        }
+      );
+
+      if (!response.ok) {
+        const rawError = await response.text();
+
+        console.error(
+          "Lỗi API xem trước đơn chuyển ngành:",
+          {
+            status: response.status,
+            response: rawError,
+          }
+        );
+
+        let errorMessage = rawError;
+
+        try {
+          const errorData = JSON.parse(rawError);
+
+          errorMessage =
+            errorData?.message ||
+            errorData?.detail ||
+            rawError;
+        } catch {
+          // Giữ nguyên rawError
+        }
+
+        throw new Error(
+          errorMessage ||
+          `Backend trả về lỗi ${response.status}`
+        );
+      }
+
+      const contentType =
+        response.headers.get("content-type") || "";
+
+      if (!contentType.includes("application/pdf")) {
+        const responseText = await response.text();
+
+        throw new Error(
+          responseText ||
+          "Backend không trả về file PDF."
+        );
+      }
+
+      const pdfBlob = await response.blob();
+
+      const pdfUrl = URL.createObjectURL(
+        new Blob(
+          [pdfBlob],
+          { type: "application/pdf" }
+        )
+      );
+
+      setPreviewUrl((oldUrl) => {
+        if (oldUrl) {
+          URL.revokeObjectURL(oldUrl);
+        }
+
+        return pdfUrl;
+      });
+
+      setCurrentStep(6);
+    } catch (error) {
+      console.error(
+        "Lỗi xem trước đơn chuyển ngành:",
+        error
+      );
+
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Không thể tạo bản xem trước đơn chuyển ngành."
+      );
+    } finally {
+      setIsPreviewLoading(false);
+    }
+  };
+
+  const handleDownloadDoc = async () => {
+    if (downloadState === "downloading") {
+      return;
+    }
+
+    try {
+      setDownloadState("downloading");
+
+      const accessToken =
+        localStorage.getItem("access_token") ||
+        localStorage.getItem("access");
+
+      if (!accessToken) {
+        throw new Error(
+          "Không tìm thấy phiên đăng nhập. " +
+          "Vui lòng đăng nhập lại."
+        );
+      }
+
+      if (!formData) {
+        throw new Error(
+          "Chưa có thông tin sinh viên."
+        );
+      }
+
+      if (!isForm5Valid) {
+        throw new Error(
+          "Vui lòng nhập đầy đủ thông tin " +
+          "bắt buộc trước khi tải đơn."
+        );
+      }
+
+      const apiBase = (
+        process.env.NEXT_PUBLIC_API_URL ||
+        "http://127.0.0.1:8000/api"
+      ).replace(/\/$/, "");
+
+      const response = await fetch(
+        `${apiBase}/documents/major-change/download/`,
+        {
+          method: "POST",
+
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+
+          body: JSON.stringify({
+            target_major: targetMajor.trim(),
+
+            enrollment_year: String(
+              formData.enrollmentYear || ""
+            ).trim(),
+
+            place_of_birth:
+              additionalInfo.pob.trim(),
+
+            phone:
+              additionalInfo.phone.trim(),
+
+            id_number:
+              additionalInfo.cccd.trim(),
+
+            id_issue_date:
+              additionalInfo.issueDate.trim(),
+
+            id_issue_place:
+              additionalInfo.issuePlace.trim(),
+
+            admission_method: admissionMethod,
+
+            admission_combo:
+              admissionScores.combo.trim(),
+
+            admission_score:
+              admissionScores.score.trim(),
+
+            priority_score:
+              admissionScores.priority.trim(),
+
+            admission_threshold:
+              admissionScores.threshold.trim(),
+
+            transfer_reason: reason.trim(),
+
+            evidence_note: [
+              "Giấy báo trúng tuyển",
+              "Giấy báo kết quả thi tốt nghiệp THPT",
+              "Bảng điểm",
+              "Giấy xác nhận điều kiện học vụ",
+              "Giấy xác nhận không vi phạm kỷ luật",
+              "Điểm rèn luyện",
+            ].join("; "),
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const rawError = await response.text();
+
+        let errorData: any = null;
+
+        try {
+          errorData = JSON.parse(rawError);
+        } catch {
+          errorData = null;
+        }
+
+        console.error(
+          "Lỗi API tạo đơn chuyển ngành:",
+          {
+            status: response.status,
+            response: rawError,
+          }
+        );
+
+        const missingFields =
+          errorData?.missing_fields;
+
+        if (
+          Array.isArray(missingFields) &&
+          missingFields.length > 0
+        ) {
+          throw new Error(
+            `Thiếu thông tin: ${
+              missingFields.join(", ")
+            }`
+          );
+        }
+
+        throw new Error(
+          errorData?.message ||
+            errorData?.detail ||
+            rawError ||
+            `Backend trả về lỗi ${response.status}`
+        );
+      }
+
+      const fileBlob = await response.blob();
+
+      const downloadUrl =
+        window.URL.createObjectURL(fileBlob);
+
+      const link =
+        document.createElement("a");
+
+      link.href = downloadUrl;
+
+      link.download = formData.studentId
+        ? `Don_xin_chuyen_nganh_${formData.studentId}.docx`
+        : "Don_xin_chuyen_nganh.docx";
+
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      setTimeout(() => {
+        window.URL.revokeObjectURL(downloadUrl);
+      }, 1000);
+
+      setDownloadState("downloaded");
+    } catch (error) {
+      console.error(
+        "Lỗi tải đơn chuyển ngành:",
+        error
+      );
+
+      setDownloadState("idle");
+
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Không thể tạo đơn chuyển ngành."
+      );
+    }
+  };
+
+  const updateFormData = (
+  field: keyof MajorChangeProfile,
+  value: string
+) => {
+  setFormData((previous) => {
+    if (!previous) return previous;
+
+    return {
+      ...previous,
+      [field]: value,
+    };
+  });
+};
 
   return (
     <div className="h-full w-full flex flex-col">
@@ -109,15 +549,13 @@ export default function MajorChangePage() {
         title="Chuyển ngành"
         description="Đăng ký chuyển sang ngành học khác"
         Icon={ArrowLeftRight}
-        welcomeMessage={
-          <>Chào bạn, hệ thống Trường Đại học Kinh tế ghi nhận bạn đang chọn thủ tục <strong>chuyển ngành</strong>. Bạn có muốn đăng ký chuyển ngành không?</>
-        }
+        welcomeMessage={<>Chào bạn, hệ thống Trường Đại học Kinh tế ghi nhận bạn đang chọn thủ tục <strong>chuyển ngành</strong>. Bạn có muốn đăng ký chuyển ngành không?</>}
         welcomePrimaryLabel="Đăng ký chuyển ngành"
         welcomeSecondaryLabel="Không, quay lại"
         onStart={handleStart}
         onCancel={handleCancel}
         isStarted={isStarted}
-        headerBadge={isStarted ? (
+        headerBadge={isStarted && currentStep < 7 ? (
           <span className="bg-green-100 text-green-700 text-xs px-3 py-1 rounded-full font-medium flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> AI đang hỗ trợ
           </span>
@@ -126,7 +564,7 @@ export default function MajorChangePage() {
         {isStarted && (
           <div className="flex flex-col gap-8 mt-6 pb-20 animate-in fade-in slide-in-from-bottom-4 duration-500">
             
-            {/* ================= BƯỚC 1: YÊU CẦU TÀI LIỆU VÀ TẢI LÊN ================= */}
+            {/* ================= BƯỚC 1: UPLOAD ================= */}
             {currentStep >= 1 && (
               <>
                 <div className="flex gap-4 items-start">
@@ -134,80 +572,50 @@ export default function MajorChangePage() {
                   <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 max-w-[80%]">
                     <p className="text-gray-700 font-medium text-sm mb-1">Trợ lý AI</p>
                     <p className="text-gray-600 text-sm leading-relaxed">
-                      Xin chào <strong>Thanh Hải</strong>, hệ thống ghi nhận bạn đang làm thủ tục <strong>xin chuyển ngành</strong>. Vui lòng cung cấp các tài liệu minh chứng đầu vào để hệ thống trích xuất thông tin nhé:
-                    </p>
+  Xin chào <strong>{studentName}</strong>, hệ thống ghi nhận bạn đang làm thủ tục <strong>xin chuyển ngành</strong>. Vui lòng cung cấp các tài liệu minh chứng đầu vào để hệ thống trích xuất thông tin nhé: </p>
                   </div>
                 </div>
 
                 <div className="ml-12 border border-gray-200 rounded-xl bg-white shadow-sm overflow-hidden p-5">
                   <h4 className="text-xs font-bold text-gray-400 mb-4 uppercase tracking-wider">Khu vực tải tài liệu</h4>
-                  
                   <div className="flex flex-col gap-3">
                     {/* TÀI LIỆU 1 */}
-                    <div className={`border rounded-lg p-4 flex items-center justify-between transition-colors ${file1Status === 'done' ? 'bg-green-50/30 border-green-300' : file1Status === 'error' ? 'bg-red-50/30 border-red-300' : 'bg-gray-50 border-gray-200 border-dashed'}`}>
+                    <div className={`border rounded-lg p-4 flex items-center justify-between transition-colors ${file1Status === 'done' ? 'bg-green-50/30 border-green-300' : 'bg-gray-50 border-gray-200 border-dashed'}`}>
                       <div className="flex items-center gap-4">
-                        {file1Status === 'done' ? (
-                          <div className="bg-green-500 text-white p-1.5 rounded-full"><Check size={16} strokeWidth={3}/></div>
-                        ) : file1Status === 'error' ? (
-                          <div className="bg-red-500 text-white p-1.5 rounded-full"><X size={16} strokeWidth={3}/></div>
-                        ) : (
-                          <div className="bg-gray-200 text-gray-500 p-1.5 rounded-full"><Upload size={16} /></div>
-                        )}
+                        {file1Status === 'done' ? <div className="bg-green-500 text-white p-1.5 rounded-full"><Check size={16} strokeWidth={3}/></div> : <div className="bg-gray-200 text-gray-500 p-1.5 rounded-full"><Upload size={16} /></div>}
                         <div>
-                          <p className={`font-semibold text-sm ${file1Status === 'done' ? 'text-green-700' : file1Status === 'error' ? 'text-red-700' : 'text-gray-700'}`}>Tải lên Giấy báo trúng tuyển (PDF)</p>
-                          <p className={`text-xs ${file1Status === 'done' ? 'text-green-600' : file1Status === 'error' ? 'text-red-600' : 'text-gray-400'}`}>
-                            {file1Status === 'done' ? 'Đã tải lên thành công ✓' : file1Status === 'error' ? 'Tài liệu không hợp lệ, vui lòng thử lại' : 'Giay_Bao_Trung_Tuyen.pdf'}
-                          </p>
+                          <p className={`font-semibold text-sm ${file1Status === 'done' ? 'text-green-700' : 'text-gray-700'}`}>Tải lên Giấy báo trúng tuyển (PDF)</p>
+                          <p className={`text-xs ${file1Status === 'done' ? 'text-green-600' : 'text-gray-400'}`}>{file1Status === 'done' ? 'Đã tải lên thành công ✓' : 'Giay_Bao_Trung_Tuyen.pdf'}</p>
                         </div>
                       </div>
-                      
                       {(file1Status === 'idle' || file1Status === 'error') && (
-                        <>
-                          <button onClick={() => file1InputRef.current?.click()} className="text-sm font-medium border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 px-4 py-1.5 rounded-md transition shadow-sm">
-                            Tải lên
-                          </button>
-                          <input type="file" className="hidden" ref={file1InputRef} onChange={handleUploadFile1} accept=".pdf,.png,.jpg,.jpeg,.docx" />
-                        </>
+                        <><button onClick={() => file1InputRef.current?.click()} className="text-sm font-medium border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 px-4 py-1.5 rounded-md transition shadow-sm">Tải lên</button>
+                        <input type="file" className="hidden" ref={file1InputRef} onChange={handleUploadFile1} accept=".pdf,.png,.jpg" /></>
                       )}
                       {file1Status === 'uploading' && <span className="text-sm text-gray-500 animate-pulse font-medium">Đang tải...</span>}
                     </div>
 
                     {/* TÀI LIỆU 2 */}
-                    <div className={`border rounded-lg p-4 flex items-center justify-between transition-colors ${file2Status === 'done' ? 'bg-green-50/30 border-green-300' : file2Status === 'error' ? 'bg-red-50/30 border-red-300' : 'bg-gray-50 border-gray-200 border-dashed'}`}>
+                    <div className={`border rounded-lg p-4 flex items-center justify-between transition-colors ${file2Status === 'done' ? 'bg-green-50/30 border-green-300' : 'bg-gray-50 border-gray-200 border-dashed'}`}>
                       <div className="flex items-center gap-4">
-                        {file2Status === 'done' ? (
-                          <div className="bg-green-500 text-white p-1.5 rounded-full"><Check size={16} strokeWidth={3}/></div>
-                        ) : file2Status === 'error' ? (
-                          <div className="bg-red-500 text-white p-1.5 rounded-full"><X size={16} strokeWidth={3}/></div>
-                        ) : (
-                          <div className="bg-gray-200 text-gray-500 p-1.5 rounded-full"><Upload size={16} /></div>
-                        )}
+                        {file2Status === 'done' ? <div className="bg-green-500 text-white p-1.5 rounded-full"><Check size={16} strokeWidth={3}/></div> : <div className="bg-gray-200 text-gray-500 p-1.5 rounded-full"><Upload size={16} /></div>}
                         <div>
-                          <p className={`font-semibold text-sm ${file2Status === 'done' ? 'text-green-700' : file2Status === 'error' ? 'text-red-700' : 'text-gray-700'}`}>Tải lên Bản scan Giấy CN Tốt nghiệp THPT</p>
-                          <p className={`text-xs ${file2Status === 'done' ? 'text-green-600' : file2Status === 'error' ? 'text-red-600' : 'text-gray-400'}`}>
-                            {file2Status === 'done' ? 'Đã tải lên thành công ✓' : file2Status === 'error' ? 'Tài liệu không hợp lệ, vui lòng thử lại' : 'Giay_Chung_Nhan_TN_THPT.pdf'}
-                          </p>
+                          <p className={`font-semibold text-sm ${file2Status === 'done' ? 'text-green-700' : 'text-gray-700'}`}>Tải lên Bản scan Giấy CN Tốt nghiệp THPT</p>
+                          <p className={`text-xs ${file2Status === 'done' ? 'text-green-600' : 'text-gray-400'}`}>{file2Status === 'done' ? 'Đã tải lên thành công ✓' : 'Giay_Chung_Nhan_TN_THPT.pdf'}</p>
                         </div>
                       </div>
-                      
                       {(file2Status === 'idle' || file2Status === 'error') && (
-                        <>
-                          <button onClick={() => file2InputRef.current?.click()} className="text-sm font-medium border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 px-4 py-1.5 rounded-md transition shadow-sm">
-                            Tải lên
-                          </button>
-                          <input type="file" className="hidden" ref={file2InputRef} onChange={handleUploadFile2} accept=".pdf,.png,.jpg,.jpeg,.docx" />
-                        </>
+                        <><button onClick={() => file2InputRef.current?.click()} className="text-sm font-medium border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 px-4 py-1.5 rounded-md transition shadow-sm">Tải lên</button>
+                        <input type="file" className="hidden" ref={file2InputRef} onChange={handleUploadFile2} accept=".pdf,.png,.jpg" /></>
                       )}
                       {file2Status === 'uploading' && <span className="text-sm text-gray-500 animate-pulse font-medium">Đang tải...</span>}
                     </div>
                   </div>
 
-                  {/* LOADING OCR */}
                   {isExtracting && (
                     <div className="mt-6 flex flex-col items-center justify-center p-6 border border-blue-100 bg-blue-50/50 rounded-xl">
                       <span className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mb-3"></span>
                       <p className="text-sm font-semibold text-blue-700">AI đang quét và trích xuất dữ liệu...</p>
-                      <p className="text-xs text-blue-500 mt-1">Vui lòng đợi trong giây lát</p>
                     </div>
                   )}
                 </div>
@@ -216,169 +624,433 @@ export default function MajorChangePage() {
 
             {/* ================= BƯỚC 2: FORM XÁC NHẬN OCR ================= */}
             {currentStep >= 2 && formData && (
-              <div className="ml-12 border border-gray-200 rounded-xl bg-white shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4">
+              <div className="ml-12 border border-gray-200 rounded-xl bg-white shadow-sm overflow-hidden animate-in fade-in">
                 <div className="bg-[#F8FAFC] px-5 py-3 border-b border-gray-200 flex justify-between items-center">
-                  <h3 className="font-semibold text-gray-800 flex items-center gap-2 text-sm">
-                    <div className="bg-[#1E293B] text-white rounded-full p-0.5"><Check size={14} /></div>
-                    Đối chiếu dữ liệu — Có thể chỉnh sửa nếu AI đọc sai
-                  </h3>
+                  <h3 className="font-semibold text-gray-800 flex items-center gap-2 text-sm"><div className="bg-[#1E293B] text-white rounded-full p-0.5"><Check size={14} /></div> Đối chiếu dữ liệu — Có thể chỉnh sửa</h3>
                   <span className="text-[10px] bg-blue-100 text-blue-700 px-2.5 py-1 rounded-full font-bold">Trích xuất tự động</span>
                 </div>
-
                 <div className="p-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-y-5 gap-x-6 mb-6">
-                    <div>
-                      <label className="text-[11px] font-semibold text-gray-400 mb-1.5 block">Họ và tên</label>
-                      <input type="text" defaultValue={formData.fullName} className="w-full border border-gray-300 bg-gray-50 rounded-lg p-2.5 text-sm text-gray-800 outline-none focus:ring-1 focus:ring-blue-500" />
-                    </div>
-                    <div>
-                      <label className="text-[11px] font-semibold text-gray-400 mb-1.5 block">Mã số sinh viên</label>
-                      <input type="text" defaultValue={formData.studentId} className="w-full border border-gray-300 bg-gray-50 rounded-lg p-2.5 text-sm text-gray-800 outline-none focus:ring-1 focus:ring-blue-500" />
-                    </div>
-                    <div>
-                      <label className="text-[11px] font-semibold text-gray-400 mb-1.5 block">Ngày sinh</label>
-                      <input type="text" defaultValue={formData.dob} className="w-full border border-gray-300 bg-gray-50 rounded-lg p-2.5 text-sm text-gray-800 outline-none focus:ring-1 focus:ring-blue-500" />
-                    </div>
-                    <div>
-                      <label className="text-[11px] font-semibold text-gray-400 mb-1.5 block">Số CCCD/CMND</label>
-                      <input type="text" defaultValue={formData.idNumber} className="w-full border border-gray-300 bg-gray-50 rounded-lg p-2.5 text-sm text-gray-800 outline-none focus:ring-1 focus:ring-blue-500" />
-                    </div>
-                    <div>
-                      <label className="text-[11px] font-semibold text-gray-400 mb-1.5 block">Năm trúng tuyển</label>
-                      <input type="text" defaultValue={formData.enrollmentYear} className="w-full border border-gray-300 bg-gray-50 rounded-lg p-2.5 text-sm text-gray-800 outline-none focus:ring-1 focus:ring-blue-500" />
-                    </div>
-                    <div>
-                      <label className="text-[11px] font-semibold text-gray-400 mb-1.5 block">Ngành hiện tại</label>
-                      <input type="text" defaultValue={formData.currentMajor} className="w-full border border-gray-300 bg-gray-50 rounded-lg p-2.5 text-sm text-gray-800 outline-none focus:ring-1 focus:ring-blue-500" />
-                    </div>
-                  </div>
+                {/* Họ và tên */}
+                <div>
+                  <label className="text-[11px] font-semibold text-gray-400 mb-1.5 block">
+                    Họ và tên
+                  </label>
 
+                  <input
+                    type="text"
+                    value={formData.fullName || ""}
+                    onChange={(event) =>
+                      updateFormData("fullName", event.target.value)
+                    }
+                    className="w-full border border-gray-300 bg-gray-50 rounded-lg p-2.5 text-sm outline-none"
+                  />
+                </div>
+
+                {/* Mã số sinh viên */}
+                <div>
+                  <label className="text-[11px] font-semibold text-gray-400 mb-1.5 block">
+                    Mã số sinh viên
+                  </label>
+
+                  <input
+                    type="text"
+                    value={formData.studentId || ""}
+                    onChange={(event) =>
+                      updateFormData("studentId", event.target.value)
+                    }
+                    className="w-full border border-gray-300 bg-gray-50 rounded-lg p-2.5 text-sm outline-none"
+                  />
+                </div>
+
+                {/* Ngày sinh */}
+                <div>
+                  <label className="text-[11px] font-semibold text-gray-400 mb-1.5 block">
+                    Ngày sinh
+                  </label>
+
+                  <input
+                    type="text"
+                    value={formData.dob || ""}
+                    onChange={(event) => {
+                      updateFormData("dob", event.target.value);
+
+                      setAdditionalInfo((previous) => ({
+                        ...previous,
+                        dob: event.target.value,
+                      }));
+                    }}
+                    className="w-full border border-gray-300 bg-gray-50 rounded-lg p-2.5 text-sm outline-none"
+                  />
+                </div>
+
+                {/* Số CCCD */}
+                <div>
+                  <label className="text-[11px] font-semibold text-gray-400 mb-1.5 block">
+                    Số CCCD/CMND
+                  </label>
+
+                  <input
+                    type="text"
+                    value={formData.idNumber || ""}
+                    onChange={(event) => {
+                      updateFormData("idNumber", event.target.value);
+
+                      setAdditionalInfo((previous) => ({
+                        ...previous,
+                        cccd: event.target.value,
+                      }));
+                    }}
+                    className="w-full border border-gray-300 bg-gray-50 rounded-lg p-2.5 text-sm outline-none"
+                  />
+                </div>
+
+                {/* Năm trúng tuyển */}
+                <div>
+                  <label className="text-[11px] font-semibold text-gray-400 mb-1.5 block">
+                    Năm trúng tuyển
+                  </label>
+
+                  <input
+                    type="text"
+                    value={formData.enrollmentYear || ""}
+                    onChange={(event) =>
+                      updateFormData(
+                        "enrollmentYear",
+                        event.target.value
+                      )
+                    }
+                    className="w-full border border-gray-300 bg-gray-50 rounded-lg p-2.5 text-sm outline-none"
+                  />
+                </div>
+
+                {/* Ngành hiện tại */}
+                <div>
+                  <label className="text-[11px] font-semibold text-gray-400 mb-1.5 block">
+                    Ngành hiện tại
+                  </label>
+
+                  <input
+                    type="text"
+                    value={formData.currentMajor || ""}
+                    onChange={(event) =>
+                      updateFormData(
+                        "currentMajor",
+                        event.target.value
+                      )
+                    }
+                    className="w-full border border-gray-300 bg-gray-50 rounded-lg p-2.5 text-sm outline-none"
+                  />
+                </div>
+              </div>
                   {currentStep === 2 && (
-                    <div className="flex gap-3 mt-4">
-                      <button onClick={handleConfirmData} className="flex-1 bg-[#0070F4] text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition flex justify-center items-center gap-2 text-sm shadow-sm">
-                        <Check size={18} /> Xác nhận thông tin chính xác
-                      </button>
-                      <button className="px-6 bg-white border border-gray-300 text-gray-600 rounded-lg font-medium hover:bg-gray-50 transition text-sm">
-                        Tải lại
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* ================= BƯỚC 3: KIỂM TRA ĐIỀU KIỆN & TIẾP TỤC ================= */}
-            {currentStep >= 3 && (
-              <div className="ml-12 flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-4 mt-2">
-                
-                {/* Banner trạng thái xác nhận */}
-                <div className="bg-green-50 border border-green-200 text-green-700 rounded-xl p-3 flex items-center gap-3 text-sm font-medium">
-                  <div className="bg-green-500 text-white rounded-full p-0.5"><Check size={16} /></div>
-                  Thông tin đã xác nhận — Đang kiểm tra tình trạng học vụ...
-                </div>
-
-                {/* AI Text check */}
-                <div className="flex gap-4 items-start mt-2">
-                  <div className="bg-[#0070F4] p-2 rounded-full text-white shrink-0"><Bot size={24} /></div>
-                  <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 max-w-[80%]">
-                    <p className="text-gray-700 font-medium text-sm mb-1">Trợ lý AI</p>
-                    <p className="text-gray-600 text-sm">
-                      {isCheckingAcademic 
-                        ? "Hệ thống đang đồng bộ dữ liệu với Phòng Đào tạo để kiểm tra tình trạng học vụ của bạn..." 
-                        : "Tuyệt vời! Kết quả học vụ của bạn đã đáp ứng yêu cầu chuyển ngành đầu vào."}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Card kết quả check điều kiện */}
-                {academicChecked && (
-                  <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-4 mt-2">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      
-                      <div className="bg-green-50/50 border border-green-200 rounded-xl p-5 shadow-sm">
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="bg-green-500 text-white rounded-full p-1"><Check size={14} strokeWidth={3}/></div>
-                          <h4 className="font-bold text-green-700 text-sm">Đạt điều kiện</h4>
-                        </div>
-                        <p className="text-gray-800 text-sm font-medium mb-3">Không thuộc diện bị buộc thôi học</p>
-                        <div className="flex items-center gap-1.5 text-xs text-gray-400">
-                          <FileText size={14} /> Giấy XN không bị buộc thôi học
-                        </div>
-                      </div>
-
-                      <div className="bg-green-50/50 border border-green-200 rounded-xl p-5 shadow-sm">
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="bg-green-500 text-white rounded-full p-1"><Check size={14} strokeWidth={3}/></div>
-                          <h4 className="font-bold text-green-700 text-sm">Đạt điều kiện</h4>
-                        </div>
-                        <p className="text-gray-800 text-sm font-medium mb-3">Không vi phạm kỷ luật</p>
-                        <div className="flex items-center gap-1.5 text-xs text-gray-400">
-                          <FileText size={14} /> Giấy XN không vi phạm kỷ luật
-                        </div>
-                      </div>
-                      
-                    </div>
-
-                    {currentStep === 3 && (
-                      <button onClick={handleContinue} className="w-full bg-[#0070F4] text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition flex justify-center items-center gap-2 text-sm shadow-sm mt-2">
-                        Tiếp tục <ChevronRight size={18} />
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* ================= BƯỚC 4: CHỌN NGÀNH MỚI ================= */}
-            {currentStep >= 4 && (
-              <div className="ml-12 flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-4 mt-2">
-                <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-                  <h4 className="font-semibold text-gray-800 mb-4">Chọn ngành muốn chuyển đến</h4>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">Ngành đăng ký chuyển <span className="text-red-500">*</span></label>
-                      {currentStep === 4 ? (
-                        <select className="w-full border border-gray-300 rounded-md p-2.5 text-sm text-gray-800 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none bg-white">
-                          <option value="">-- Chọn ngành --</option>
-                          <option value="khmt">Khoa học Máy tính</option>
-                          <option value="httt">Hệ thống Thông tin</option>
-                          <option value="ktpm">Kỹ thuật Phần mềm</option>
-                          <option value="mkt">Marketing</option>
-                        </select>
-                      ) : (
-                        <div className="w-full border border-gray-200 bg-gray-50 rounded-md p-2.5 text-sm text-gray-800">Khoa học Máy tính</div>
-                      )}
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">Lý do xin chuyển ngành <span className="text-red-500">*</span></label>
-                      {currentStep === 4 ? (
-                        <textarea rows={3} className="w-full border border-gray-300 rounded-md p-2.5 text-sm text-gray-800 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none resize-none bg-white" placeholder="VD: Thấy bản thân phù hợp hơn..."></textarea>
-                      ) : (
-                        <div className="w-full border border-gray-200 bg-gray-50 rounded-md p-2.5 text-sm text-gray-800 min-h-[80px]">Thấy bản thân phù hợp hơn...</div>
-                      )}
-                    </div>
-                  </div>
-                  {currentStep === 4 && (
-                    <button onClick={() => setCurrentStep(5)} className="w-full bg-[#0070F4] text-white py-3 rounded-md font-medium hover:bg-blue-700 transition flex justify-center items-center gap-2 mt-6 shadow-sm">
-                      Xác nhận & Khởi tạo Đơn chuyển ngành
+                    <button onClick={handleConfirmData} className="w-full bg-[#0070F4] text-white py-3 rounded-lg font-medium hover:bg-blue-700 flex justify-center items-center gap-2 text-sm">
+                      <Check size={18} /> Xác nhận thông tin chính xác
                     </button>
                   )}
                 </div>
               </div>
             )}
 
-            {/* ================= BƯỚC 5: HOÀN TẤT ================= */}
-            {currentStep >= 5 && (
-              <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 mt-2">
-                <div className="bg-[#0070F4] text-white p-4 rounded-xl flex justify-center items-center gap-2 font-medium shadow-sm">
-                  <CheckCircle2 size={20} /> Khởi tạo hồ sơ xin chuyển ngành thành công
+            {/* ================= BƯỚC 3: KIỂM TRA ĐIỀU KIỆN ================= */}
+            {currentStep >= 3 && (
+              <div className="ml-12 flex flex-col gap-4 animate-in fade-in mt-2">
+                <div className="bg-green-50 border border-green-200 text-green-700 rounded-xl p-3 flex items-center gap-3 text-sm font-medium">
+                  <div className="bg-green-500 text-white rounded-full p-0.5"><Check size={16} /></div> Thông tin đã xác nhận — Đang kiểm tra tình trạng học vụ...
                 </div>
+                
+                {academicChecked && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-green-50/50 border border-green-200 rounded-xl p-5"><h4 className="font-bold text-green-700 text-sm mb-2"><Check size={14} className="inline mr-1 bg-green-500 text-white rounded-full p-0.5"/> Đạt điều kiện</h4><p className="text-gray-800 text-sm font-medium">Không thuộc diện bị buộc thôi học</p></div>
+                    <div className="bg-green-50/50 border border-green-200 rounded-xl p-5"><h4 className="font-bold text-green-700 text-sm mb-2"><Check size={14} className="inline mr-1 bg-green-500 text-white rounded-full p-0.5"/> Đạt điều kiện</h4><p className="text-gray-800 text-sm font-medium">Không vi phạm kỷ luật</p></div>
+                  </div>
+                )}
+                {academicChecked && currentStep === 3 && (
+                  <button onClick={() => setCurrentStep(4)} className="w-full bg-[#0070F4] text-white py-3 rounded-lg font-medium hover:bg-blue-700 flex justify-center items-center gap-2 text-sm mt-2">
+                    Tiếp tục <ChevronRight size={18} />
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* ================= BƯỚC 4 & 5: FORM NHẬP LIỆU ================= */}
+            {currentStep >= 4 && (
+              <div className="flex flex-col gap-4 animate-in fade-in mt-4">
                 <div className="flex gap-4 items-start">
-                  <div className="bg-blue-100 p-2 rounded-full text-blue-600 shrink-0"><Bot size={24} /></div>
+                  <div className="bg-[#0070F4] p-2 rounded-full text-white shrink-0"><Bot size={24} /></div>
                   <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 max-w-[80%]">
                     <p className="text-gray-700 font-medium text-sm mb-1">Trợ lý AI</p>
-                    <p className="text-gray-600 text-sm">Hồ sơ xin chuyển ngành của bạn đã được ghi nhận! Hệ thống đã tạo Đơn xin chuyển ngành. Bạn hãy tải đơn về, xin ý kiến Phụ huynh và Lãnh đạo Khoa, sau đó nộp trực tiếp tại Phòng Đào tạo nhé.</p>
+                    <p className="text-gray-600 text-sm">Bây giờ hệ thống sẽ kiểm tra <strong>thông tin tuyển sinh</strong> và <strong>lý do chuyển ngành</strong> của bạn. Vui lòng điền đầy đủ thông tin bên dưới.</p>
                   </div>
+                </div>
+
+                <div className="ml-12 border border-gray-200 bg-white rounded-xl p-6 shadow-sm">
+                  <div className="mb-6">
+                    <label className="text-xs font-bold text-gray-500 uppercase block mb-2">Ngành muốn chuyển đến</label>
+                    <input type="text" placeholder="VD: Công nghệ Phần mềm, Quản trị Kinh doanh..." value={targetMajor} onChange={(e) => setTargetMajor(e.target.value)} disabled={currentStep > 5} className="w-full border border-gray-300 rounded-lg p-3 text-sm outline-none focus:ring-1 focus:ring-blue-500" />
+                  </div>
+
+                  {!isQualified && (
+                    <div className="bg-[#0070F4] text-white p-5 rounded-lg flex flex-col items-center gap-4 text-center">
+                      <p className="text-sm">Để đảm bảo tính chính xác theo quy định của Phòng Đào tạo, bạn vui lòng tải công cụ kiểm tra tự động dưới đây. Hãy nhập điểm của bạn vào file để xem có đạt ngưỡng đầu vào hay không nhé.</p>
+                      <button onClick={handleDownloadExcel} className="bg-white text-[#0070F4] w-full py-2.5 rounded-md font-bold flex items-center justify-center gap-2 hover:bg-gray-50 transition text-sm">
+                        <Download size={18} /> Tải xuống file kiểm tra điều kiện chuyển ngành
+                      </button>
+                      
+                      {hasDownloadedExcel && (
+                        <div className="flex gap-3 w-full mt-2 animate-in fade-in slide-in-from-bottom-2">
+                          <button onClick={() => handleConfirmQualification(true)} className="flex-1 bg-green-500 hover:bg-green-600 text-white py-2.5 rounded-md font-medium transition text-sm">Tôi đủ điều kiện</button>
+                          <button onClick={() => handleConfirmQualification(false)} className="flex-1 bg-red-500 hover:bg-red-600 text-white py-2.5 rounded-md font-medium transition text-sm">Không đủ điều kiện</button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* FORM BƯỚC 5 */}
+                  {isQualified && (
+                    <div className="mt-4 animate-in fade-in">
+                      <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg text-sm font-medium flex items-center gap-2 mb-6">
+                        <CheckCircle2 size={18} className="text-green-600" /> Bạn đã chọn: Tôi đã đủ điều kiện
+                      </div>
+
+                      <h4 className="text-xs font-bold text-gray-500 uppercase mb-3">Phương thức xét tuyển của bạn</h4>
+                      <div className="flex flex-wrap gap-2 mb-6">
+                        {['Xét điểm THPT', 'Xét học bạ', 'Tuyển thẳng', 'Xét điểm ĐGNL', 'Phương thức khác'].map(method => (
+                          <button key={method} onClick={() => setAdmissionMethod(method)} disabled={currentStep > 5} className={`px-4 py-2 border rounded-md text-sm font-medium transition ${admissionMethod === method ? 'bg-[#0070F4] text-white border-[#0070F4]' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}>
+                            {method}
+                          </button>
+                        ))}
+                      </div>
+
+                      <h4 className="text-xs font-bold text-gray-500 uppercase mb-3">Điểm tuyển sinh</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                        <div><label className="text-xs text-gray-500 mb-1.5 block">Tổ hợp môn xét tuyển</label><input type="text" placeholder="VD: A00, A01, D01" value={admissionScores.combo} onChange={e => setAdmissionScores({...admissionScores, combo: e.target.value})} disabled={currentStep > 5} className="w-full border rounded-lg p-2.5 text-sm outline-none" /></div>
+                        <div><label className="text-xs text-gray-500 mb-1.5 block">Điểm xét tuyển</label><input type="text" placeholder="VD: 24.5" value={admissionScores.score} onChange={e => setAdmissionScores({...admissionScores, score: e.target.value})} disabled={currentStep > 5} className="w-full border rounded-lg p-2.5 text-sm outline-none" /></div>
+                        <div><label className="text-xs text-gray-500 mb-1.5 block">Điểm ưu tiên (nếu có)</label><input type="text" placeholder="VD: 1.0" value={admissionScores.priority} onChange={e => setAdmissionScores({...admissionScores, priority: e.target.value})} disabled={currentStep > 5} className="w-full border rounded-lg p-2.5 text-sm outline-none" /></div>
+                        <div><label className="text-xs text-gray-500 mb-1.5 block">Ngưỡng đầu vào (nếu có)</label><input type="text" placeholder="VD: 20" value={admissionScores.threshold} onChange={e => setAdmissionScores({...admissionScores, threshold: e.target.value})} disabled={currentStep > 5} className="w-full border rounded-lg p-2.5 text-sm outline-none" /></div>
+                      </div>
+
+                      <h4 className="text-xs font-bold text-gray-500 uppercase mb-3">Thông tin cá nhân bổ sung</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                        <div><label className="text-xs text-gray-500 mb-1.5 block">Ngày sinh</label><input type="text" value={additionalInfo.dob} onChange={e => setAdditionalInfo({...additionalInfo, dob: e.target.value})} disabled={currentStep > 5} className="w-full border rounded-lg p-2.5 text-sm outline-none bg-gray-50" /></div>
+                        <div><label className="text-xs text-gray-500 mb-1.5 block">Nơi sinh</label><input type="text" placeholder="VD: TP. Hồ Chí Minh" value={additionalInfo.pob} onChange={e => setAdditionalInfo({...additionalInfo, pob: e.target.value})} disabled={currentStep > 5} className="w-full border rounded-lg p-2.5 text-sm outline-none" /></div>
+                        <div><label className="text-xs text-gray-500 mb-1.5 block">Số điện thoại</label><input type="text" value={additionalInfo.phone} onChange={e => setAdditionalInfo({...additionalInfo, phone: e.target.value})} disabled={currentStep > 5} className="w-full border rounded-lg p-2.5 text-sm outline-none bg-gray-50" /></div>
+                        <div><label className="text-xs text-gray-500 mb-1.5 block">Số CCCD</label><input type="text" value={additionalInfo.cccd} onChange={e => setAdditionalInfo({...additionalInfo, cccd: e.target.value})} disabled={currentStep > 5} className="w-full border rounded-lg p-2.5 text-sm outline-none bg-gray-50" /></div>
+                        <div><label className="text-xs text-gray-500 mb-1.5 block">Ngày cấp CCCD</label><input type="text" placeholder="VD: 15/06/2021" value={additionalInfo.issueDate} onChange={e => setAdditionalInfo({...additionalInfo, issueDate: e.target.value})} disabled={currentStep > 5} className="w-full border rounded-lg p-2.5 text-sm outline-none" /></div>
+                        <div><label className="text-xs text-gray-500 mb-1.5 block">Nơi cấp</label><input type="text" placeholder="VD: Cục CS QLHC" value={additionalInfo.issuePlace} onChange={e => setAdditionalInfo({...additionalInfo, issuePlace: e.target.value})} disabled={currentStep > 5} className="w-full border rounded-lg p-2.5 text-sm outline-none" /></div>
+                      </div>
+
+                      <div className="mb-6">
+                        <label className="text-xs font-bold text-gray-500 uppercase block mb-2">Lý do xin chuyển ngành</label>
+                        <textarea rows={3} placeholder="Trình bày lý do bạn muốn chuyển ngành" value={reason} onChange={e => setReason(e.target.value)} disabled={currentStep > 5} className="w-full border border-gray-300 rounded-lg p-3 text-sm outline-none resize-none"></textarea>
+                      </div>
+
+                      {currentStep === 5 && (
+                        <button
+                        type="button"
+                        onClick={handlePreviewDocument}
+                        disabled={!isForm5Valid || isPreviewLoading}
+                        className="px-6 py-3 bg-blue-600 text-white rounded-lg disabled:opacity-50"
+                      >
+                        {isPreviewLoading
+                          ? "Đang tạo bản xem trước..."
+                          : "Tiếp tục - Xem trước đơn"}
+                      </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* ================= BƯỚC 6: XEM TRƯỚC ================= */}
+            {currentStep >= 6 && (
+              <div className="flex flex-col gap-4 animate-in fade-in mt-4">
+                <div className="flex gap-4 items-start">
+                  <div className="bg-[#0070F4] p-2 rounded-full text-white shrink-0"><Bot size={24} /></div>
+                  <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 max-w-[80%]">
+                    <p className="text-gray-700 font-medium text-sm mb-1">Trợ lý AI</p>
+                    <p className="text-gray-600 text-sm">Cảm ơn bạn. Mình đã tổng hợp xong toàn bộ dữ liệu. Bạn hãy kiểm tra lại bản nháp của <strong>Đơn xin chuyển ngành</strong> và bộ hồ sơ đính kèm dưới đây nhé.</p>
+                  </div>
+                </div>
+
+                {/* Progress bar xem trước */}
+                <div className="ml-12 bg-white rounded-xl shadow-sm p-5 border border-gray-200 flex justify-between items-center text-xs font-medium text-gray-400">
+                  <div className="flex items-center gap-2 text-green-600"><CheckCircle2 size={16}/> Xác nhận thông tin</div>
+                  <div className="flex-1 h-px bg-gray-200 mx-4"></div>
+                  <div className="flex items-center gap-2 text-green-600"><CheckCircle2 size={16}/> Thông tin tuyển sinh & Lý do</div>
+                  <div className="flex-1 h-px bg-gray-200 mx-4"></div>
+                  <div className="flex items-center gap-2 text-slate-800"><div className="w-5 h-5 bg-slate-800 text-white rounded-full flex justify-center items-center">3</div> Xem trước & Xuất đơn</div>
+                </div>
+
+                <div className="ml-12 flex flex-col gap-6">
+                  {/* Bản Document Preview */}
+                  <div className="bg-gray-100 p-4 rounded-xl">
+                    {previewUrl ? (
+                      <iframe
+                        src={previewUrl}
+                        title="Xem trước đơn xin chuyển ngành"
+                        className="w-full h-[1000px] bg-white border border-gray-300 rounded-lg"
+                      />
+                    ) : (
+                      <div className="h-[500px] flex items-center justify-center text-gray-500">
+                        Chưa có bản xem trước
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Tài liệu đính kèm list */}
+                  <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                    <h4 className="text-sm font-semibold text-gray-700 mb-4">Tài liệu đính kèm</h4>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between p-3 border rounded-lg bg-gray-50"><div className="flex items-center gap-3 text-sm text-gray-700"><FileText size={18} className="text-gray-400"/> Giấy báo trúng tuyển</div><span className="bg-green-100 text-green-700 text-[10px] px-2 py-1 rounded font-semibold">Đã xác thực</span></div>
+                      <div className="flex items-center justify-between p-3 border rounded-lg bg-gray-50"><div className="flex items-center gap-3 text-sm text-gray-700"><FileText size={18} className="text-gray-400"/> Giấy chứng nhận Tốt nghiệp THPT</div><span className="bg-green-100 text-green-700 text-[10px] px-2 py-1 rounded font-semibold">Đã xác thực</span></div>
+                      <div className="flex items-center justify-between p-3 border rounded-lg bg-gray-50"><div className="flex items-center gap-3 text-sm text-gray-700"><FileText size={18} className="text-gray-400"/> Giấy xác nhận không buộc thôi học</div><span className="bg-blue-100 text-blue-700 text-[10px] px-2 py-1 rounded font-semibold">Tạo tự động</span></div>
+                      <div className="flex items-center justify-between p-3 border rounded-lg bg-gray-50"><div className="flex items-center gap-3 text-sm text-gray-700"><FileText size={18} className="text-gray-400"/> Giấy xác nhận không vi phạm kỷ luật</div><span className="bg-blue-100 text-blue-700 text-[10px] px-2 py-1 rounded font-semibold">Tạo tự động</span></div>
+                    </div>
+                  </div>
+
+                  {currentStep === 6 && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={handleDownloadDoc}
+                        disabled={downloadState === "downloading"}
+                        className={`w-full py-3.5 rounded-lg font-medium transition flex justify-center items-center gap-2 text-sm shadow-sm ${
+                          downloadState === "downloading"
+                            ? "bg-blue-400 text-white cursor-not-allowed"
+                            : "bg-[#0070F4] text-white hover:bg-blue-700"
+                        }`}
+                      >
+                        {downloadState === "downloading" ? (
+                          <>
+                            <span className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full" />
+                            Đang tạo đơn chuyển ngành...
+                          </>
+                        ) : (
+                          <>
+                            <Download size={18} />
+                            Tải xuống Đơn xin chuyển ngành (.docx)
+                          </>
+                        )}
+                      </button>
+
+                      {downloadState === "downloaded" && (
+                        <div className="bg-green-50 border border-green-200 text-green-700 rounded-lg p-3 flex items-center gap-2 text-sm font-medium">
+                          <CheckCircle2 size={18} />
+                          Đơn xin chuyển ngành đã được tải xuống.
+                        </div>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={handleFinalSubmit}
+                        disabled={isSubmitting}
+                        className="w-full bg-[#0070F4] text-white py-3.5 rounded-lg font-medium hover:bg-blue-700 transition flex justify-center items-center gap-2 text-sm shadow-sm"
+                      >
+                        {isSubmitting ? (
+                          <span className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full" />
+                        ) : (
+                          <>
+                            <CheckCircle2 size={18} />
+                            Ký xác nhận & Nộp toàn bộ hồ sơ
+                          </>
+                        )}
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* ================= BƯỚC 7: HOÀN TẤT & THEO DÕI ================= */}
+            {currentStep >= 7 && (
+              <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 mt-6">
+                
+                {/* Banner Thành công */}
+                <div className="ml-12 bg-green-50 border border-green-200 rounded-xl p-8 flex flex-col items-center justify-center text-center shadow-sm">
+                  <div className="bg-green-500 text-white rounded-full p-2 mb-4"><Check size={32} strokeWidth={3}/></div>
+                  <h3 className="font-bold text-green-700 text-lg mb-1">Hồ sơ đã được nộp thành công!</h3>
+                  <p className="text-green-600 text-sm mb-3">Phòng Đào tạo sẽ xem xét và phản hồi trong vòng <strong>3-5 ngày làm việc</strong>.</p>
+                  <p className="text-xs text-gray-500">Mã hồ sơ: <strong>CN-2026-0728A</strong></p>
+                </div>
+
+                {/* Tracking Dashboard */}
+                <div className="ml-12 bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                  <div className="flex border-b border-gray-200 text-sm font-medium">
+                    <button onClick={() => setActiveTab('details')} className={`flex-1 py-4 transition-colors ${activeTab === 'details' ? 'text-[#0070F4] border-b-2 border-[#0070F4]' : 'text-gray-500 hover:text-gray-700 bg-gray-50'}`}>Xem chi tiết hồ sơ</button>
+                    <button onClick={() => setActiveTab('tracking')} className={`flex-1 py-4 transition-colors ${activeTab === 'tracking' ? 'text-[#0070F4] border-b-2 border-[#0070F4]' : 'text-gray-500 hover:text-gray-700 bg-gray-50'}`}>Theo dõi trạng thái</button>
+                  </div>
+
+                  {activeTab === 'details' && (
+                    <div className="animate-in fade-in">
+                      <div className="bg-[#1E3A5F] text-white p-6 flex justify-between items-start">
+                        <div>
+                          <p className="text-xs text-blue-300 font-semibold mb-1 uppercase tracking-wider">Biên nhận kỹ thuật số</p>
+                          <h4 className="font-bold text-2xl mb-6">Đơn xin chuyển ngành</h4>
+                          <div className="flex gap-12">
+                            <div><p className="text-xs text-blue-300 mb-1">Mã hồ sơ</p><p className="font-semibold">CN-2026-0728A</p></div>
+                            <div><p className="text-xs text-blue-300 mb-1">Thời gian nộp</p><p className="font-semibold flex items-center gap-1.5"><Clock size={14}/> 14:22 - 28/07/2026</p></div>
+                          </div>
+                        </div>
+                        <span className="bg-yellow-500 text-yellow-950 text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5">⏳ Đang chờ xử lý</span>
+                      </div>
+
+                      <div className="p-6">
+                        <h5 className="text-xs font-bold text-gray-400 mb-4 uppercase tracking-wider">Thông tin cá nhân & Nguyện vọng</h5>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                          <div className="bg-gray-50 rounded-lg p-3 border border-gray-100"><p className="text-xs text-gray-400 mb-1">Họ và tên</p><p className="font-semibold text-gray-800">{formData?.fullName}</p></div>
+                          <div className="bg-gray-50 rounded-lg p-3 border border-gray-100"><p className="text-xs text-gray-400 mb-1">Mã số sinh viên</p><p className="font-semibold text-gray-800">{formData?.studentId}</p></div>
+                          <div className="bg-gray-50 rounded-lg p-3 border border-gray-100"><p className="text-xs text-gray-400 mb-1">Ngày sinh</p><p className="font-semibold text-gray-800">{additionalInfo.dob}</p></div>
+                          <div className="bg-gray-50 rounded-lg p-3 border border-gray-100"><p className="text-xs text-gray-400 mb-1">Số CCCD</p><p className="font-semibold text-gray-800">{additionalInfo.cccd}</p></div>
+                        </div>
+
+                        <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex items-center justify-between mb-8">
+                          <div className="text-center flex-1">
+                            <p className="text-xs text-gray-500 mb-1">Chuyển từ</p><p className="font-bold text-slate-800">{formData?.currentMajor}</p>
+                          </div>
+                          <div className="px-4 text-blue-400"><ArrowLeftRight size={24}/></div>
+                          <div className="text-center flex-1">
+                            <p className="text-xs text-gray-500 mb-1">Chuyển đến</p><p className="font-bold text-[#0070F4]">{targetMajor}</p>
+                          </div>
+                        </div>
+
+                        <h5 className="text-xs font-bold text-gray-400 mb-4 uppercase tracking-wider">Cơ sở xét duyệt</h5>
+                        <div className="flex gap-3 mb-8">
+                          <span className="bg-[#1E293B] text-white px-4 py-2 rounded-lg text-sm font-semibold">{admissionMethod}</span>
+                          <span className="border border-gray-200 text-gray-600 px-4 py-2 rounded-lg text-sm">Điểm xét tuyển: <strong>{admissionScores.score}</strong></span>
+                          <span className="border border-gray-200 text-gray-600 px-4 py-2 rounded-lg text-sm">Ngưỡng đầu vào: <strong>{admissionScores.threshold}</strong></span>
+                        </div>
+
+                        <h5 className="text-xs font-bold text-gray-400 mb-4 uppercase tracking-wider">Danh sách tài liệu đính kèm (4 tệp)</h5>
+                        <div className="space-y-3">
+                          {[
+                            { name: 'Đơn xin chuyển ngành đào tạo', desc: 'Bản hoàn chỉnh có chữ ký số', icon: <FileText className="text-blue-500"/>, bg: 'bg-blue-50' },
+                            { name: 'Giấy báo trúng tuyển', desc: 'Bản PDF gốc đã tải lên', icon: <FileText className="text-red-400"/>, bg: 'bg-red-50' },
+                            { name: 'Giấy chứng nhận Tốt nghiệp THPT', desc: 'Bản scan đã tải lên', icon: <FileText className="text-green-500"/>, bg: 'bg-green-50' },
+                            { name: 'Giấy xác nhận điều kiện học vụ', desc: 'Gồm ĐK thôi học & Kỷ luật', icon: <FileText className="text-purple-500"/>, bg: 'bg-purple-50' },
+                          ].map((file, idx) => (
+                            <div key={idx} className="flex items-center justify-between p-3 border border-gray-100 rounded-lg hover:bg-gray-50 transition">
+                              <div className="flex items-center gap-4">
+                                <div className={`${file.bg} p-2 rounded-lg`}>{file.icon}</div>
+                                <div><p className="text-sm font-semibold text-gray-800">{file.name}</p><p className="text-xs text-gray-400">{file.desc}</p></div>
+                              </div>
+                              <div className="flex gap-2">
+                                <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded hover:bg-gray-100"><Eye size={14}/> Xem</button>
+                                <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded hover:bg-gray-100"><Download size={14}/> Tải</button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {activeTab === 'tracking' && (
+                     <div className="p-8 flex items-center justify-center text-gray-500 text-sm">
+                       Tính năng theo dõi lộ trình đang được cập nhật...
+                     </div>
+                  )}
                 </div>
               </div>
             )}

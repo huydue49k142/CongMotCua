@@ -52,9 +52,20 @@ const Header = () => {
   return (
     <header className="flex items-center justify-between px-6 bg-primary text-white relative" style={{ gridArea: 'header' }}>
       {/* Left side */}
-      <div className="flex items-center gap-2 text-lg font-semibold">
-          <GraduationCap className="h-6 w-6" />
-          <span>CỔNG DỊCH VỤ SINH VIÊN</span>
+      <div className="flex items-center gap-3">
+        <div className="w-11 h-11 rounded-lg bg-white/15 flex items-center justify-center">
+          <GraduationCap className="h-6 w-6 text-white" />
+        </div>
+
+        <div className="flex flex-col">
+          <span className="text-lg font-bold leading-tight">
+            CỔNG DỊCH VỤ SINH VIÊN
+          </span>
+
+          <span className="text-xs text-blue-100 mt-0.5">
+            Hệ thống hỗ trợ thủ tục hành chính - AI Agent
+          </span>
+        </div>
       </div>
       <div className='flex-grow'></div>
 

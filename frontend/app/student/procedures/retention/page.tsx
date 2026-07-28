@@ -17,27 +17,59 @@ export default function RetentionPage() {
   const [isLoading, setIsLoading] = useState(false);
 
   // Quản lý các bước trong form
-  const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4 | 5>(1);
-  const [profile, setProfile] = useState<RetentionProfile | null>(null);
+  const [currentStep, setCurrentStep] =
+    useState<1 | 2 | 3 | 4 | 5>(1);
+
+  const [profile, setProfile] =
+    useState<RetentionProfile | null>(null);
+
+  // Thêm state này
+  const [profileError, setProfileError] =
+    useState<string>("");
 
   // State: Bước 1 - Form khai báo & File minh chứng
-  const [formData, setFormData] = useState({ reason: '', duration: '', attachmentNote: '' });
-  const [evidenceFile, setEvidenceFile] = useState<File | null>(null);
-  const evidenceFileRef = useRef<HTMLInputElement>(null);
+  const [formData, setFormData] = useState({
+    reason: "",
+    duration: "",
+    attachmentNote: "",
+  });
+
+  const [evidenceFile, setEvidenceFile] =
+    useState<File | null>(null);
+
+  const evidenceFileRef =
+    useRef<HTMLInputElement>(null);
 
   // State: Bước 2 - Tải đơn
-  const [downloadState, setDownloadState] = useState<'idle' | 'downloading' | 'downloaded'>('idle');
+  const [downloadState, setDownloadState] =
+    useState<
+      "idle" | "downloading" | "downloaded"
+    >("idle");
 
   // State: Bước 3 - Upload đơn đã ký & AI quét
-  const [docFile, setDocFile] = useState<File | null>(null);
-  const docFileRef = useRef<HTMLInputElement>(null);
-  const [scanState, setScanState] = useState<'idle' | 'scanning' | 'success' | 'error'>('idle');
-  const [aiResult, setAiResult] = useState<{format_valid?: boolean, title_valid?: boolean, signature_present?: boolean} | null>(null);
+  const [docFile, setDocFile] =
+    useState<File | null>(null);
+
+  const docFileRef =
+    useRef<HTMLInputElement>(null);
+
+  const [scanState, setScanState] =
+    useState<
+      "idle" | "scanning" | "success" | "error"
+    >("idle");
+
+  const [aiResult, setAiResult] = useState<{
+    format_valid?: boolean;
+    title_valid?: boolean;
+    signature_present?: boolean;
+  } | null>(null);
 
   // State: Bước 5 - Tab trạng thái
-  const [activeTab, setActiveTab] = useState<'details' | 'tracking'>('details');
+  const [activeTab, setActiveTab] =
+    useState<"details" | "tracking">("details");
 
-  const chatEndRef = useRef<HTMLDivElement>(null);
+  const chatEndRef =
+    useRef<HTMLDivElement>(null);
 
   // Auto scroll
   useEffect(() => {
@@ -46,16 +78,35 @@ export default function RetentionPage() {
     }, 100);
   }, [isStarted, profile, currentStep, downloadState, scanState, activeTab]);
 
-  // Load data ban đầu
-  useEffect(() => {
-    if (isStarted) {
-      setIsLoading(true);
-      getRetentionProfile()
-        .then((data) => setProfile(data))
-        .catch((error) => console.error('Lỗi khi lấy dữ liệu sinh viên:', error))
-        .finally(() => setIsLoading(false));
-    }
-  }, [isStarted]);
+// Load dữ liệu sinh viên khi bắt đầu thủ tục
+useEffect(() => {
+  if (!isStarted) return;
+
+  setIsLoading(true);
+  setProfileError("");
+
+  getRetentionProfile()
+    .then((data) => {
+      setProfile(data);
+    })
+    .catch((error) => {
+      console.error(
+        "Lỗi khi lấy dữ liệu sinh viên:",
+        error
+      );
+
+      setProfile(null);
+
+      setProfileError(
+        error instanceof Error
+          ? error.message
+          : "Không thể tải thông tin sinh viên."
+      );
+    })
+    .finally(() => {
+      setIsLoading(false);
+    });
+}, [isStarted]);
 
   // --- Handlers Bước 1 ---
   const handleStart = () => setIsStarted(true);
@@ -72,21 +123,112 @@ export default function RetentionPage() {
   const handleSubmitForm = () => setCurrentStep(2);
 
   // --- Handlers Bước 2 ---
-  const handleDownloadDoc = () => {
-    if (downloadState !== 'idle') return;
-    setDownloadState('downloading');
+  const handleDownloadDoc = async () => {
+  if (downloadState === "downloading") return;
 
-    // Giả lập tải file thật như đã làm ở chức năng học tiếp
-    const fileUrl = '/bieu-mau/don-xin-bao-luu.docx';
-    const link = document.createElement('a');
-    link.href = fileUrl;
-    link.download = 'Don_xin_nghi_hoc_tam_thoi.docx';
+  try {
+    setDownloadState("downloading");
+
+    const accessToken =
+      localStorage.getItem("access_token") ||
+      localStorage.getItem("access");
+
+    if (!accessToken) {
+      throw new Error(
+        "Không tìm thấy phiên đăng nhập. Vui lòng đăng nhập lại."
+      );
+    }
+
+    const reason = formData.reason.trim();
+    const duration = formData.duration.trim();
+    const attachmentNote =
+      formData.attachmentNote.trim();
+
+    if (!reason) {
+      throw new Error("Vui lòng chọn lý do xin nghỉ học.");
+    }
+
+    if (!duration) {
+      throw new Error("Vui lòng chọn thời gian bảo lưu.");
+    }
+
+    const apiBase = (
+      process.env.NEXT_PUBLIC_API_URL ||
+      "http://127.0.0.1:8000/api"
+    ).replace(/\/$/, "");
+
+    const response = await fetch(
+      `${apiBase}/documents/retention/download/`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          reason,
+          duration,
+          attachment_note: attachmentNote,
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response
+        .json()
+        .catch(() => null);
+
+      const missingFields: string[] =
+        errorData?.missing_fields ?? [];
+
+      if (missingFields.length > 0) {
+        throw new Error(
+          `Thiếu thông tin: ${missingFields.join(", ")}`
+        );
+      }
+
+      throw new Error(
+        errorData?.reason ||
+          errorData?.duration ||
+          errorData?.message ||
+          errorData?.detail ||
+          "Không thể tạo đơn xin nghỉ học tạm thời."
+      );
+    }
+
+    const fileBlob = await response.blob();
+    const downloadUrl =
+      window.URL.createObjectURL(fileBlob);
+
+    const link = document.createElement("a");
+
+    link.href = downloadUrl;
+    link.download = profile?.studentId
+      ? `Don_xin_nghi_hoc_tam_thoi_${profile.studentId}.docx`
+      : "Don_xin_nghi_hoc_tam_thoi.docx";
+
     document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
+    link.remove();
 
-    setTimeout(() => setDownloadState('downloaded'), 1500);
-  };
+    setTimeout(() => {
+      window.URL.revokeObjectURL(downloadUrl);
+    }, 1000);
+
+    setDownloadState("downloaded");
+  } catch (error) {
+    console.error("Lỗi tải đơn bảo lưu:", error);
+
+    setDownloadState("idle");
+
+    alert(
+      error instanceof Error
+        ? error.message
+        : "Không thể tải đơn xin nghỉ học tạm thời."
+    );
+  }
+};
+
   const handleContinueToUpload = () => setCurrentStep(3);
 
   // --- Handlers Bước 3 ---
@@ -236,7 +378,15 @@ export default function RetentionPage() {
                             </button>
                           )}
                         </>
-                      ) : null}
+                      ) : profileError ? (
+                        <div className="p-6 text-center text-red-600">
+                          {profileError}
+                        </div>
+                      ) : (
+                        <div className="p-6 text-center text-gray-500">
+                          Không tìm thấy thông tin sinh viên.
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -286,14 +436,25 @@ export default function RetentionPage() {
                   </div>
 
                   <button
+                    type="button"
                     onClick={handleDownloadDoc}
-                    disabled={downloadState !== 'idle'}
-                    className={`w-full py-3.5 rounded-lg font-medium transition flex justify-center items-center gap-2 text-sm ${downloadState === 'idle' ? 'bg-[#0070F4] text-white hover:bg-blue-700 shadow-sm' : 'bg-blue-600 text-white opacity-80 cursor-default'}`}
+                    disabled={downloadState === "downloading"}
+                    className={`w-full py-3.5 rounded-lg font-medium transition flex justify-center items-center gap-2 text-sm ${
+                      downloadState === "downloading"
+                        ? "bg-blue-600 text-white opacity-80 cursor-not-allowed"
+                        : "bg-[#0070F4] text-white hover:bg-blue-700 shadow-sm"
+                    }`}
                   >
-                    {downloadState === 'downloading' ? (
-                      <span className="flex items-center gap-2"><span className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span> Đang tải xuống...</span>
+                    {downloadState === "downloading" ? (
+                      <span className="flex items-center gap-2">
+                        <span className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
+                        Đang tạo đơn...
+                      </span>
                     ) : (
-                      <><Download size={18} /> Tải xuống Đơn xin nghỉ học tạm thời (.docx)</>
+                      <>
+                        <Download size={18} />
+                        Tải xuống Đơn xin nghỉ học tạm thời (.docx)
+                      </>
                     )}
                   </button>
 
