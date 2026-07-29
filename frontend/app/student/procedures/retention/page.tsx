@@ -570,39 +570,180 @@ const handleRetryScan = () => {
   const [trackingCode, setTrackingCode] = useState("");
   const [requestId, setRequestId] = useState("");
 
+  // Khóa đồng bộ để ngăn hai request được gửi gần như cùng lúc.
+  // State React cập nhật bất đồng bộ nên chỉ dùng isSubmitting là chưa đủ.
+  const submitLockRef = useRef(false);
+
   // --- Handlers Bước 4 ---
   const handleFinalSubmit = async () => {
-    if (!docFile || isSubmitting) return;
+    if (
+      !docFile ||
+      isSubmitting ||
+      submitLockRef.current
+    ) {
+      return;
+    }
+
+    if (!formData.reason.trim()) {
+      alert("Vui lòng chọn lý do xin nghỉ học.");
+      return;
+    }
+
+    if (!formData.duration.trim()) {
+      alert("Vui lòng nhập thời gian bảo lưu.");
+      return;
+    }
+
+    const accessToken =
+      localStorage.getItem("access_token") ||
+      localStorage.getItem("access");
+
+    if (!accessToken) {
+      alert(
+        "Phiên đăng nhập đã hết hạn. " +
+        "Vui lòng đăng nhập lại."
+      );
+      router.push("/login");
+      return;
+    }
+
+    submitLockRef.current = true;
     setIsSubmitting(true);
+
     try {
+      const apiBase = (
+        process.env.NEXT_PUBLIC_API_URL ||
+        "http://localhost:8000/api"
+      ).replace(/\/$/, "");
+
       const formDataToSend = new FormData();
-      formDataToSend.append('file', docFile);
-      formDataToSend.append('reason', formData.reason);
-      formDataToSend.append('duration', formData.duration);
-      formDataToSend.append('attachmentNote', formData.attachmentNote);
 
-      const accessToken = localStorage.getItem("access_token") || localStorage.getItem("access");
-      const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api'}/thoi-hoc/submit-retention/`, formDataToSend, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-          'Authorization': `Bearer ${accessToken}`
-        }
-      });
+      formDataToSend.append("file", docFile);
+      formDataToSend.append(
+        "reason",
+        formData.reason.trim()
+      );
+      formDataToSend.append(
+        "duration",
+        formData.duration.trim()
+      );
+      formDataToSend.append(
+        "attachmentNote",
+        formData.attachmentNote.trim()
+      );
 
-      if (response.data.success) {
-        setTrackingCode(response.data.trackingCode);
-        if (response.data.requestId) {
-          setRequestId(response.data.requestId);
-        }
-        setCurrentStep(5);
-      } else {
-        alert(response.data.error || 'Có lỗi xảy ra khi nộp hồ sơ.');
+      if (evidenceFile) {
+        formDataToSend.append(
+          "evidence_file",
+          evidenceFile
+        );
       }
-    } catch (error: any) {
-      console.error('Lỗi khi nộp hồ sơ:', error);
-      alert(error.response?.data?.error || 'Có lỗi xảy ra khi nộp hồ sơ. Vui lòng thử lại.');
+
+      const response = await axios.post(
+        `${apiBase}/thoi-hoc/submit-retention/`,
+        formDataToSend,
+        {
+          headers: {
+            Authorization:
+              `Bearer ${accessToken}`,
+          },
+        }
+      );
+
+      if (response.data?.success === true) {
+        setTrackingCode(
+          response.data.trackingCode ||
+          response.data.requestId ||
+          ""
+        );
+
+        if (response.data.requestId) {
+          setRequestId(
+            String(response.data.requestId)
+          );
+        }
+
+        setCurrentStep(5);
+        return;
+      }
+
+      alert(
+        response.data?.error ||
+        response.data?.detail ||
+        response.data?.message ||
+        "Không thể nộp hồ sơ."
+      );
+    } catch (error: unknown) {
+      console.error(
+        "Lỗi khi nộp hồ sơ bảo lưu:",
+        error
+      );
+
+      let message =
+        "Có lỗi xảy ra khi nộp hồ sơ. " +
+        "Vui lòng thử lại.";
+
+      if (axios.isAxiosError(error)) {
+        const statusCode =
+          error.response?.status;
+
+        const errorData =
+          error.response?.data;
+
+        console.error(
+          "Mã lỗi nộp hồ sơ:",
+          statusCode
+        );
+
+        console.error(
+          "Phản hồi backend:",
+          errorData
+        );
+
+        if (statusCode === 401) {
+          localStorage.removeItem("access");
+          localStorage.removeItem(
+            "access_token"
+          );
+
+          alert(
+            "Phiên đăng nhập đã hết hạn. " +
+            "Vui lòng đăng nhập lại."
+          );
+
+          router.push("/login");
+          return;
+        }
+
+        if (
+          typeof errorData === "string" &&
+          errorData.includes(
+            "UNIQUE constraint failed: " +
+            "requests_request.student_id"
+          )
+        ) {
+          message =
+            "Bạn đã có một hồ sơ học vụ trong hệ thống. " +
+            "Backend hiện chưa cho phép tạo thêm hồ sơ " +
+            "cho cùng sinh viên.";
+        } else {
+          message =
+            errorData?.error ||
+            errorData?.detail ||
+            errorData?.message ||
+            errorData?.non_field_errors?.[0] ||
+            (statusCode === 409
+              ? "Bạn đã có một hồ sơ bảo lưu đang được xử lý."
+              : message);
+        }
+      } else if (error instanceof Error) {
+        message = error.message;
+      }
+
+      alert(message);
     } finally {
       setIsSubmitting(false);
+      submitLockRef.current = false;
     }
   };
 
@@ -1141,8 +1282,9 @@ const handleRetryScan = () => {
                   </div>
 
                   {currentStep === 4 && (
-                    <button 
-                      onClick={handleFinalSubmit} 
+                    <button
+                      type="button"
+                      onClick={handleFinalSubmit}
                       disabled={isSubmitting}
                       className={`w-full py-3.5 rounded-lg font-medium transition flex justify-center items-center gap-2 mt-2 shadow-sm text-sm ${isSubmitting ? 'bg-blue-600 text-white opacity-80 cursor-not-allowed' : 'bg-[#0070F4] text-white hover:bg-blue-700'}`}
                     >
