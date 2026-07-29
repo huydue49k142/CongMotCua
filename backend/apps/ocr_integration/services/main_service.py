@@ -1,73 +1,167 @@
-from django.db import transaction
 from django.core.files.uploadedfile import UploadedFile
+from django.db import transaction
 
 from ..models import OCRJob, OCRResult
-from ..exceptions import OCRError
+from .document_rules import get_document_rule
 from .file_processor import process_uploaded_file
-from .ocr_engine import extract_text_from_image, find_title_in_text
-from .title_matcher import are_titles_similar
+from .gemini_service import analyze_document_with_gemini
+from .ocr_engine import extract_text_from_images
+import logging
 
-def verify_document_title(uploaded_file: UploadedFile, expected_title: str) -> OCRResult:
+logger = logging.getLogger(__name__)
+
+def verify_document(
+    uploaded_file: UploadedFile,
+    document_type: str,
+) -> OCRResult:
     """
-    Main service function to orchestrate the OCR verification process.
-    Creates a job and returns the final result.
+    Kiểm tra tài liệu bằng Tesseract và Gemini.
+
+    Các nhiệm vụ:
+    - Kiểm tra đúng loại tài liệu.
+    - Trích xuất thông tin.
+    - Kiểm tra chữ ký nếu loại đơn yêu cầu.
     """
-    
-    # 1. Create OCR Job
+
+    rule = get_document_rule(document_type)
+
     job = OCRJob.objects.create(
         uploaded_file=uploaded_file,
-        expected_title=expected_title,
+        document_type=document_type,
+        expected_title=rule["expected_name"],
         status=OCRJob.Status.PENDING,
     )
 
     try:
+        job.status = OCRJob.Status.PROCESSING
+        job.save(
+            update_fields=[
+                "status",
+                "updated_at",
+            ]
+        )
+
+        # PDF/ảnh thành danh sách ảnh PIL.
+        images = process_uploaded_file(
+            job.uploaded_file
+        )
+
+        if not images:
+            raise ValueError(
+                "Không tìm thấy trang tài liệu."
+            )
+
+        # Tesseract đọc toàn bộ các trang.
+        ocr_text = extract_text_from_images(
+            images
+        )
+
+        # Gemini kiểm tra loại tài liệu,
+        # chữ ký và trích xuất thông tin.
+        analysis = analyze_document_with_gemini(
+            images=images,
+            document_type=document_type,
+            ocr_text=ocr_text,
+        )
+
+        signature = analysis.signature
+
         with transaction.atomic():
-            job.status = OCRJob.Status.PROCESSING
-            job.save()
-
-            # 2. Process File (PDF/Image to PIL Images)
-            images = process_uploaded_file(job.uploaded_file)
-            
-            # 3. Extract Text (currently only from the first page/image)
-            # For multi-page docs, might need to decide on a strategy
-            if not images:
-                raise OCRError("Could not extract any images from the document.")
-            
-            full_text = extract_text_from_image(images[0])
-            
-            # 4. Find Title
-            extracted_title = find_title_in_text(full_text)
-            if not extracted_title:
-                raise OCRError("Could not find a title in the document.")
-
-            # 5. Compare Titles
-            is_match, confidence_score = are_titles_similar(
-                extracted_title, 
-                expected_title,
-                threshold=80.0
-            )
-
-            # 6. Create and Save Result
-            result = OCRResult.objects.create(
+            result, _ = OCRResult.objects.update_or_create(
                 job=job,
-                is_match=is_match,
-                confidence=confidence_score / 100.0, # Convert to 0.0-1.0 scale
-                extracted_text=full_text,
-                extracted_title=extracted_title,
-            )
-            
-            job.status = OCRJob.Status.COMPLETED
-            job.save()
-            
-            return result
+                defaults={
+                    "is_match": analysis.is_match,
+                    "confidence": analysis.confidence,
+                    "detected_document_type": (
+                        analysis.detected_document_type
+                        or OCRJob.DocumentType.UNKNOWN
+                    ),
+                    "extracted_text": ocr_text,
+                    "extracted_title": (
+                        analysis.extracted_title
+                    ),
+                    "extracted_fields": (
+                        analysis.extracted_fields.model_dump(
+                            exclude_none=True
+                        )
+                    ),
 
-    except OCRError as e:
+                    "signature_checks": (
+                        analysis.signature_checks.model_dump()
+                    ),
+
+                    "missing_fields": (
+                        analysis.missing_fields
+                    ),
+                    "validation_reason": (
+                        analysis.validation_reason
+                    ),
+                    "signature_required": (
+                        signature.required
+                    ),
+                    "signature_present": (
+                        signature.present
+                    ),
+                    "signature_type": (
+                        signature.type
+                    ),
+                    "signature_confidence": (
+                        signature.confidence
+                    ),
+                    "signature_page": (
+                        signature.page
+                    ),
+                    "signature_evidence": (
+                        signature.evidence
+                    ),
+                    "error_message": "",
+                },
+            )
+
+            job.status = OCRJob.Status.COMPLETED
+            job.save(
+                update_fields=[
+                    "status",
+                    "updated_at",
+                ]
+            )
+
+        return result
+
+    except Exception as error:
+        logger.exception(
+            "Lỗi xử lý OCR/Gemini: %s",
+            error,
+        )
         with transaction.atomic():
             job.status = OCRJob.Status.FAILED
-            job.save()
-            result = OCRResult.objects.create(
-                job=job,
-                is_match=False,
-                error_message=str(e)
+            job.save(
+                update_fields=[
+                    "status",
+                    "updated_at",
+                ]
             )
-            return result
+
+            result, _ = OCRResult.objects.update_or_create(
+                job=job,
+                defaults={
+                    "is_match": False,
+                    "confidence": 0.0,
+                    "detected_document_type": (
+                        OCRJob.DocumentType.UNKNOWN
+                    ),
+                    "signature_required": (
+                        rule["require_signature"]
+                    ),
+                    "signature_present": False,
+                    "signature_type": (
+                        OCRResult.SignatureType.UNCERTAIN
+                    ),
+                    "error_message": str(error),
+                    "validation_reason": (
+                        "Không thể xử lý tài liệu."
+                    ),
+                },
+            )
+
+        return result

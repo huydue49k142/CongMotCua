@@ -1,189 +1,687 @@
-import { NextResponse } from 'next/server';
-// Đảm bảo bạn đã chép file knowledge_base.json vào cùng thư mục app/api/chat/
-import KB from './knowledge_base.json'; 
+import { NextResponse } from "next/server";
+import KB from "./knowledge_base.json";
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-// Nếu muốn dùng model lite như code cũ, hãy đổi thành gemini-1.5-flash hoặc gemini-3.1-flash-lite trong .env
-const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-1.5-flash"; 
+const GEMINI_API_KEY =
+  process.env.GEMINI_API_KEY;
 
-const LIEN_HE_DU_PHONG = KB.lien_he_du_phong?.includes("CẦN BỔ SUNG")
-  ? "Phòng Đào tạo của trường (vui lòng bổ sung số điện thoại/email tại đây)"
-  : KB.lien_he_du_phong;
+const GEMINI_MODEL =
+  process.env.GEMINI_MODEL ||
+  "gemini-1.5-flash";
 
-// ==== Bước 1: lọc rule-based bằng từ khoá ====
-const TU_KHOA_THU_TUC = {
-  chuyen_nganh: ["chuyển ngành", "đổi ngành"],
-  bao_luu: ["bảo lưu", "nghỉ học tạm thời", "ngừng học", "tạm ngừng"],
-  thoi_hoc: ["thôi học", "bỏ học", "nghỉ học hẳn", "buộc thôi học"],
-  hoc_tiep: ["học tiếp", "trở lại học", "quay lại học"]
+const LIEN_HE_DU_PHONG =
+  KB.lien_he_du_phong?.includes(
+    "CẦN BỔ SUNG"
+  )
+    ? "Phòng Đào tạo của trường. Vui lòng bổ sung số điện thoại hoặc email liên hệ."
+    : KB.lien_he_du_phong;
+
+type ChatHistoryItem = {
+  role?: "user" | "model";
+  text?: string;
 };
 
-const TU_KHOA_CAN_AI = ["nếu", "trường hợp", "còn", "vậy", "sao", "tại sao", "khi nào", "bao lâu", "có được không", "như thế nào", "làm sao"];
+type ProcedureItem =
+  (typeof KB.thu_tuc)[number];
 
-function timThuTucTheoTuKhoa(text: string) {
-  const t = text.toLowerCase();
-  for (const [id, tuKhoas] of Object.entries(TU_KHOA_THU_TUC)) {
-    if (tuKhoas.some(k => t.includes(k))) return id;
+const TU_KHOA_THU_TUC: Record<
+  string,
+  string[]
+> = {
+  chuyen_nganh: [
+    "chuyển ngành",
+    "chuyen nganh",
+    "đổi ngành",
+    "doi nganh",
+    "học ngành khác",
+    "hoc nganh khac",
+  ],
+
+  bao_luu: [
+    "bảo lưu",
+    "bao luu",
+    "nghỉ học tạm thời",
+    "nghi hoc tam thoi",
+    "ngừng học",
+    "ngung hoc",
+    "tạm ngừng",
+    "tam ngung",
+    "tạm dừng",
+    "tam dung",
+    "gia hạn bảo lưu",
+    "gia han bao luu",
+  ],
+
+  thoi_hoc: [
+    "thôi học",
+    "thoi hoc",
+    "bỏ học",
+    "bo hoc",
+    "nghỉ học hẳn",
+    "nghi hoc han",
+    "buộc thôi học",
+    "buoc thoi hoc",
+  ],
+
+  hoc_tiep: [
+    "học tiếp",
+    "hoc tiep",
+    "trở lại học",
+    "tro lai hoc",
+    "trở lại học tập",
+    "tro lai hoc tap",
+    "quay lại học",
+    "quay lai hoc",
+    "đi học lại",
+    "di hoc lai",
+  ],
+};
+
+const TU_KHOA_CAN_AI = [
+  "nếu",
+  "neu",
+  "trường hợp",
+  "truong hop",
+  "còn",
+  "con",
+  "vậy",
+  "vay",
+  "sao",
+  "tại sao",
+  "tai sao",
+  "khi nào",
+  "khi nao",
+  "có được không",
+  "co duoc khong",
+  "như thế nào",
+  "nhu the nao",
+  "làm sao",
+  "lam sao",
+];
+
+const TU_KHOA_THOI_GIAN_GIAI_QUYET = [
+  "bao lâu",
+  "bao lau",
+  "mấy ngày",
+  "may ngay",
+  "bao nhiêu ngày",
+  "bao nhieu ngay",
+  "thời gian giải quyết",
+  "thoi gian giai quyet",
+  "thời gian xử lý",
+  "thoi gian xu ly",
+  "xử lý bao lâu",
+  "xu ly bao lau",
+  "giải quyết bao lâu",
+  "giai quyet bao lau",
+  "khi nào xong",
+  "khi nao xong",
+  "khi nào hoàn thành",
+  "khi nao hoan thanh",
+  "ngày hoàn thành",
+  "ngay hoan thanh",
+  "mất bao lâu",
+  "mat bao lau",
+  "mất mấy ngày",
+  "mat may ngay",
+  "mất bao nhiêu ngày",
+  "mat bao nhieu ngay",
+  "hồ sơ xử lý trong bao lâu",
+  "ho so xu ly trong bao lau",
+];
+
+function chuanHoaVanBan(
+  value: string
+) {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(
+      /[\u0300-\u036f]/g,
+      ""
+    )
+    .replace(/đ/g, "d")
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
+function timThuTucTheoTuKhoa(
+  text: string
+) {
+  const normalizedText =
+    chuanHoaVanBan(text);
+
+  for (const [
+    id,
+    keywords,
+  ] of Object.entries(
+    TU_KHOA_THU_TUC
+  )) {
+    const matched =
+      keywords.some((keyword) =>
+        normalizedText.includes(
+          chuanHoaVanBan(keyword)
+        )
+      );
+
+    if (matched) {
+      return id;
+    }
   }
+
   return null;
 }
 
-function laCauHoiDonGian(text: string) {
-  const t = text.toLowerCase();
-  return !TU_KHOA_CAN_AI.some(k => t.includes(k)) && t.length < 40;
+function timThuTucTrongNguCanh(
+  question: string,
+  history: ChatHistoryItem[]
+) {
+  const directProcedure =
+    timThuTucTheoTuKhoa(question);
+
+  if (directProcedure) {
+    return directProcedure;
+  }
+
+  const reversedHistory = [
+    ...(history || []),
+  ].reverse();
+
+  // Ưu tiên tin nhắn người dùng gần nhất.
+  for (const message of reversedHistory) {
+    if (
+      message?.role !== "user" ||
+      typeof message?.text !== "string"
+    ) {
+      continue;
+    }
+
+    const procedureId =
+      timThuTucTheoTuKhoa(
+        message.text
+      );
+
+    if (procedureId) {
+      return procedureId;
+    }
+  }
+
+  // Nếu chưa tìm thấy thì kiểm tra cả câu trả lời bot.
+  for (const message of reversedHistory) {
+    if (
+      typeof message?.text !== "string"
+    ) {
+      continue;
+    }
+
+    const procedureId =
+      timThuTucTheoTuKhoa(
+        message.text
+      );
+
+    if (procedureId) {
+      return procedureId;
+    }
+  }
+
+  return null;
 }
 
+function laCauHoiDonGian(
+  text: string
+) {
+  const normalizedText =
+    chuanHoaVanBan(text);
 
-function formatThuTucDayDu(item: any) {
-  const dongDieuKien = item.dieu_kien.map((d: string) => `• ${d}`).join("\n");
-  const dongHoSo = item.ho_so.map((h: string) => `• ${h}`).join("\n");
-  const dongQuyTrinh = item.quy_trinh.map((q: string, i: number) => `${i + 1}. ${q}`).join("\n");
+  const needsAI =
+    TU_KHOA_CAN_AI.some((keyword) =>
+      normalizedText.includes(
+        chuanHoaVanBan(keyword)
+      )
+    );
 
-  const canhBaoDoTinCay =
-    item.do_tin_cay === "trung_binh"
-      ? `\n\n⚠️ *Thông tin này nên được xác nhận lại với Phòng Đào tạo trước khi thực hiện.*`
+  return (
+    !needsAI &&
+    normalizedText.length < 40
+  );
+}
+
+function laCauHoiThoiGianGiaiQuyet(
+  text: string
+) {
+  const normalizedText =
+    chuanHoaVanBan(text);
+
+  return (
+    TU_KHOA_THOI_GIAN_GIAI_QUYET
+      .some((keyword) =>
+        normalizedText.includes(
+          chuanHoaVanBan(keyword)
+        )
+      )
+  );
+}
+
+function formatThuTucDayDu(
+  item: ProcedureItem
+) {
+  const conditionLines =
+    item.dieu_kien
+      .map(
+        (condition) =>
+          `• ${condition}`
+      )
+      .join("\n");
+
+  const documentLines =
+    item.ho_so
+      .map(
+        (document) =>
+          `• ${document}`
+      )
+      .join("\n");
+
+  const workflowLines =
+    item.quy_trinh
+      .map(
+        (step, index) =>
+          `${index + 1}. ${step}`
+      )
+      .join("\n");
+
+  const confidenceWarning =
+    item.do_tin_cay ===
+      "trung_binh"
+      ? "\n\n⚠️ *Thông tin này nên được xác nhận lại với Phòng Đào tạo trước khi thực hiện.*"
       : "";
+
+  const processingTime =
+    item.thoi_gian_giai_quyet
+      ?.hien_thi ||
+    "Chưa có thông tin";
 
   return [
     `📋 **${item.ten}**`,
-    ``,
-    `**Điều kiện áp dụng**`,
-    dongDieuKien,
-    ``,
-    `**Hồ sơ cần nộp**`,
-    dongHoSo,
-    ``,
-    `**Quy trình thực hiện**`,
-    dongQuyTrinh,
-    ``,
-    `**Nơi nộp**`,
+    "",
+    "**Điều kiện áp dụng**",
+    conditionLines,
+    "",
+    "**Hồ sơ cần nộp**",
+    documentLines,
+    "",
+    "**Quy trình thực hiện**",
+    workflowLines,
+    "",
+    "**Nơi nộp**",
     item.noi_nop,
-    ``,
-    `**Thời hạn**`,
+    "",
+    "**Thời hạn nộp hồ sơ**",
     item.thoi_han,
-    ``,
-    `**Chi phí**`,
+    "",
+    "**Thời gian giải quyết**",
+    processingTime,
+    "",
+    "**Chi phí**",
     item.chi_phi,
-  ].join("\n") + canhBaoDoTinCay;
+  ].join("\n") +
+    confidenceWarning;
 }
 
-// ==== Đếm số lần user đã hỏi thực sự (bỏ qua câu chào mặc định của bot) ====
-function demSoLanUserDaHoi(history: any[]) {
-  return (history || []).filter((m: any) => m?.role === 'user').length;
+function formatThoiGianGiaiQuyet(
+  item: ProcedureItem
+) {
+  const processingTime =
+    item.thoi_gian_giai_quyet;
+
+  if (!processingTime) {
+    return (
+      `Dữ liệu hiện chưa có thời gian giải quyết cụ thể ` +
+      `cho thủ tục **${item.ten}**.`
+    );
+  }
+
+  return (
+    `Thời gian giải quyết thủ tục **${item.ten}** là ` +
+    `**${processingTime.hien_thi}**.`
+  );
 }
 
-// ==== Bước 2: cache ====
-const cache = new Map();
-function cacheKey(text: string) {
-  return text.toLowerCase().trim().replace(/\s+/g, " ");
+function formatTatCaThoiGianGiaiQuyet() {
+  return KB.thu_tuc
+    .map((item) => {
+      const processingTime =
+        item.thoi_gian_giai_quyet
+          ?.hien_thi ||
+        "Chưa có thông tin";
+
+      return (
+        `- **${item.ten}:** ` +
+        processingTime
+      );
+    })
+    .join("\n");
 }
 
-// ==== System prompt ====
+function demSoLanUserDaHoi(
+  history: ChatHistoryItem[]
+) {
+  return (history || []).filter(
+    (message) =>
+      message?.role === "user"
+  ).length;
+}
+
+const cache = new Map<
+  string,
+  string
+>();
+
+function cacheKey(
+  text: string
+) {
+  return chuanHoaVanBan(text);
+}
+
 function buildSystemPrompt() {
   return `Bạn là chatbot hỗ trợ sinh viên tra cứu thủ tục học vụ tại ${KB.truong}.
 
 QUY TẮC BẮT BUỘC:
-1. CHỈ được trả lời dựa trên dữ liệu JSON cung cấp bên dưới. TUYỆT ĐỐI không tự suy đoán, không bịa thêm quy định, số liệu, hay điều kiện không có trong dữ liệu.
-2. Nếu câu hỏi nằm ngoài dữ liệu, hoặc dữ liệu không đề cập rõ, hoặc thuộc trường hợp đặc biệt/ngoại lệ: trả lời rằng bạn chưa có thông tin chính xác cho trường hợp này và hướng dẫn liên hệ trực tiếp: ${LIEN_HE_DU_PHONG}. KHÔNG được đoán.
-3. Với các thủ tục có ghi "do_tin_cay": "trung_binh", khi trả lời hãy nhắc sinh viên nên xác nhận lại thông tin với Phòng Đào tạo trước khi thực hiện.
-4. Trả lời ngắn gọn, đúng trọng tâm câu hỏi, giọng thân thiện, dùng tiếng Việt.
-5. Không trả lời các câu hỏi ngoài phạm vi thủ tục học vụ (chuyển ngành, bảo lưu, thôi học, học tiếp).
-6. GIỚI HẠN ĐỘ DÀI: trả lời tối đa 5 dòng nội dung chính. KHÔNG mở đầu bằng lời chào ("Chào bạn...", "Xin chào..."). KHÔNG thêm câu chốt kiểu "Nếu bạn cần hỗ trợ thêm..." trừ khi người dùng hỏi thông tin liên hệ hoặc trường hợp ngoài dữ liệu. Chỉ nêu đúng phần thông tin liên quan trực tiếp đến câu hỏi — nếu người dùng chỉ hỏi 1 khía cạnh (ví dụ chỉ hỏi "nộp ở đâu"), không cần liệt kê lại toàn bộ điều kiện/hồ sơ/quy trình.
-7. Không lặp lại tiêu đề thủ tục bằng markdown heading lớn, không dùng emoji nếu không cần thiết.
+1. CHỈ được trả lời dựa trên dữ liệu JSON cung cấp bên dưới. TUYỆT ĐỐI không tự suy đoán, không bịa thêm quy định, số liệu hoặc điều kiện không có trong dữ liệu.
+2. Nếu câu hỏi nằm ngoài dữ liệu, dữ liệu không đề cập rõ hoặc thuộc trường hợp đặc biệt/ngoại lệ: trả lời rằng bạn chưa có thông tin chính xác và hướng dẫn liên hệ trực tiếp: ${LIEN_HE_DU_PHONG}. KHÔNG được đoán.
+3. Với thủ tục có "do_tin_cay": "trung_binh", khi trả lời phải nhắc sinh viên xác nhận lại với Phòng Đào tạo.
+4. Trả lời ngắn gọn, đúng trọng tâm, thân thiện và dùng tiếng Việt.
+5. Không trả lời ngoài phạm vi: chuyển ngành, bảo lưu, thôi học và học tiếp.
+6. Trả lời tối đa 5 dòng nội dung chính. Không mở đầu bằng lời chào. Không thêm câu kết dư thừa.
+7. Không lặp lại tiêu đề thủ tục bằng markdown heading lớn. Không dùng emoji nếu không cần thiết.
+8. Phân biệt rõ:
+- "thoi_han" là thời điểm hoặc hạn cuối sinh viên phải nộp hồ sơ.
+- "thoi_gian_giai_quyet" là số ngày làm việc nhà trường xử lý hồ sơ kể từ khi nhận đủ hồ sơ.
+Khi người dùng hỏi "bao lâu", "mấy ngày", "khi nào xong", "mất bao nhiêu ngày" hoặc câu tương đương, phải trả lời bằng "thoi_gian_giai_quyet", không dùng "thoi_han".
+9. Khi câu hỏi tiếp theo không nêu lại tên thủ tục, phải dựa vào lịch sử hội thoại gần nhất để xác định thủ tục đang được hỏi.
 
-DỮ LIỆU THỦ TỤC HỌC VỤ (nguồn: ${KB.nguon_du_lieu}, cập nhật ${KB.ngay_cap_nhat}):
-${JSON.stringify(KB.thu_tuc, null, 2)}`;
+DỮ LIỆU THỦ TỤC HỌC VỤ
+Nguồn: ${KB.nguon_du_lieu}
+Cập nhật: ${KB.ngay_cap_nhat}
+
+${JSON.stringify(
+    KB.thu_tuc,
+    null,
+    2
+  )}`;
 }
 
-const SYSTEM_PROMPT = buildSystemPrompt();
+const SYSTEM_PROMPT =
+  buildSystemPrompt();
 
-// ==== Gọi Gemini API ====
-function xayDungContents(cauHoi: string, history: any[]) {
-  const gioiHan = (history || []).slice(-6);
-  const contents = gioiHan.map(m => ({
-    role: m.role === "model" ? "model" : "user",
-    parts: [{ text: m.text }]
-  }));
-  contents.push({ role: "user", parts: [{ text: cauHoi }] });
+function xayDungContents(
+  question: string,
+  history: ChatHistoryItem[]
+) {
+  const recentHistory =
+    (history || []).slice(-6);
+
+  const contents =
+    recentHistory
+      .filter(
+        (message) =>
+          typeof message?.text ===
+          "string"
+      )
+      .map((message) => ({
+        role:
+          message.role === "model"
+            ? "model"
+            : "user",
+        parts: [
+          {
+            text:
+              message.text || "",
+          },
+        ],
+      }));
+
+  contents.push({
+    role: "user",
+    parts: [
+      {
+        text: question,
+      },
+    ],
+  });
+
   return contents;
 }
 
-async function goiGemini(cauHoi: string, history: any[]) {
+async function goiGemini(
+  question: string,
+  history: ChatHistoryItem[]
+) {
   if (!GEMINI_API_KEY) {
-    throw new Error("Thiếu GEMINI_API_KEY trong file .env");
+    throw new Error(
+      "Thiếu GEMINI_API_KEY trong file .env"
+    );
   }
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+  const url =
+    `https://generativelanguage.googleapis.com/v1beta/models/` +
+    `${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
 
   const body = {
-    system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
-    contents: xayDungContents(cauHoi, history),
+    system_instruction: {
+      parts: [
+        {
+          text: SYSTEM_PROMPT,
+        },
+      ],
+    },
+
+    contents: xayDungContents(
+      question,
+      history
+    ),
+
     generationConfig: {
-      maxOutputTokens: 300, // giới hạn độ dài trả lời (giảm để ép ngắn gọn hơn)
-      temperature: 0.3      // thấp để bám sát dữ liệu
-    }
+      maxOutputTokens: 300,
+      temperature: 0.3,
+    },
   };
 
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body)
-  });
+  const response = await fetch(
+    url,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type":
+          "application/json",
+      },
+      body: JSON.stringify(body),
+    }
+  );
 
-  if (!res.ok) {
-    const errText = await res.text();
-    throw new Error(`Gemini API lỗi ${res.status}: ${errText}`);
+  if (!response.ok) {
+    const errorText =
+      await response.text();
+
+    throw new Error(
+      `Gemini API lỗi ${response.status}: ${errorText}`
+    );
   }
 
-  const data = await res.json();
-  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) throw new Error("Gemini API không trả về nội dung hợp lệ");
+  const data =
+    await response.json();
+
+  const text =
+    data?.candidates?.[0]
+      ?.content?.parts?.[0]
+      ?.text;
+
+  if (!text) {
+    throw new Error(
+      "Gemini API không trả về nội dung hợp lệ"
+    );
+  }
+
   return text;
 }
 
-// ==== Endpoint chính ====
-export async function POST(req: Request) {
+export async function POST(
+  request: Request
+) {
   try {
-    const body = await req.json();
-    const cauHoi = (body?.message || "").trim();
-    const history = Array.isArray(body?.history) ? body.history : [];
+    const body =
+      await request.json();
 
-    if (!cauHoi) {
-      return NextResponse.json({ error: "Thiếu nội dung câu hỏi" }, { status: 400 });
+    const question =
+      String(
+        body?.message || ""
+      ).trim();
+
+    const history:
+      ChatHistoryItem[] =
+      Array.isArray(
+        body?.history
+      )
+        ? body.history
+        : [];
+
+    if (!question) {
+      return NextResponse.json(
+        {
+          error:
+            "Thiếu nội dung câu hỏi",
+        },
+        {
+          status: 400,
+        }
+      );
     }
-    if (cauHoi.length > 500) {
-      return NextResponse.json({ error: "Câu hỏi quá dài" }, { status: 400 });
+
+    if (question.length > 500) {
+      return NextResponse.json(
+        {
+          error:
+            "Câu hỏi quá dài",
+        },
+        {
+          status: 400,
+        }
+      );
     }
 
-    // Chỉ tính các lượt user thực sự đã hỏi, bỏ qua câu chào mặc định của bot
-    const soLanUserDaHoi = demSoLanUserDaHoi(history);
+    const userQuestionCount =
+      demSoLanUserDaHoi(history);
 
-    // Lớp 1: câu hỏi đơn giản, khớp rõ 1 thủ tục, là câu hỏi đầu tiên -> trả thẳng, KHÔNG gọi AI
-    const idThuTuc = timThuTucTheoTuKhoa(cauHoi);
-    if (idThuTuc && laCauHoiDonGian(cauHoi) && soLanUserDaHoi === 0) {
-      const item = KB.thu_tuc.find((t: any) => t.id === idThuTuc);
+    const procedureId =
+      timThuTucTrongNguCanh(
+        question,
+        history
+      );
+
+    // Ưu tiên trả lời thời gian xử lý bằng dữ liệu rule-based.
+    if (
+      laCauHoiThoiGianGiaiQuyet(
+        question
+      )
+    ) {
+      if (procedureId) {
+        const item =
+          KB.thu_tuc.find(
+            (procedure) =>
+              procedure.id ===
+              procedureId
+          );
+
+        if (item) {
+          return NextResponse.json({
+            reply:
+              formatThoiGianGiaiQuyet(
+                item
+              ),
+            nguon:
+              "rule_based_processing_time",
+          });
+        }
+      }
+
+      return NextResponse.json({
+        reply:
+          "**Thời gian giải quyết các thủ tục:**\n" +
+          formatTatCaThoiGianGiaiQuyet(),
+        nguon:
+          "rule_based_all_processing_times",
+      });
+    }
+
+    // Câu hỏi đầu tiên, đơn giản và khớp rõ thủ tục.
+    if (
+      procedureId &&
+      laCauHoiDonGian(
+        question
+      ) &&
+      userQuestionCount === 0
+    ) {
+      const item =
+        KB.thu_tuc.find(
+          (procedure) =>
+            procedure.id ===
+            procedureId
+        );
+
       if (item) {
-        return NextResponse.json({ reply: formatThuTucDayDu(item), nguon: "rule_based" });
+        return NextResponse.json({
+          reply:
+            formatThuTucDayDu(
+              item
+            ),
+          nguon: "rule_based",
+        });
       }
     }
 
-    // Lớp 2: cache (chỉ áp dụng cho câu hỏi đầu tiên, không có ngữ cảnh hội thoại)
-    const key = cacheKey(cauHoi);
-    if (soLanUserDaHoi === 0 && cache.has(key)) {
-      return NextResponse.json({ reply: cache.get(key), nguon: "cache" });
+    const key =
+      cacheKey(question);
+
+    if (
+      userQuestionCount === 0 &&
+      cache.has(key)
+    ) {
+      return NextResponse.json({
+        reply:
+          cache.get(key),
+        nguon: "cache",
+      });
     }
 
-    // Lớp 3: gọi Gemini
-    const traLoi = await goiGemini(cauHoi, history);
-    if (soLanUserDaHoi === 0) cache.set(key, traLoi);
-    
-    return NextResponse.json({ reply: traLoi, nguon: "gemini" });
+    const answer =
+      await goiGemini(
+        question,
+        history
+      );
 
-  } catch (err: any) {
-    console.error(err);
+    if (
+      userQuestionCount === 0
+    ) {
+      cache.set(
+        key,
+        answer
+      );
+    }
+
+    return NextResponse.json({
+      reply: answer,
+      nguon: "gemini",
+    });
+  } catch (error) {
+    console.error(error);
+
     return NextResponse.json(
-      { error: `Có lỗi xảy ra, vui lòng thử lại hoặc liên hệ trực tiếp: ${LIEN_HE_DU_PHONG}` },
-      { status: 500 }
+      {
+        error:
+          `Có lỗi xảy ra, vui lòng thử lại hoặc liên hệ trực tiếp: ` +
+          `${LIEN_HE_DU_PHONG}`,
+      },
+      {
+        status: 500,
+      }
     );
   }
 }

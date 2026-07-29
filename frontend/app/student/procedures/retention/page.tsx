@@ -4,11 +4,33 @@ import React, { useState, useEffect, useRef } from 'react';
 import ChatInterface from '@/components/student/ChatInterface';
 import {
   Archive, Bot, Check, ChevronRight, UploadCloud, X, FileText,
-  Download, CheckCircle2, ScanSearch, Clock, CircleDot, AlertCircle, User, Users, ShieldCheck
+  Download, CheckCircle2, ScanSearch, Clock, CircleDot, AlertCircle, User
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { getRetentionProfile, RetentionProfile } from '@/services/retention.service';
 import axios from 'axios';
+
+type SignatureCheck = {
+  present: boolean;
+  confidence?: number;
+  evidence?: string;
+};
+
+type RetentionOCRResult = {
+  format_valid: boolean;
+  is_match: boolean;
+  accepted: boolean;
+
+  detected_document_type?: string;
+  validation_reason?: string;
+  error_message?: string;
+
+  signature_checks: {
+    parent_guardian: SignatureCheck;
+    applicant: SignatureCheck;
+    faculty_leader: SignatureCheck;
+  };
+};
 
 export default function RetentionPage() {
   const router = useRouter();
@@ -58,11 +80,13 @@ export default function RetentionPage() {
       "idle" | "scanning" | "success" | "error"
     >("idle");
 
-  const [aiResult, setAiResult] = useState<{
-    format_valid?: boolean;
-    title_valid?: boolean;
-    signature_present?: boolean;
-  } | null>(null);
+const [aiResult, setAiResult] =
+  useState<RetentionOCRResult | null>(null);
+
+const [scanErrorType, setScanErrorType] =
+  useState<"document" | "signature" | null>(
+    null
+  );
 
   // State: Bước 5 - Tab trạng thái
   const [activeTab, setActiveTab] =
@@ -232,44 +256,323 @@ useEffect(() => {
   const handleContinueToUpload = () => setCurrentStep(3);
 
   // --- Handlers Bước 3 ---
-  const handleDocFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setDocFile(file);
-      setScanState('scanning');
-      setAiResult(null);
+  const handleDocFileChange = async (
+  event: React.ChangeEvent<HTMLInputElement>
+) => {
+  const file = event.target.files?.[0];
 
-      const formData = new FormData();
-      formData.append('file', file);
+  if (!file) return;
 
-      try {
-        const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api'}/thoi-hoc/scan-retention/`, formData, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        });
-        
-        setAiResult(response.data);
-        
-        if (response.data.format_valid && response.data.title_valid && response.data.signature_present) {
-          setScanState('success');
-        } else {
-          setScanState('error');
-        }
-      } catch (error) {
-        console.error('Lỗi khi quét OCR:', error);
-        setScanState('error');
-      } finally {
-        // Reset file input so user can re-upload the same file if needed
-        if (docFileRef.current) {
-          docFileRef.current.value = '';
-        }
-      }
-    }
+  setDocFile(file);
+  setScanState("scanning");
+  setScanErrorType(null);
+  setAiResult(null);
+
+  const emptySignatureChecks = {
+    parent_guardian: {
+      present: false,
+    },
+    applicant: {
+      present: false,
+    },
+    faculty_leader: {
+      present: false,
+    },
   };
+
+  const extension =
+    file.name
+      .split(".")
+      .pop()
+      ?.toLowerCase() || "";
+
+  const allowedExtensions = [
+    "pdf",
+    "png",
+    "jpg",
+    "jpeg",
+  ];
+
+  // Kiểm tra định dạng ngầm.
+  if (!allowedExtensions.includes(extension)) {
+    setAiResult({
+      format_valid: false,
+      is_match: false,
+      accepted: false,
+
+      validation_reason:
+        "Định dạng file không hợp lệ. " +
+        "Chỉ chấp nhận PDF, JPG, JPEG hoặc PNG.",
+
+      signature_checks:
+        emptySignatureChecks,
+    });
+
+    setScanErrorType("document");
+    setScanState("error");
+    return;
+  }
+
+  const accessToken =
+    localStorage.getItem("access_token") ||
+    localStorage.getItem("access");
+
+  if (!accessToken) {
+    setScanState("idle");
+
+    alert(
+      "Phiên đăng nhập đã hết hạn. " +
+      "Vui lòng đăng nhập lại."
+    );
+
+    router.push("/login");
+    return;
+  }
+
+  const uploadData = new FormData();
+
+  uploadData.append(
+    "uploaded_file",
+    file
+  );
+
+  uploadData.append(
+    "document_type",
+    "RETENTION_SIGNED_APPLICATION"
+  );
+
+  const configuredApi =
+    process.env.NEXT_PUBLIC_API_URL ||
+    "http://127.0.0.1:8000";
+
+  const apiBase =
+    configuredApi.replace(/\/$/, "");
+
+  const ocrUrl = apiBase.endsWith("/api")
+    ? `${apiBase}/ocr/verify/`
+    : `${apiBase}/api/ocr/verify/`;
+
+  try {
+    const response = await axios.post(
+      ocrUrl,
+      uploadData,
+      {
+        headers: {
+          Authorization:
+            `Bearer ${accessToken}`,
+        },
+      }
+    );
+
+    const data = response.data;
+
+    console.log(
+      "Kết quả OCR bảo lưu:",
+      data
+    );
+
+    // Kiểm tra ngầm tài liệu có đúng
+    // Đơn xin nghỉ học tạm thời hay không.
+    const correctDocument =
+      data.is_match === true &&
+      data.detected_document_type ===
+        "RETENTION_SIGNED_APPLICATION";
+
+    if (!correctDocument) {
+      setAiResult({
+        format_valid: true,
+        is_match: false,
+        accepted: false,
+
+        detected_document_type:
+          data.detected_document_type,
+
+        validation_reason:
+          data.validation_reason ||
+          "File tải lên không phải " +
+          "Đơn xin nghỉ học tạm thời.",
+
+        error_message:
+          data.error_message,
+
+        signature_checks:
+          emptySignatureChecks,
+      });
+
+      setScanErrorType("document");
+      setScanState("error");
+      return;
+    }
+
+    const signatureChecks = {
+      parent_guardian: {
+        present:
+          data.signature_checks
+            ?.parent_guardian
+            ?.present === true,
+
+        confidence:
+          data.signature_checks
+            ?.parent_guardian
+            ?.confidence,
+
+        evidence:
+          data.signature_checks
+            ?.parent_guardian
+            ?.evidence,
+      },
+
+      applicant: {
+        present:
+          data.signature_checks
+            ?.applicant
+            ?.present === true,
+
+        confidence:
+          data.signature_checks
+            ?.applicant
+            ?.confidence,
+
+        evidence:
+          data.signature_checks
+            ?.applicant
+            ?.evidence,
+      },
+
+      faculty_leader: {
+        present: false,
+        confidence: 0,
+        evidence:
+          "Đơn bảo lưu không yêu cầu chữ ký Lãnh đạo Khoa.",
+      },
+    };
+
+    const allSignaturesPresent =
+      signatureChecks.parent_guardian.present &&
+      signatureChecks.applicant.present;
+
+    const normalizedResult:
+      RetentionOCRResult = {
+      format_valid: true,
+      is_match: true,
+
+      accepted:
+        data.accepted === true &&
+        allSignaturesPresent,
+
+      detected_document_type:
+        data.detected_document_type,
+
+      validation_reason:
+        data.validation_reason,
+
+      error_message:
+        data.error_message,
+
+      signature_checks:
+        signatureChecks,
+    };
+
+    setAiResult(normalizedResult);
+
+    if (!allSignaturesPresent) {
+      setScanErrorType("signature");
+      setScanState("error");
+      return;
+    }
+
+    setScanErrorType(null);
+    setScanState("success");
+  } catch (error) {
+    console.error(
+      "Lỗi kiểm tra OCR bảo lưu:",
+      error
+    );
+
+    let message =
+      "Không thể xử lý tài liệu.";
+
+    if (axios.isAxiosError(error)) {
+      const statusCode =
+        error.response?.status;
+
+      const errorData =
+        error.response?.data;
+
+      console.error(
+        "OCR retention backend response:",
+        errorData
+      );
+
+      if (statusCode === 401) {
+        localStorage.removeItem("access");
+        localStorage.removeItem(
+          "access_token"
+        );
+
+        alert(
+          "Phiên đăng nhập đã hết hạn. " +
+          "Vui lòng đăng nhập lại."
+        );
+
+        router.push("/login");
+        return;
+      }
+
+      message =
+        errorData?.error_message ||
+        errorData?.detail ||
+        errorData?.validation_reason ||
+        errorData?.uploaded_file?.[0] ||
+        errorData?.document_type?.[0] ||
+        message;
+    }
+
+    setAiResult({
+      format_valid: false,
+      is_match: false,
+      accepted: false,
+      validation_reason: message,
+
+      signature_checks:
+        emptySignatureChecks,
+    });
+
+    setScanErrorType("document");
+    setScanState("error");
+  } finally {
+    if (docFileRef.current) {
+      docFileRef.current.value = "";
+    }
+  }
+};
+
+const handleRetryScan = () => {
+  setDocFile(null);
+  setAiResult(null);
+  setScanErrorType(null);
+  setScanState("idle");
+
+  setTimeout(() => {
+    docFileRef.current?.click();
+  }, 0);
+};
   const handleContinueToPreview = () => setCurrentStep(4);
 
   // --- Handlers Bước 4 ---
   const handleFinalSubmit = () => setCurrentStep(5);
 
+  const retentionSignatureItems = [
+  {
+    key: "parent_guardian",
+    label: "Phụ huynh / Người giám hộ",
+  },
+  {
+    key: "applicant",
+    label: "Người làm đơn",
+  },
+
+] as const;
   return (
     <div className="h-full w-full flex flex-col">
       <ChatInterface
@@ -429,7 +732,7 @@ useEffect(() => {
                         <div className="w-8 h-8 rounded-full bg-slate-800 text-white flex items-center justify-center font-bold text-sm shrink-0">3</div>
                         <div>
                           <h5 className="font-bold text-gray-800 text-sm">Xin chữ ký xác nhận</h5>
-                          <p className="text-xs text-gray-500 mt-1">Đi xin đủ chữ ký tại mục "Ý kiến của phụ huynh" và "Ý kiến của Lãnh đạo Khoa".</p>
+                          <p className="text-xs text-gray-500 mt-1">Xin đủ chữ ký tại mục "Ý kiến của phụ huynh".</p>
                         </div>
                       </div>
                     </div>
@@ -489,94 +792,270 @@ useEffect(() => {
                   </div>
                 </div>
 
-                <div className="ml-12 animate-in fade-in slide-in-from-bottom-4">
-                  {scanState === 'idle' ? (
-                    <div onClick={() => docFileRef.current?.click()} className="border-2 border-dashed border-gray-300 rounded-xl p-10 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 transition bg-white shadow-sm">
-                      <div className="bg-blue-50 text-blue-500 p-3 rounded-full mb-3"><UploadCloud size={24} /></div>
-                      <p className="font-semibold text-gray-800 text-sm mb-1">Tải lên file Đơn xin nghỉ học tạm thời đã ký đủ ba bên</p>
-                      <p className="text-xs text-gray-400 mb-4">Kéo thả hoặc click để chọn file (.docx hoặc .pdf hoặc ảnh chụp rõ nét)</p>
-                      <button className="bg-white border border-gray-200 rounded-md px-5 py-2 text-sm font-medium text-gray-600 shadow-sm">Chọn file</button>
-                      <input type="file" className="hidden" ref={docFileRef} onChange={handleDocFileChange} accept=".pdf,.jpg,.png,.jpeg" />
+                <div className="ml-12 flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-4">
+                  {/* Input luôn tồn tại để nút thử lại hoạt động */}
+                  <input
+                    type="file"
+                    className="hidden"
+                    ref={docFileRef}
+                    onChange={handleDocFileChange}
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    disabled={currentStep > 3}
+                  />
+
+                  {/* Chưa chọn tài liệu */}
+                  {scanState === "idle" && (
+                    <div
+                      onClick={() => {
+                        if (currentStep === 3) {
+                          docFileRef.current?.click();
+                        }
+                      }}
+                      className={`border-2 border-dashed rounded-xl p-10 flex flex-col items-center justify-center transition bg-white shadow-sm ${
+                        currentStep === 3
+                          ? "border-gray-300 cursor-pointer hover:bg-gray-50"
+                          : "border-gray-200 opacity-60 cursor-not-allowed"
+                      }`}
+                    >
+                      <div className="bg-blue-50 text-blue-500 p-3 rounded-full mb-3">
+                        <UploadCloud size={24} />
+                      </div>
+
+                      <p className="font-semibold text-gray-800 text-sm mb-1">
+                        Tải lên Đơn xin nghỉ học tạm thời đã ký
+                      </p>
+
+                      <p className="text-xs text-gray-400 mb-4">
+                        Chấp nhận PDF, JPG, JPEG hoặc PNG
+                      </p>
+
+                      <button
+                        type="button"
+                        disabled={currentStep > 3}
+                        className="bg-white border border-gray-200 rounded-md px-5 py-2 text-sm font-medium text-gray-600 shadow-sm disabled:opacity-50"
+                      >
+                        Chọn file
+                      </button>
                     </div>
-                  ) : scanState === 'scanning' ? (
+                  )}
+
+                  {/* Đang phân tích */}
+                  {scanState === "scanning" && (
                     <div className="bg-white border border-blue-100 rounded-xl p-6 shadow-sm">
                       <div className="flex items-center gap-3 text-[#0070F4] font-bold text-sm mb-4">
-                        <ScanSearch size={20} className="animate-pulse" /> AI đang kiểm tra chữ ký...
+                        <ScanSearch
+                          size={20}
+                          className="animate-pulse"
+                        />
+
+                        AI đang kiểm tra tài liệu...
                       </div>
+
                       <div className="space-y-3 ml-2">
-                        <div className="flex items-center gap-2 text-sm text-[#0070F4]"><div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></div> Quét vùng: <span className="font-semibold underline underline-offset-2">Xác thực định dạng file</span></div>
-                        <div className="flex items-center gap-2 text-sm text-[#0070F4]"><div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></div> Quét vùng: <span className="font-semibold underline underline-offset-2">Nhận diện Tiêu đề đơn</span></div>
-                        <div className="flex items-center gap-2 text-sm text-[#0070F4]"><div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></div> Quét vùng: <span className="font-semibold underline underline-offset-2">Xác thực chữ ký Người làm đơn</span></div>
-                      </div>
-                    </div>
-                  ) : scanState === 'error' ? (
-                    <div className="bg-white border border-red-200 rounded-xl p-6 shadow-sm">
-                      <div className="flex justify-between items-start mb-6">
-                        <div className="flex gap-3">
-                          <div className="bg-red-500 text-white rounded-full p-1"><X size={20} strokeWidth={3} /></div>
-                          <div>
-                            <h4 className="font-bold text-red-700">Tài liệu không hợp lệ!</h4>
-                            <p className="text-xs text-red-600 mt-1">AI phát hiện có lỗi trong hồ sơ của bạn</p>
-                          </div>
+                        <div className="flex items-center gap-2 text-sm text-[#0070F4]">
+                          <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                          Kiểm tra ngầm định dạng và loại đơn
                         </div>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className={`bg-gray-50 border ${aiResult?.format_valid ? 'border-green-200' : 'border-red-200'} rounded-lg p-3 text-center flex flex-col items-center justify-center gap-2`}>
-                          <FileText size={20} className={aiResult?.format_valid ? "text-green-600" : "text-red-600"} />
-                          <span className={`text-xs font-semibold ${aiResult?.format_valid ? 'text-green-800' : 'text-red-800'}`}>Định dạng File</span>
-                          {aiResult?.format_valid ? <Check size={16} className="text-green-500" /> : <X size={16} className="text-red-500" />}
-                        </div>
-                        <div className={`bg-gray-50 border ${aiResult?.title_valid ? 'border-green-200' : 'border-red-200'} rounded-lg p-3 text-center flex flex-col items-center justify-center gap-2`}>
-                          <ScanSearch size={20} className={aiResult?.title_valid ? "text-green-600" : "text-red-600"} />
-                          <span className={`text-xs font-semibold ${aiResult?.title_valid ? 'text-green-800' : 'text-red-800'}`}>Tiêu đề đơn</span>
-                          {aiResult?.title_valid ? <Check size={16} className="text-green-500" /> : <X size={16} className="text-red-500" />}
-                        </div>
-                        <div className={`bg-gray-50 border ${aiResult?.signature_present ? 'border-green-200' : 'border-red-200'} rounded-lg p-3 text-center flex flex-col items-center justify-center gap-2`}>
-                          <User size={20} className={aiResult?.signature_present ? "text-green-600" : "text-red-600"} />
-                          <span className={`text-xs font-semibold ${aiResult?.signature_present ? 'text-green-800' : 'text-red-800'}`}>Người làm đơn</span>
-                          {aiResult?.signature_present ? <Check size={16} className="text-green-500" /> : <X size={16} className="text-red-500" />}
-                        </div>
-                      </div>
-                      <button onClick={() => docFileRef.current?.click()} className="w-full mt-4 border border-gray-300 text-gray-700 py-2 rounded-lg text-sm font-medium hover:bg-gray-50">Thử tải lại file khác</button>
-                    </div>
-                  ) : (
-                    <div className="bg-white border border-green-200 rounded-xl p-6 shadow-sm">
-                      <div className="flex justify-between items-start mb-6">
-                        <div className="flex gap-3">
-                          <div className="bg-green-500 text-white rounded-full p-1"><Check size={20} strokeWidth={3} /></div>
-                          <div>
-                            <h4 className="font-bold text-green-700">Tài liệu hợp lệ!</h4>
-                            <p className="text-xs text-green-600 mt-1">Đã phát hiện đủ 3 vùng chữ ký xác nhận</p>
-                          </div>
-                        </div>
-                        <span className="bg-green-50 text-green-700 border border-green-200 text-[10px] font-bold px-2 py-1 rounded flex items-center gap-1"><ScanSearch size={12} /> AI Vision</span>
-                      </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="bg-green-50/50 border border-green-100 rounded-lg p-3 text-center flex flex-col items-center justify-center gap-2">
-                          <FileText size={20} className="text-green-600" />
-                          <span className="text-xs font-semibold text-green-800">Định dạng File</span>
-                          <Check size={16} className="text-green-500" />
+                        <div className="flex items-center gap-2 text-sm text-[#0070F4]">
+                          <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                          Quét vùng Phụ huynh / Người giám hộ
                         </div>
-                        <div className="bg-green-50/50 border border-green-100 rounded-lg p-3 text-center flex flex-col items-center justify-center gap-2">
-                          <ScanSearch size={20} className="text-green-600" />
-                          <span className="text-xs font-semibold text-green-800">Tiêu đề đơn</span>
-                          <Check size={16} className="text-green-500" />
-                        </div>
-                        <div className="bg-green-50/50 border border-green-100 rounded-lg p-3 text-center flex flex-col items-center justify-center gap-2">
-                          <User size={20} className="text-green-600" />
-                          <span className="text-xs font-semibold text-green-800">Chữ ký Người làm đơn</span>
-                          <Check size={16} className="text-green-500" />
+
+                        <div className="flex items-center gap-2 text-sm text-[#0070F4]">
+                          <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                          Quét vùng Người làm đơn
                         </div>
                       </div>
                     </div>
                   )}
 
-                  {scanState === 'success' && currentStep === 3 && (
-                    <button onClick={handleContinueToPreview} className="w-full bg-[#0070F4] text-white py-3.5 rounded-lg font-medium hover:bg-blue-700 transition flex justify-center items-center gap-2 text-sm shadow-sm mt-4">
-                      Tiếp tục xem trước & Nộp hồ sơ <ChevronRight size={18} />
-                    </button>
-                  )}
+                  {/* Sai định dạng hoặc sai loại tài liệu */}
+                  {scanState === "error" &&
+                    scanErrorType === "document" && (
+                      <div className="bg-white border border-red-200 rounded-xl p-6 shadow-sm">
+                        <div className="flex gap-3 items-start">
+                          <div className="bg-red-500 text-white rounded-full p-1">
+                            <X
+                              size={20}
+                              strokeWidth={3}
+                            />
+                          </div>
+
+                          <div>
+                            <h4 className="font-bold text-red-700">
+                              Tài liệu không hợp lệ!
+                            </h4>
+
+                            <p className="text-sm text-red-600 mt-1">
+                              {aiResult?.validation_reason ||
+                                aiResult?.error_message ||
+                                "File tải lên không phải Đơn xin nghỉ học tạm thời."}
+                            </p>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={handleRetryScan}
+                          className="w-full mt-5 border border-gray-300 text-gray-700 py-2 rounded-lg text-sm font-medium hover:bg-gray-50"
+                        >
+                          Thử tải lại file khác
+                        </button>
+                      </div>
+                    )}
+
+                  {/* Đúng đơn nhưng thiếu chữ ký */}
+                  {scanState === "error" &&
+                    scanErrorType === "signature" &&
+                    aiResult && (
+                      <div className="border border-red-200 bg-red-50/50 rounded-xl p-5 shadow-sm">
+                        <div className="flex items-center gap-3 mb-5">
+                          <div className="bg-red-500 text-white rounded-full p-2">
+                            <X
+                              size={20}
+                              strokeWidth={3}
+                            />
+                          </div>
+
+                          <div>
+                            <h4 className="font-bold text-red-700">
+                              Chưa đủ chữ ký xác nhận
+                            </h4>
+
+                            <p className="text-sm text-red-600 mt-1">
+                              Vui lòng bổ sung các chữ ký còn thiếu và tải lại đơn.
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="grid w-full grid-cols-1 md:grid-cols-2 gap-3">
+                          {retentionSignatureItems.map(
+                            (item) => {
+                              const check =
+                                aiResult.signature_checks[
+                                  item.key
+                                ];
+
+                              return (
+                                <div
+                                  key={item.key}
+                                  className={`w-full rounded-lg border p-4 flex flex-col items-center justify-center gap-2 ${
+                                    check.present
+                                      ? "bg-green-50 border-green-200"
+                                      : "bg-red-50 border-red-200"
+                                  }`}
+                                >
+                                  <User
+                                    size={19}
+                                    className={
+                                      check.present
+                                        ? "text-green-600"
+                                        : "text-red-600"
+                                    }
+                                  />
+
+                                  <span
+                                    className={`text-xs font-semibold text-center ${
+                                      check.present
+                                        ? "text-green-800"
+                                        : "text-red-800"
+                                    }`}
+                                  >
+                                    {item.label}
+                                  </span>
+
+                                  {check.present ? (
+                                    <Check
+                                      size={17}
+                                      className="text-green-600"
+                                    />
+                                  ) : (
+                                    <X
+                                      size={17}
+                                      className="text-red-600"
+                                    />
+                                  )}
+                                </div>
+                              );
+                            }
+                          )}
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={handleRetryScan}
+                          className="w-full mt-4 border border-gray-300 text-gray-700 py-2 rounded-lg text-sm font-medium hover:bg-gray-50"
+                        >
+                          Thử tải lại file khác
+                        </button>
+                      </div>
+                    )}
+
+                  {/* Đúng đơn và đủ hai chữ ký */}
+                  {scanState === "success" &&
+                    aiResult && (
+                      <>
+                        <div className="border border-green-200 bg-green-50/80 rounded-xl p-5 shadow-sm animate-in fade-in">
+                          <div className="flex justify-between items-center mb-4">
+                            <div className="flex items-center gap-3">
+                              <div className="bg-green-500 text-white rounded-full p-2">
+                                <Check
+                                  size={20}
+                                  strokeWidth={3}
+                                />
+                              </div>
+
+                              <div>
+                                <h4 className="font-bold text-green-700">
+                                  Tài liệu hợp lệ!
+                                </h4>
+
+                                <p className="text-sm text-green-700 mt-0.5">
+                                  Đủ 2 vùng chữ ký xác nhận
+                                </p>
+                              </div>
+                            </div>
+
+                            <span className="text-xs font-semibold text-green-700 flex items-center gap-1">
+                              <ScanSearch size={15} />
+                              AI Vision
+                            </span>
+                          </div>
+
+                          <div className="grid w-full grid-cols-1 md:grid-cols-2 gap-3">
+                            {retentionSignatureItems.map(
+                              (item) => (
+                                <div
+                                  key={item.key}
+                                  className="w-full bg-green-100/60 border border-green-200 rounded-lg p-4 flex flex-col items-center justify-center gap-2"
+                                >
+                                  <span className="text-xs font-semibold text-green-800 text-center">
+                                    {item.label}
+                                  </span>
+
+                                  <Check
+                                    size={17}
+                                    className="text-green-600"
+                                  />
+                                </div>
+                              )
+                            )}
+                          </div>
+                        </div>
+
+                        {currentStep === 3 && (
+                          <button
+                            type="button"
+                            onClick={handleContinueToPreview}
+                            className="w-full bg-[#0070F4] text-white py-3.5 rounded-lg font-medium hover:bg-blue-700 transition flex justify-center items-center gap-2 text-sm shadow-sm"
+                          >
+                            Tiếp tục xem trước & Nộp hồ sơ
+                            <ChevronRight size={18} />
+                          </button>
+                        )}
+                      </>
+                    )}
                 </div>
               </>
             )}
@@ -593,7 +1072,7 @@ useEffect(() => {
                   <div className="flex items-center justify-between bg-green-50/50 border border-green-200 p-4 rounded-lg">
                     <div className="flex items-center gap-3">
                       <FileText size={20} className="text-green-600" />
-                      <span className="text-sm font-medium text-gray-800">Đơn xin nghỉ học tạm thời (Bản scan đã ký đủ 3 bên)</span>
+                      <span className="text-sm font-medium text-gray-800">Đơn xin nghỉ học tạm thời (Bản scan đã ký đủ 2 bên)</span>
                     </div>
                     <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded flex items-center gap-1 font-bold">
                       AI xác nhận <Check size={14} strokeWidth={3} />
@@ -680,7 +1159,7 @@ useEffect(() => {
                             <FileText size={18} className="text-gray-400" />
                             <div>
                               <p className="text-sm font-medium text-gray-700">Đơn xin nghỉ học tạm thời (Bản scan/ảnh chụp)</p>
-                              <p className="text-[10px] text-green-600 font-semibold mt-0.5">AI đã kiểm duyệt: Đủ chữ ký của Người làm đơn, Ý kiến phụ huynh và Ý kiến Lãnh đạo Khoa</p>
+                              <p className="text-[10px] text-green-600 font-semibold mt-0.5">AI đã kiểm duyệt: Đủ chữ ký của Người làm đơn, Ý kiến phụ huynh</p>
                             </div>
                           </div>
                           <button className="flex items-center gap-1 text-sm font-bold text-[#0070F4] hover:text-blue-700 whitespace-nowrap">

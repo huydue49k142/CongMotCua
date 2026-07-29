@@ -3,33 +3,71 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
+from .models import OCRJob
 from .serializers import OCRVerificationRequestSerializer, OCRResultSerializer
-from .services.main_service import verify_document_title
+from .services.main_service import verify_document
 
 class OCRVerificationView(APIView):
     """
-    API endpoint to verify a document's title using OCR.
-    Accepts a file upload and an expected title.
+    API kiểm tra loại tài liệu, chữ ký
+    và trích xuất thông tin.
     """
-    permission_classes = [IsAuthenticated]
-    parser_classes = [MultiPartParser, FormParser]
 
-    def post(self, request, *args, **kwargs):
-        """
-        Handles the POST request for document verification.
-        """
-        serializer = OCRVerificationRequestSerializer(data=request.data)
-        if serializer.is_valid():
-            uploaded_file = serializer.validated_data['uploaded_file']
-            expected_title = serializer.validated_data['expected_title']
-            
-            # Call the main service function
-            result = verify_document_title(uploaded_file, expected_title)
-            
-            # Serialize the result for the response
-            result_serializer = OCRResultSerializer(result)
-            
-            return Response(result_serializer.data, status=status.HTTP_200_OK)
-        
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    permission_classes = [
+        IsAuthenticated
+    ]
+
+    parser_classes = [
+        MultiPartParser,
+        FormParser,
+    ]
+
+    def post(
+        self,
+        request,
+        *args,
+        **kwargs,
+    ):
+        request_serializer = (
+            OCRVerificationRequestSerializer(
+                data=request.data
+            )
+        )
+
+        request_serializer.is_valid(
+            raise_exception=True
+        )
+
+        uploaded_file = (
+            request_serializer.validated_data[
+                "uploaded_file"
+            ]
+        )
+
+        document_type = (
+            request_serializer.validated_data[
+                "document_type"
+            ]
+        )
+
+        result = verify_document(
+            uploaded_file=uploaded_file,
+            document_type=document_type,
+        )
+
+        response_serializer = OCRResultSerializer(
+            result
+        )
+
+        if result.job.status == OCRJob.Status.FAILED:
+            return Response(
+                response_serializer.data,
+                status=(
+                    status.HTTP_422_UNPROCESSABLE_ENTITY
+                ),
+            )
+
+        return Response(
+            response_serializer.data,
+            status=status.HTTP_200_OK,
+        )

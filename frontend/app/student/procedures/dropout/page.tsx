@@ -1,23 +1,68 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import ChatInterface from '@/components/student/ChatInterface';
 import { LogOut, Bot, AlertTriangle, Download, CheckCircle2, ChevronRight, UploadCloud, Loader2, Scan, Check, Clock, CircleDot, FileText, X, ScanSearch, User } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { getStudentProfile, StudentProfile, DropoutFormData } from '@/services/dropout.service';
 import axios from 'axios';
 
+const DROPOUT_REASON_LABELS: Record<string, string> = {
+  ca_nhan: "Lý do cá nhân",
+  kinh_te: "Lý do kinh tế / gia đình",
+  suc_khoe: "Lý do sức khỏe",
+  chuyen_truong: "Chuyển sang trường khác",
+  khac: "Lý do khác",
+};
+
+const getDropoutReasonLabel = (reason: string): string => {
+  const normalizedReason = reason.trim();
+
+  return (
+    DROPOUT_REASON_LABELS[normalizedReason] ||
+    normalizedReason ||
+    "Chưa khai báo"
+  );
+};
+
+type SignatureCheck = {
+  present: boolean;
+  confidence?: number;
+  evidence?: string;
+};
+
+type DropoutOCRResult = {
+  format_valid: boolean;
+  is_match: boolean;
+  accepted: boolean;
+  detected_document_type?: string;
+  validation_reason?: string;
+  error_message?: string;
+  signature_checks: {
+    parent_guardian: SignatureCheck;
+    applicant: SignatureCheck;
+    faculty_leader: SignatureCheck;
+  };
+};
+
 export default function DropoutPage() {
   const router = useRouter();
-  
+    
   const [isStarted, setIsStarted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4 | 5 | 6>(1);
   const [isAgreed, setIsAgreed] = useState(false);
   const [requestId, setRequestId] = useState<string | null>(null);
   const [isDownloaded, setIsDownloaded] = useState(false);
-  const [uploadState, setUploadState] = useState<'idle' | 'analyzing' | 'success' | 'error'>('idle');
-  const [aiResult, setAiResult] = useState<{format_valid?: boolean, title_valid?: boolean, signature_present?: boolean} | null>(null);
+  const [signedApplicationFile, setSignedApplicationFile] = useState<File | null>(null);
+  const [uploadState, setUploadState] = useState<
+    "idle" | "analyzing" | "success" | "error"
+  >("idle");
+  const [aiResult, setAiResult] = useState<DropoutOCRResult | null>(null);
+  const [uploadErrorType, setUploadErrorType] = useState<
+    "document" | "signature" | null
+  >(null);
+
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState<'details' | 'tracking'>('details');
   
@@ -28,6 +73,10 @@ export default function DropoutPage() {
     contactAddress: '',
     notes: ''
   });
+
+  const dropoutReasonLabel = getDropoutReasonLabel(
+    formData.reason
+  );
 
   useEffect(() => {
     if (isStarted) {
@@ -86,14 +135,19 @@ export default function DropoutPage() {
       );
     }
 
-    // Lấy lý do từ formData hiện tại.
-    const reason = formData.reason.trim();
+    // formData lưu mã như "kinh_te"; khi hiển thị và tạo đơn
+    // phải chuyển sang nhãn tiếng Việt.
+    const reasonCode = formData.reason.trim();
 
-    if (!reason) {
+    if (!reasonCode) {
       throw new Error(
         "Vui lòng nhập lý do thôi học trước khi tải đơn."
       );
     }
+
+    const reasonLabel = getDropoutReasonLabel(
+      reasonCode
+    );
 
     const apiUrl =
       process.env.NEXT_PUBLIC_API_URL ||
@@ -108,7 +162,7 @@ export default function DropoutPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          reason: reason,
+          reason: reasonLabel,
         }),
       }
     );
@@ -151,8 +205,8 @@ export default function DropoutPage() {
     const link = document.createElement("a");
 
     link.href = downloadUrl;
-    link.download = studentProfile?.student_id
-      ? `Don_xin_thoi_hoc_${studentProfile.student_id}.docx`
+    link.download = studentProfile?.studentId
+      ? `Don_xin_thoi_hoc_${studentProfile.studentId}.docx`
       : "Don_xin_thoi_hoc.docx";
 
     document.body.appendChild(link);
@@ -190,33 +244,230 @@ export default function DropoutPage() {
     fileInputRef.current?.click();
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploadState('analyzing');
+  const handleRetryUpload = () => {
     setAiResult(null);
+    setUploadErrorType(null);
+    setUploadState("idle");
+    setSignedApplicationFile(null);
 
-    const formData = new FormData();
-    formData.append('file', file);
+    setTimeout(() => {
+      fileInputRef.current?.click();
+    }, 0);
+  };
+
+  const handleFileUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+
+    if (!file) return;
+
+    setUploadState("analyzing");
+    setUploadErrorType(null);
+    setAiResult(null);
+    setSignedApplicationFile(null);
+
+    const emptySignatureChecks = {
+      parent_guardian: { present: false },
+      applicant: { present: false },
+      faculty_leader: { present: false },
+    };
+
+    const extension = file.name.split(".").pop()?.toLowerCase() || "";
+    const allowedExtensions = ["pdf", "png", "jpg", "jpeg"];
+
+    // Kiểm tra định dạng chạy ngầm. Chỉ hiện thông báo khi sai.
+    if (!allowedExtensions.includes(extension)) {
+      setAiResult({
+        format_valid: false,
+        is_match: false,
+        accepted: false,
+        validation_reason:
+          "Định dạng file không hợp lệ. Chỉ chấp nhận PDF, JPG, JPEG hoặc PNG.",
+        signature_checks: emptySignatureChecks,
+      });
+      setUploadErrorType("document");
+      setUploadState("error");
+      return;
+    }
+
+    const accessToken =
+      localStorage.getItem("access_token") ||
+      localStorage.getItem("access");
+
+    if (!accessToken) {
+      setUploadState("idle");
+      alert("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+      router.push("/login");
+      return;
+    }
+
+    const uploadData = new FormData();
+    uploadData.append("uploaded_file", file);
+    uploadData.append(
+      "document_type",
+      "DROPOUT_SIGNED_APPLICATION"
+    );
+
+    const configuredApi =
+      process.env.NEXT_PUBLIC_API_URL ||
+      "http://127.0.0.1:8000";
+
+    const apiBase = configuredApi.replace(/\/$/, "");
+    const ocrUrl = apiBase.endsWith("/api")
+      ? `${apiBase}/ocr/verify/`
+      : `${apiBase}/api/ocr/verify/`;
 
     try {
-      const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api'}/thoi-hoc/scan-dropout/`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      
-      setAiResult(response.data);
-      
-      if (response.data.format_valid && response.data.title_valid && response.data.signature_present) {
-        setUploadState('success');
-      } else {
-        setUploadState('error');
+      const response = await axios.post(
+        ocrUrl,
+        uploadData,
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
+
+      const data = response.data;
+
+      console.log("Kết quả OCR thôi học:", data);
+
+      // Kiểm tra loại tài liệu chạy ngầm.
+      const correctDocument =
+        data.is_match === true &&
+        data.detected_document_type ===
+          "DROPOUT_SIGNED_APPLICATION";
+
+      if (!correctDocument) {
+        setAiResult({
+          format_valid: true,
+          is_match: false,
+          accepted: false,
+          detected_document_type:
+            data.detected_document_type,
+          validation_reason:
+            data.validation_reason ||
+            "File tải lên không phải Đơn xin thôi học.",
+          error_message: data.error_message,
+          signature_checks: emptySignatureChecks,
+        });
+        setUploadErrorType("document");
+        setUploadState("error");
+        return;
       }
+
+      const signatureChecks = {
+  parent_guardian: {
+    present:
+      data.signature_checks?.parent_guardian
+        ?.present === true,
+    confidence:
+      data.signature_checks?.parent_guardian
+        ?.confidence,
+    evidence:
+      data.signature_checks?.parent_guardian
+        ?.evidence,
+  },
+
+  applicant: {
+    present:
+      data.signature_checks?.applicant
+        ?.present === true,
+    confidence:
+      data.signature_checks?.applicant
+        ?.confidence,
+    evidence:
+      data.signature_checks?.applicant
+        ?.evidence,
+  },
+
+  faculty_leader: {
+    present: false,
+    confidence: 0,
+    evidence:
+      "Đơn thôi học không yêu cầu chữ ký Lãnh đạo Khoa.",
+  },
+};
+
+      const allSignaturesPresent =
+        signatureChecks.parent_guardian.present &&
+        signatureChecks.applicant.present;
+
+      const normalizedResult: DropoutOCRResult = {
+        format_valid: true,
+        is_match: true,
+        accepted:
+          data.accepted === true &&
+          allSignaturesPresent,
+        detected_document_type:
+          data.detected_document_type,
+        validation_reason:
+          data.validation_reason,
+        error_message:
+          data.error_message,
+        signature_checks: signatureChecks,
+      };
+
+      setAiResult(normalizedResult);
+
+      if (!allSignaturesPresent) {
+        setUploadErrorType("signature");
+        setUploadState("error");
+        return;
+      }
+
+      setSignedApplicationFile(file);
+      setUploadErrorType(null);
+      setUploadState("success");
     } catch (error) {
-      console.error('Lỗi khi quét OCR:', error);
-      setUploadState('error');
+      console.error("Lỗi kiểm tra OCR:", error);
+
+      let message = "Không thể xử lý tài liệu.";
+
+      if (axios.isAxiosError(error)) {
+        const statusCode = error.response?.status;
+        const errorData = error.response?.data;
+
+        if (statusCode === 401) {
+          localStorage.removeItem("access");
+          localStorage.removeItem("access_token");
+          localStorage.removeItem("refresh");
+          localStorage.removeItem("refresh_token");
+
+          alert(
+            "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại."
+          );
+          router.push("/login");
+          return;
+        }
+
+        console.error(
+          "OCR backend response:",
+          errorData
+        );
+
+        message =
+          errorData?.error_message ||
+          errorData?.detail ||
+          errorData?.validation_reason ||
+          errorData?.uploaded_file?.[0] ||
+          errorData?.document_type?.[0] ||
+          message;
+      }
+
+      setAiResult({
+        format_valid: false,
+        is_match: false,
+        accepted: false,
+        validation_reason: message,
+        signature_checks: emptySignatureChecks,
+      });
+      setUploadErrorType("document");
+      setUploadState("error");
     } finally {
       if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+        fileInputRef.current.value = "";
       }
     }
   };
@@ -228,6 +479,43 @@ export default function DropoutPage() {
   const handleSubmitFinal = async () => {
     setCurrentStep(6);
   };
+
+  const handleDownloadSignedApplication = () => {
+    if (!signedApplicationFile) {
+      alert(
+        "Không tìm thấy file đơn đã ký trong phiên hiện tại. Vui lòng tải lại file ở bước kiểm tra chữ ký."
+      );
+      return;
+    }
+
+    const downloadUrl = window.URL.createObjectURL(
+      signedApplicationFile
+    );
+    const link = document.createElement("a");
+
+    link.href = downloadUrl;
+    link.download = signedApplicationFile.name ||
+      `Don_xin_thoi_hoc_da_ky_${studentProfile?.studentId || "sinh_vien"}.pdf`;
+
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    window.setTimeout(() => {
+      window.URL.revokeObjectURL(downloadUrl);
+    }, 1000);
+  };
+
+  const signatureItems = [
+  {
+    key: "parent_guardian",
+    label: "Phụ huynh / Người giám hộ",
+  },
+  {
+    key: "applicant",
+    label: "Người làm đơn",
+  },
+] as const;
 
   return (
     <div className="h-full w-full">
@@ -303,7 +591,7 @@ export default function DropoutPage() {
                                     <option value="khac">Lý do khác</option>
                                   </select>
                                 ) : (
-                                  <div className="w-full border border-gray-200 bg-gray-50 rounded-md p-2.5 text-sm text-gray-800">{formData.reason === 'ca_nhan' ? 'Lý do cá nhân' : formData.reason}</div>
+                                  <div className="w-full border border-gray-200 bg-gray-50 rounded-md p-2.5 text-sm text-gray-800">{dropoutReasonLabel}</div>
                                 )}
                               </div>
                               <div>
@@ -416,7 +704,6 @@ export default function DropoutPage() {
                       <div className="flex gap-3"><span className="w-6 h-6 rounded-full bg-slate-700 text-white flex items-center justify-center font-semibold text-xs shrink-0">1</span><div><p className="font-medium text-sm text-gray-800">Tải và kiểm tra</p><p className="text-xs text-gray-500 mt-0.5">Tải file Word bên dưới. Thông tin cá nhân, lý do và ngày thôi học đã được điền sẵn.</p></div></div>
                       <div className="flex gap-3"><span className="w-6 h-6 rounded-full bg-slate-700 text-white flex items-center justify-center font-semibold text-xs shrink-0">2</span><div><p className="font-medium text-sm text-gray-800">Ký tên sinh viên</p><p className="text-xs text-gray-500 mt-0.5">Ký và ghi rõ họ tên tại mục "Người làm đơn".</p></div></div>
                       <div className="flex gap-3"><span className="w-6 h-6 rounded-full bg-slate-700 text-white flex items-center justify-center font-semibold text-xs shrink-0">3</span><div><p className="font-medium text-sm text-gray-800">Ý kiến phụ huynh</p><p className="text-xs text-gray-500 mt-0.5">Xin chữ ký xác nhận của Phụ huynh / Người giám hộ tại mục tương ứng.</p></div></div>
-                      <div className="flex gap-3"><span className="w-6 h-6 rounded-full bg-slate-700 text-white flex items-center justify-center font-semibold text-xs shrink-0">4</span><div><p className="font-medium text-sm text-gray-800">Ý kiến Lãnh đạo Khoa</p><p className="text-xs text-gray-500 mt-0.5">Nộp tại văn phòng Khoa để xin chữ ký xác nhận của Lãnh đạo Khoa.</p></div></div>
                     </div>
                   </div>
 
@@ -452,90 +739,260 @@ export default function DropoutPage() {
             {currentStep >= 4 && (
               <>
                 <div className="flex gap-4 items-start animate-in fade-in slide-in-from-bottom-4">
-                  <div className="bg-blue-100 p-2 rounded-full text-blue-600 shrink-0"><Bot size={24} /></div>
+                  <div className="bg-blue-100 p-2 rounded-full text-blue-600 shrink-0">
+                    <Bot size={24} />
+                  </div>
+
                   <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 max-w-[90%]">
-                    <p className="text-gray-700 font-medium text-sm mb-1">Trợ lý AI</p>
-                    <p className="text-gray-600 text-sm">Bạn đã xin đủ chữ ký? Tuyệt vời! Hãy tải lên bản scan hoặc chụp ảnh rõ nét của đơn để hệ thống kiểm tra nhé.</p>
+                    <p className="text-gray-700 font-medium text-sm mb-1">
+                      Trợ lý AI
+                    </p>
+                    <p className="text-gray-600 text-sm">
+                      Bạn đã xin đủ chữ ký? Tuyệt vời! Hãy tải lên bản scan hoặc
+                      chụp ảnh rõ nét của đơn để hệ thống kiểm tra nhé.
+                    </p>
                   </div>
                 </div>
 
                 <div className="ml-12 flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-4">
-                  {uploadState === 'idle' && (
-                    <div onClick={triggerFileInput} className={`border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center transition ${currentStep === 4 ? 'border-blue-300 bg-blue-50/50 cursor-pointer hover:bg-blue-50' : 'border-gray-200 bg-gray-50 opacity-60 cursor-default'}`}>
-                      <div className="bg-blue-100 text-blue-600 p-3 rounded-full mb-3"><UploadCloud size={24} /></div>
-                      <p className="font-semibold text-gray-800 text-sm">Tải lên file Đơn xin thôi học đã ký đủ ba bên</p>
-                      <p className="text-xs text-gray-500 mt-1.5 mb-4">Kéo thả hoặc click để chọn file (.docx hoặc .pdf hoặc ảnh chụp rõ nét)</p>
-                      <button disabled={currentStep > 4} className="bg-white border border-gray-300 rounded-md px-5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 shadow-sm disabled:opacity-50">Chọn file</button>
-                      <input type="file" className="hidden" ref={fileInputRef} onChange={handleFileUpload} accept=".pdf,.png,.jpg,.jpeg" disabled={currentStep > 4}/>
+                  {/* Input luôn tồn tại để nút "Thử tải lại" có thể mở lại hộp chọn file. */}
+                  <input
+                    type="file"
+                    className="hidden"
+                    ref={fileInputRef}
+                    onChange={handleFileUpload}
+                    accept=".pdf,.png,.jpg,.jpeg"
+                    disabled={currentStep > 4}
+                  />
+
+                  {uploadState === "idle" && (
+                    <div
+                      onClick={triggerFileInput}
+                      className={`border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center transition ${
+                        currentStep === 4
+                          ? "border-blue-300 bg-blue-50/50 cursor-pointer hover:bg-blue-50"
+                          : "border-gray-200 bg-gray-50 opacity-60 cursor-default"
+                      }`}
+                    >
+                      <div className="bg-blue-100 text-blue-600 p-3 rounded-full mb-3">
+                        <UploadCloud size={24} />
+                      </div>
+
+                      <p className="font-semibold text-gray-800 text-sm">
+                        Tải lên file Đơn xin thôi học đã ký đủ hai bên
+                      </p>
+
+                      <p className="text-xs text-gray-500 mt-1.5 mb-4">
+                        Kéo thả hoặc click để chọn file (.pdf, .jpg, .jpeg hoặc
+                        .png)
+                      </p>
+
+                      <button
+                        type="button"
+                        disabled={currentStep > 4}
+                        className="bg-white border border-gray-300 rounded-md px-5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 shadow-sm disabled:opacity-50"
+                      >
+                        Chọn file
+                      </button>
                     </div>
                   )}
 
-                  {uploadState === 'analyzing' ? (
+                  {uploadState === "analyzing" && (
                     <div className="border border-blue-200 bg-blue-50 rounded-xl p-5 shadow-sm">
                       <div className="flex items-center gap-3 text-blue-700 font-semibold text-sm mb-3">
-                        <ScanSearch size={20} className="animate-pulse" /> AI đang kiểm tra chữ ký...
+                        <ScanSearch
+                          size={20}
+                          className="animate-pulse"
+                        />
+                        AI đang kiểm tra tài liệu...
                       </div>
+
                       <div className="space-y-3 ml-2">
-                        <div className="flex items-center gap-2 text-sm text-[#0070F4]"><div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></div> Quét vùng: <span className="font-semibold underline underline-offset-2">Xác thực định dạng file</span></div>
-                        <div className="flex items-center gap-2 text-sm text-[#0070F4]"><div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></div> Quét vùng: <span className="font-semibold underline underline-offset-2">Nhận diện Tiêu đề đơn</span></div>
-                        <div className="flex items-center gap-2 text-sm text-[#0070F4]"><div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></div> Quét vùng: <span className="font-semibold underline underline-offset-2">Xác thực chữ ký Người làm đơn</span></div>
+                        <div className="flex items-center gap-2 text-sm text-[#0070F4]">
+                          <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                          Kiểm tra ngầm định dạng và loại đơn
+                        </div>
+
+                        <div className="flex items-center gap-2 text-sm text-[#0070F4]">
+                          <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                          Quét vùng chữ ký Phụ huynh / Người giám hộ
+                        </div>
+
+                        <div className="flex items-center gap-2 text-sm text-[#0070F4]">
+                          <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                          Quét vùng chữ ký Người làm đơn
+                        </div>
                       </div>
                     </div>
-                  ) : uploadState === 'error' ? (
-                    <div className="bg-white border border-red-200 rounded-xl p-6 shadow-sm">
-                      <div className="flex justify-between items-start mb-6">
-                        <div className="flex gap-3">
-                          <div className="bg-red-500 text-white rounded-full p-1"><X size={20} strokeWidth={3} /></div>
+                  )}
+
+                  {/* Sai định dạng hoặc sai loại đơn: chỉ hiển thị thông báo. */}
+                  {uploadState === "error" &&
+                    uploadErrorType === "document" && (
+                      <div className="bg-white border border-red-200 rounded-xl p-6 shadow-sm">
+                        <div className="flex gap-3 items-start">
+                          <div className="bg-red-500 text-white rounded-full p-1">
+                            <X size={20} strokeWidth={3} />
+                          </div>
+
                           <div>
-                            <h4 className="font-bold text-red-700">Tài liệu không hợp lệ!</h4>
-                            <p className="text-xs text-red-600 mt-1">AI phát hiện có lỗi trong hồ sơ của bạn</p>
+                            <h4 className="font-bold text-red-700">
+                              Tài liệu không hợp lệ!
+                            </h4>
+                            <p className="text-sm text-red-600 mt-1">
+                              {aiResult?.validation_reason ||
+                                aiResult?.error_message ||
+                                "File tải lên không phải Đơn xin thôi học."}
+                            </p>
                           </div>
                         </div>
+
+                        <button
+                          type="button"
+                          onClick={handleRetryUpload}
+                          className="w-full mt-5 border border-gray-300 text-gray-700 py-2 rounded-lg text-sm font-medium hover:bg-gray-50"
+                        >
+                          Thử tải lại file khác
+                        </button>
                       </div>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className={`bg-gray-50 border ${aiResult?.format_valid ? 'border-green-200' : 'border-red-200'} rounded-lg p-3 text-center flex flex-col items-center justify-center gap-2`}>
-                          <FileText size={20} className={aiResult?.format_valid ? "text-green-600" : "text-red-600"} />
-                          <span className={`text-xs font-semibold ${aiResult?.format_valid ? 'text-green-800' : 'text-red-800'}`}>Định dạng File</span>
-                          {aiResult?.format_valid ? <Check size={16} className="text-green-500" /> : <X size={16} className="text-red-500" />}
+                    )}
+
+                  {/* Đúng đơn nhưng thiếu chữ ký: hiển thị hai vùng chữ ký. */}
+                  {uploadState === "error" &&
+                    uploadErrorType === "signature" &&
+                    aiResult && (
+                      <div className="border border-red-200 bg-red-50/50 rounded-xl p-5 shadow-sm">
+                        <div className="flex items-center gap-3 mb-5">
+                          <div className="bg-red-500 text-white rounded-full p-2">
+                            <X size={20} strokeWidth={3} />
+                          </div>
+
+                          <div>
+                            <h4 className="font-bold text-red-700">
+                              Chưa đủ chữ ký xác nhận
+                            </h4>
+                            <p className="text-sm text-red-600 mt-1">
+                              Vui lòng bổ sung các chữ ký còn thiếu và tải lại
+                              đơn.
+                            </p>
+                          </div>
                         </div>
-                        <div className={`bg-gray-50 border ${aiResult?.title_valid ? 'border-green-200' : 'border-red-200'} rounded-lg p-3 text-center flex flex-col items-center justify-center gap-2`}>
-                          <ScanSearch size={20} className={aiResult?.title_valid ? "text-green-600" : "text-red-600"} />
-                          <span className={`text-xs font-semibold ${aiResult?.title_valid ? 'text-green-800' : 'text-red-800'}`}>Tiêu đề đơn</span>
-                          {aiResult?.title_valid ? <Check size={16} className="text-green-500" /> : <X size={16} className="text-red-500" />}
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {signatureItems.map((item) => {
+                            const check =
+                              aiResult.signature_checks[item.key];
+
+                            return (
+                              <div
+                                key={item.key}
+                                className={`rounded-lg border p-4 flex flex-col items-center justify-center gap-2 ${
+                                  check.present
+                                    ? "bg-green-50 border-green-200"
+                                    : "bg-red-50 border-red-200"
+                                }`}
+                              >
+                                <User
+                                  size={19}
+                                  className={
+                                    check.present
+                                      ? "text-green-600"
+                                      : "text-red-600"
+                                  }
+                                />
+
+                                <span
+                                  className={`text-xs font-semibold text-center ${
+                                    check.present
+                                      ? "text-green-800"
+                                      : "text-red-800"
+                                  }`}
+                                >
+                                  {item.label}
+                                </span>
+
+                                {check.present ? (
+                                  <Check
+                                    size={17}
+                                    className="text-green-600"
+                                  />
+                                ) : (
+                                  <X
+                                    size={17}
+                                    className="text-red-600"
+                                  />
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
-                        <div className={`bg-gray-50 border ${aiResult?.signature_present ? 'border-green-200' : 'border-red-200'} rounded-lg p-3 text-center flex flex-col items-center justify-center gap-2`}>
-                          <User size={20} className={aiResult?.signature_present ? "text-green-600" : "text-red-600"} />
-                          <span className={`text-xs font-semibold ${aiResult?.signature_present ? 'text-green-800' : 'text-red-800'}`}>Người làm đơn</span>
-                          {aiResult?.signature_present ? <Check size={16} className="text-green-500" /> : <X size={16} className="text-red-500" />}
-                        </div>
+
+                        <button
+                          type="button"
+                          onClick={handleRetryUpload}
+                          className="w-full mt-4 border border-gray-300 text-gray-700 py-2 rounded-lg text-sm font-medium hover:bg-gray-50"
+                        >
+                          Thử tải lại file khác
+                        </button>
                       </div>
-                      <button onClick={triggerFileInput} className="w-full mt-4 border border-gray-300 text-gray-700 py-2 rounded-lg text-sm font-medium hover:bg-gray-50">Thử tải lại file khác</button>
-                    </div>
-                  ) : uploadState === 'success' ? (
+                    )}
+
+                  {/* Thành công: chỉ hiển thị hai vùng chữ ký. */}
+                  {uploadState === "success" && aiResult && (
                     <>
                       <div className="border border-green-200 bg-green-50/80 rounded-xl p-5 shadow-sm animate-in fade-in">
                         <div className="flex justify-between items-center mb-4">
-                          <div className="flex items-center gap-2 text-green-700 font-semibold">
-                            <CheckCircle2 size={20} className="text-green-600"/> Tài liệu hợp lệ!
+                          <div className="flex items-center gap-3">
+                            <div className="bg-green-500 text-white rounded-full p-2">
+                              <Check size={20} strokeWidth={3} />
+                            </div>
+
+                            <div>
+                              <h4 className="font-bold text-green-700">
+                                Tài liệu hợp lệ!
+                              </h4>
+                              <p className="text-sm text-green-700 mt-0.5">
+                                Đủ 2 vùng chữ ký xác nhận
+                              </p>
+                            </div>
                           </div>
-                          <span className="text-xs font-semibold text-green-700 bg-green-100 border border-green-200 px-2 py-1 rounded flex items-center gap-1"><Scan size={14}/> AI Vision</span>
+
+                          <span className="text-xs font-semibold text-green-700 flex items-center gap-1">
+                            <Scan size={15} />
+                            AI Vision
+                          </span>
                         </div>
-                        <p className="text-sm text-green-700 mb-4 font-medium">Đã phát hiện đủ các tiêu chí xác nhận</p>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                          <div className="bg-green-100/50 border border-green-200 rounded-lg p-3 flex flex-col items-center justify-center gap-1.5"><FileText className="text-green-600" size={18}/><span className="text-xs font-semibold text-green-800">Định dạng File</span><Check className="text-green-600" size={16} /></div>
-                          <div className="bg-green-100/50 border border-green-200 rounded-lg p-3 flex flex-col items-center justify-center gap-1.5"><ScanSearch className="text-green-600" size={18}/><span className="text-xs font-semibold text-green-800">Tiêu đề đơn</span><Check className="text-green-600" size={16} /></div>
-                          <div className="bg-green-100/50 border border-green-200 rounded-lg p-3 flex flex-col items-center justify-center gap-1.5"><User className="text-green-600" size={18}/><span className="text-xs font-semibold text-green-800">Chữ ký Người làm đơn</span><Check className="text-green-600" size={16} /></div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {signatureItems.map((item) => (
+                            <div
+                              key={item.key}
+                              className="bg-green-100/60 border border-green-200 rounded-lg p-4 flex flex-col items-center justify-center gap-2"
+                            >
+                              <span className="text-xs font-semibold text-green-800 text-center">
+                                {item.label}
+                              </span>
+                              <Check
+                                className="text-green-600"
+                                size={17}
+                              />
+                            </div>
+                          ))}
                         </div>
                       </div>
 
                       {currentStep === 4 && (
-                        <button onClick={handlePreviewBeforeSubmit} className="w-full bg-[#0070F4] text-white py-3 rounded-md font-medium hover:bg-blue-700 transition flex justify-center items-center gap-2 mt-2">
-                          Tiếp tục xem trước & Nộp hồ sơ <ChevronRight size={18} />
+                        <button
+                          type="button"
+                          onClick={handlePreviewBeforeSubmit}
+                          className="w-full bg-[#0070F4] text-white py-3 rounded-md font-medium hover:bg-blue-700 transition flex justify-center items-center gap-2 mt-2"
+                        >
+                          Tiếp tục xem trước & Nộp hồ sơ
+                          <ChevronRight size={18} />
                         </button>
                       )}
                     </>
-                  ) : null}
+                  )}
                 </div>
               </>
             )}
@@ -552,7 +1009,7 @@ export default function DropoutPage() {
                 
                 <div className="flex items-center justify-between bg-gray-50 p-3.5 rounded-lg border border-gray-200 mb-5">
                   <div className="flex items-center gap-2.5 text-sm font-medium text-gray-700">
-                    <FileText size={18} className="text-gray-400"/> Đơn xin thôi học (Bản scan đã ký đủ 3 bên)
+                    <FileText size={18} className="text-gray-400"/> Đơn xin thôi học (Bản scan đã ký đủ 2 bên)
                   </div>
                   <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-md flex items-center gap-1 font-medium">
                     AI xác nhận <Check size={14}/>
@@ -562,7 +1019,7 @@ export default function DropoutPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-6 text-sm mb-6">
                   <div className="flex justify-between md:flex-col md:gap-1 border-b md:border-none border-gray-100 pb-2 md:pb-0"><span className="text-gray-500">Sinh viên:</span> <span className="font-semibold text-gray-800">{studentProfile.fullName}</span></div>
                   <div className="flex justify-between md:flex-col md:gap-1 border-b md:border-none border-gray-100 pb-2 md:pb-0"><span className="text-gray-500">MSSV:</span> <span className="font-semibold text-gray-800">{studentProfile.studentId}</span></div>
-                  <div className="flex justify-between md:flex-col md:gap-1 border-b md:border-none border-gray-100 pb-2 md:pb-0"><span className="text-gray-500">Lý do:</span> <span className="font-semibold text-gray-800">{formData.reason === 'ca_nhan' ? 'Lý do cá nhân' : formData.reason}</span></div>
+                  <div className="flex justify-between md:flex-col md:gap-1 border-b md:border-none border-gray-100 pb-2 md:pb-0"><span className="text-gray-500">Lý do:</span> <span className="font-semibold text-gray-800">{dropoutReasonLabel}</span></div>
                   <div className="flex justify-between md:flex-col md:gap-1"><span className="text-gray-500">Ngày dự kiến:</span> <span className="font-semibold text-gray-800">{formData.expectedDate}</span></div>
                 </div>
 
@@ -640,7 +1097,7 @@ export default function DropoutPage() {
                           <div><p className="text-gray-500 text-xs mb-1">Mã số sinh viên</p><p className="font-semibold text-gray-800">{studentProfile?.studentId}</p></div>
                           <div><p className="text-gray-500 text-xs mb-1">Lớp sinh viên</p><p className="font-semibold text-gray-800">{studentProfile?.classId}</p></div>
                           <div><p className="text-gray-500 text-xs mb-1">Ngành học</p><p className="font-semibold text-gray-800">{studentProfile?.major}</p></div>
-                          <div><p className="text-gray-500 text-xs mb-1">Lý do thôi học</p><p className="font-semibold text-gray-800">{formData.reason === 'ca_nhan' ? 'Lý do cá nhân' : (formData.reason || 'Lý do cá nhân')}</p></div>
+                          <div><p className="text-gray-500 text-xs mb-1">Lý do thôi học</p><p className="font-semibold text-gray-800">{dropoutReasonLabel}</p></div>
                           <div><p className="text-gray-500 text-xs mb-1">Ngày dự kiến thôi học</p><p className="font-semibold text-gray-800">{formData.expectedDate}</p></div>
                           <div className="md:col-span-2"><p className="text-gray-500 text-xs mb-1">Địa chỉ liên hệ</p><p className="font-semibold text-gray-800">{formData.contactAddress}</p></div>
                         </div>
@@ -655,10 +1112,20 @@ export default function DropoutPage() {
                             <FileText size={20} className="text-gray-400 mt-0.5"/>
                             <div>
                               <p className="text-sm font-medium text-gray-800">Đơn xin thôi học (Bản scan/ảnh chụp)</p>
-                              <p className="text-xs text-green-600 font-medium mt-1">AI đã kiểm duyệt: Đủ chữ ký của Người làm đơn, Ý kiến phụ huynh và Ý kiến Lãnh đạo Khoa</p>
+                              <p className="text-xs text-green-600 font-medium mt-1">AI đã kiểm duyệt: Đủ chữ ký của Người làm đơn và Phụ huynh / Người giám hộ</p>
                             </div>
                           </div>
-                          <button className="flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-700 whitespace-nowrap">
+                          <button
+                            type="button"
+                            onClick={handleDownloadSignedApplication}
+                            disabled={!signedApplicationFile}
+                            title={
+                              signedApplicationFile
+                                ? "Tải xuống bản đơn đã ký"
+                                : "Không còn file trong phiên hiện tại"
+                            }
+                            className="flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-700 whitespace-nowrap disabled:text-gray-400 disabled:cursor-not-allowed"
+                          >
                             <Download size={16} /> Tải về
                           </button>
                         </div>

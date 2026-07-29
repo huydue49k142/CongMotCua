@@ -189,3 +189,17 @@ SIMPLE_JWT = {
 import os
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.1-flash-lite")
+
+
+TESSERACT_CMD = (
+    r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+)
+
+POPPLER_PATH = (
+    r"D:\FileDownload\Release-26.02.0-0"
+    r"\poppler-26.02.0\Library\bin"
+)
+
+TESSERACT_CMD = (
+    r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+)

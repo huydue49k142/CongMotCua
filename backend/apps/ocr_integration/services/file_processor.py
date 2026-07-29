@@ -1,28 +1,65 @@
 import os
-from PIL import Image
-from pdf2image import convert_from_path
+from io import BytesIO
+
 from django.core.files.uploadedfile import UploadedFile
+from pdf2image import convert_from_bytes
+from PIL import Image
 
 from ..exceptions import FileProcessingError
 
-# Configure Poppler path if not in system PATH
-# POPPLER_PATH = r"D:\poppler-24.02.0-0\bin"
+from django.conf import settings
+from pdf2image import convert_from_bytes
 
-def process_uploaded_file(file: UploadedFile) -> list[Image.Image]:
+SUPPORTED_EXTENSIONS = {
+    ".pdf",
+    ".jpg",
+    ".jpeg",
+    ".png",
+}
+
+
+def process_uploaded_file(
+    file: UploadedFile,
+) -> list[Image.Image]:
     """
-    Validates and converts an uploaded file (PDF, JPG, PNG) into a list of PIL Images.
+    Chuyển PDF hoặc ảnh upload thành danh sách ảnh RGB.
     """
-    file_extension = os.path.splitext(file.name)[1].lower()
-    
+
+    file_extension = os.path.splitext(
+        file.name
+    )[1].lower()
+
+    if file_extension not in SUPPORTED_EXTENSIONS:
+        raise FileProcessingError(
+            f"Không hỗ trợ định dạng: "
+            f"{file_extension}"
+        )
+
     try:
-        if file_extension == '.pdf':
-            # return convert_from_path(file.temporary_file_path(), poppler_path=POPPLER_PATH)
-            return convert_from_path(file.temporary_file_path())
-        elif file_extension in ['.jpg', '.jpeg', '.png']:
-            image = Image.open(file)
-            image = image.convert('RGB') # Standardize to RGB
-            return [image]
-        else:
-            raise FileProcessingError(f"Unsupported file type: {file_extension}")
-    except Exception as e:
-        raise FileProcessingError(f"Error processing file {file.name}: {e}")
+        file.seek(0)
+        content = file.read()
+        file.seek(0)
+
+        if file_extension == ".pdf":
+            images = convert_from_bytes(
+                content,
+                dpi=200,
+                poppler_path=settings.POPPLER_PATH,
+            )
+
+            return [
+                image.convert("RGB")
+                for image in images
+            ]
+
+        image = Image.open(
+            BytesIO(content)
+        ).convert("RGB")
+
+        return [image]
+
+    except Exception as error:
+        raise FileProcessingError(
+            f"Không thể xử lý file "
+            f"{file.name}: {error}"
+        ) from error
