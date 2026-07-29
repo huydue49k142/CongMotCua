@@ -19,6 +19,7 @@ urlpatterns = [
     path('scan-resume/', views.ScanResumeDocumentAPI.as_view(), name='scan-resume'),
     path('submit-resume/', views.SubmitResumeApplication.as_view(), name='submit-resume'),
     path('submit-retention/', views.SubmitRetentionApplication.as_view(), name='submit-retention'),
+    path('submit-major-change/', views.SubmitMajorChangeApplication.as_view(), name='submit-major-change'),
     path('draft/retention/save/', views.SaveRetentionDraftAPIView.as_view(), name='save-retention-draft'),
     path('draft/retention/get/', views.GetRetentionDraftAPIView.as_view(), name='get-retention-draft'),
     path('draft/dropout/save/', views.SaveDropoutDraftAPIView.as_view(), name='save-dropout-draft'),

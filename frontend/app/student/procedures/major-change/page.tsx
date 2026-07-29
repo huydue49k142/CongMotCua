@@ -59,6 +59,70 @@ type SignedScanErrorType =
   | "signature"
   | null;
 
+
+type SubmissionStatus =
+  | "DRAFT"
+  | "PENDING_REVIEW"
+  | "IN_PROGRESS"
+  | "ADDITIONAL_INFO_REQUIRED"
+  | "APPROVED"
+  | "REJECTED"
+  | "CANCELLED";
+
+type RequestHistoryItem = {
+  status?: string;
+  notes?: string;
+  timestamp?: string;
+};
+
+const getSubmissionStatusMeta = (status: SubmissionStatus) => {
+  switch (status) {
+    case "APPROVED":
+      return {
+        label: "Đã duyệt",
+        badgeClass: "bg-green-100 text-green-700",
+        panelClass: "border-green-200 bg-green-50",
+      };
+    case "REJECTED":
+      return {
+        label: "Từ chối",
+        badgeClass: "bg-red-100 text-red-700",
+        panelClass: "border-red-200 bg-red-50",
+      };
+    case "CANCELLED":
+      return {
+        label: "Đã hủy",
+        badgeClass: "bg-gray-100 text-gray-700",
+        panelClass: "border-gray-200 bg-gray-50",
+      };
+    case "ADDITIONAL_INFO_REQUIRED":
+      return {
+        label: "Yêu cầu bổ sung",
+        badgeClass: "bg-orange-100 text-orange-700",
+        panelClass: "border-orange-200 bg-orange-50",
+      };
+    case "IN_PROGRESS":
+      return {
+        label: "Đang xử lý",
+        badgeClass: "bg-blue-100 text-blue-700",
+        panelClass: "border-blue-200 bg-blue-50",
+      };
+    case "DRAFT":
+      return {
+        label: "Bản nháp",
+        badgeClass: "bg-gray-100 text-gray-700",
+        panelClass: "border-gray-200 bg-gray-50",
+      };
+    case "PENDING_REVIEW":
+    default:
+      return {
+        label: "Chờ tiếp nhận",
+        badgeClass: "bg-yellow-100 text-yellow-800",
+        panelClass: "border-yellow-200 bg-yellow-50",
+      };
+  }
+};
+
 export default function MajorChangePage() {
   const router = useRouter();
 
@@ -112,7 +176,32 @@ export default function MajorChangePage() {
 
   // Trạng thái nộp cuối cùng
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Giữ lại đúng các file đã qua OCR để gửi lên backend khi nộp hồ sơ.
+  const [admissionLetterFile, setAdmissionLetterFile] =
+    useState<File | null>(null);
+  const [graduationCertificateFile, setGraduationCertificateFile] =
+    useState<File | null>(null);
+  const [signedApplicationFile, setSignedApplicationFile] =
+    useState<File | null>(null);
+
+  const [trackingCode, setTrackingCode] = useState("");
+  const [requestId, setRequestId] = useState("");
+  const [submittedAt, setSubmittedAt] = useState("");
+  const [submissionStatus, setSubmissionStatus] =
+    useState<SubmissionStatus>("PENDING_REVIEW");
+  const [supplementNote, setSupplementNote] = useState("");
+  const [supplementFile, setSupplementFile] =
+    useState<File | null>(null);
+  const [isLoadingSubmission, setIsLoadingSubmission] =
+    useState(false);
+  const [isResubmitting, setIsResubmitting] =
+    useState(false);
+
+  const submitLockRef = useRef(false);
   const signedApplicationInputRef =
+    useRef<HTMLInputElement>(null);
+  const supplementInputRef =
     useRef<HTMLInputElement>(null);
 
   const [signedScanState, setSignedScanState] =
@@ -291,6 +380,7 @@ export default function MajorChangePage() {
     setFile1Status("uploading");
     setFile1Result(null);
     setFile1Error("");
+    setAdmissionLetterFile(null);
 
     try {
       const result =
@@ -318,6 +408,7 @@ export default function MajorChangePage() {
       }
 
       setFile1Result(result);
+      setAdmissionLetterFile(file);
       setFile1Status("done");
     } catch (error) {
       console.error(
@@ -360,6 +451,7 @@ export default function MajorChangePage() {
     setFile2Status("uploading");
     setFile2Result(null);
     setFile2Error("");
+    setGraduationCertificateFile(null);
 
     try {
       const result =
@@ -387,6 +479,7 @@ export default function MajorChangePage() {
       }
 
       setFile2Result(result);
+      setGraduationCertificateFile(file);
       setFile2Status("done");
     } catch (error) {
       console.error(
@@ -564,6 +657,7 @@ export default function MajorChangePage() {
     setSignedScanState("scanning");
     setSignedScanErrorType(null);
     setSignedApplicationResult(null);
+    setSignedApplicationFile(null);
 
     try {
       const result =
@@ -598,6 +692,7 @@ export default function MajorChangePage() {
       }
 
       setSignedApplicationResult(result);
+      setSignedApplicationFile(file);
       setSignedScanErrorType(null);
       setSignedScanState("success");
     } catch (error) {
@@ -621,6 +716,7 @@ export default function MajorChangePage() {
 
   const handleRetrySignedApplication = () => {
     setSignedApplicationResult(null);
+    setSignedApplicationFile(null);
     setSignedScanState("idle");
     setSignedScanErrorType(null);
 
@@ -629,7 +725,7 @@ export default function MajorChangePage() {
     }, 0);
   };
 
-  const handleFinalSubmit = () => {
+  const handleFinalSubmit = async () => {
     const applicantSigned =
       signedApplicationResult
         ?.signature_checks
@@ -638,21 +734,144 @@ export default function MajorChangePage() {
 
     if (
       signedScanState !== "success" ||
-      !applicantSigned
+      !applicantSigned ||
+      !signedApplicationFile
     ) {
       alert(
         "Vui lòng tải lên Đơn xin chuyển ngành có chữ ký của Người làm đơn."
       );
-
       return;
     }
 
+    if (!admissionLetterFile || !graduationCertificateFile) {
+      alert(
+        "Không tìm thấy đầy đủ Giấy báo trúng tuyển và Giấy chứng nhận tốt nghiệp THPT. Vui lòng tải lại hồ sơ."
+      );
+      return;
+    }
+
+    if (!formData || !isForm5Valid) {
+      alert("Vui lòng kiểm tra và nhập đầy đủ thông tin hồ sơ.");
+      return;
+    }
+
+    if (isSubmitting || submitLockRef.current) {
+      return;
+    }
+
+    const accessToken =
+      localStorage.getItem("access_token") ||
+      localStorage.getItem("access");
+
+    if (!accessToken) {
+      alert("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+      router.push("/login");
+      return;
+    }
+
+    submitLockRef.current = true;
     setIsSubmitting(true);
 
-    setTimeout(() => {
-      setIsSubmitting(false);
+    try {
+      const apiBase = (
+        process.env.NEXT_PUBLIC_API_URL ||
+        "http://127.0.0.1:8000/api"
+      ).replace(/\/$/, "");
+
+      const submitData = new FormData();
+
+      submitData.append("file", signedApplicationFile);
+      submitData.append("admission_letter", admissionLetterFile);
+      submitData.append(
+        "graduation_certificate",
+        graduationCertificateFile
+      );
+
+      const payload = buildMajorChangePayload();
+
+      Object.entries(payload).forEach(([key, value]) => {
+        if (value !== null && value !== undefined) {
+          submitData.append(key, String(value));
+        }
+      });
+
+      const response = await axios.post(
+        `${apiBase}/thoi-hoc/submit-major-change/`,
+        submitData,
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
+
+      if (response.data?.success !== true) {
+        throw new Error(
+          response.data?.error ||
+          response.data?.detail ||
+          response.data?.message ||
+          "Backend không thể tạo hồ sơ chuyển ngành."
+        );
+      }
+
+      const newRequestId = String(
+        response.data?.requestId ||
+        response.data?.request_id ||
+        ""
+      );
+
+      const newTrackingCode = String(
+        response.data?.trackingCode ||
+        response.data?.tracking_code ||
+        response.data?.requestCode ||
+        newRequestId ||
+        ""
+      );
+
+      setRequestId(newRequestId);
+      setTrackingCode(newTrackingCode);
+      setSubmissionStatus(
+        (response.data?.status ||
+          "PENDING_REVIEW") as SubmissionStatus
+      );
+      setSubmittedAt(new Date().toISOString());
+      setActiveTab("details");
       setCurrentStep(7);
-    }, 1500);
+    } catch (error: unknown) {
+      console.error("Lỗi nộp hồ sơ chuyển ngành:", error);
+
+      let message =
+        "Có lỗi xảy ra khi nộp hồ sơ chuyển ngành. Vui lòng thử lại.";
+
+      if (axios.isAxiosError(error)) {
+        const statusCode = error.response?.status;
+        const errorData = error.response?.data;
+
+        if (statusCode === 401) {
+          localStorage.removeItem("access");
+          localStorage.removeItem("access_token");
+          alert("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+          router.push("/login");
+          return;
+        }
+
+        message =
+          errorData?.error ||
+          errorData?.detail ||
+          errorData?.message ||
+          errorData?.non_field_errors?.[0] ||
+          (statusCode === 409
+            ? "Bạn đang có một hồ sơ học vụ đang được xử lý."
+            : message);
+      } else if (error instanceof Error) {
+        message = error.message;
+      }
+
+      alert(message);
+    } finally {
+      setIsSubmitting(false);
+      submitLockRef.current = false;
+    }
   };
 
   // Check form validation bước 5
@@ -999,6 +1218,188 @@ export default function MajorChangePage() {
       );
     }
   };
+
+  const formatSubmittedAt = (value: string) => {
+    if (!value) return "Vừa gửi";
+
+    const parsedDate = new Date(value);
+
+    if (Number.isNaN(parsedDate.getTime())) {
+      return value;
+    }
+
+    return new Intl.DateTimeFormat("vi-VN", {
+      hour: "2-digit",
+      minute: "2-digit",
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    }).format(parsedDate);
+  };
+
+  const loadSubmittedRequest = async () => {
+    if (!requestId) return;
+
+    const accessToken =
+      localStorage.getItem("access_token") ||
+      localStorage.getItem("access");
+
+    if (!accessToken) return;
+
+    try {
+      setIsLoadingSubmission(true);
+
+      const apiBase = (
+        process.env.NEXT_PUBLIC_API_URL ||
+        "http://127.0.0.1:8000/api"
+      ).replace(/\/$/, "");
+
+      const response = await axios.get(
+        `${apiBase}/requests/${requestId}/`,
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
+
+      const data = response.data || {};
+      const nextStatus = String(
+        data.status || data.request_status || "PENDING_REVIEW"
+      ) as SubmissionStatus;
+
+      setSubmissionStatus(nextStatus);
+
+      if (data.submitted_at) {
+        setSubmittedAt(String(data.submitted_at));
+      }
+
+      const history: RequestHistoryItem[] = Array.isArray(data.history)
+        ? data.history
+        : Array.isArray(data.request_history)
+          ? data.request_history
+          : [];
+
+      const latestSupplementRequest = history.find(
+        (item) =>
+          item.status === "ADDITIONAL_INFO_REQUIRED" &&
+          Boolean(item.notes)
+      );
+
+      setSupplementNote(
+        String(
+          latestSupplementRequest?.notes ||
+          data.additional_info_note ||
+          data.supplement_note ||
+          ""
+        )
+      );
+    } catch (error) {
+      console.error("Không thể tải trạng thái hồ sơ chuyển ngành:", error);
+    } finally {
+      setIsLoadingSubmission(false);
+    }
+  };
+
+  const handleSupplementFileChange = (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    setSupplementFile(event.target.files?.[0] || null);
+  };
+
+  const handleResubmit = async () => {
+    if (!requestId) {
+      alert("Không tìm thấy mã hồ sơ.");
+      return;
+    }
+
+    if (!supplementFile) {
+      alert("Vui lòng chọn tài liệu bổ sung.");
+      return;
+    }
+
+    const accessToken =
+      localStorage.getItem("access_token") ||
+      localStorage.getItem("access");
+
+    if (!accessToken) {
+      alert("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+      router.push("/login");
+      return;
+    }
+
+    try {
+      setIsResubmitting(true);
+
+      const apiBase = (
+        process.env.NEXT_PUBLIC_API_URL ||
+        "http://127.0.0.1:8000/api"
+      ).replace(/\/$/, "");
+
+      const data = new FormData();
+      data.append("file", supplementFile);
+
+      const response = await axios.post(
+        `${apiBase}/requests/${requestId}/resubmit/`,
+        data,
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
+
+      if (response.data?.success !== true) {
+        throw new Error(
+          response.data?.error ||
+          response.data?.detail ||
+          "Không thể nộp tài liệu bổ sung."
+        );
+      }
+
+      setSupplementFile(null);
+      setSupplementNote("");
+      setSubmissionStatus(
+        (response.data?.status ||
+          "PENDING_REVIEW") as SubmissionStatus
+      );
+
+      if (supplementInputRef.current) {
+        supplementInputRef.current.value = "";
+      }
+
+      alert("Đã nộp tài liệu bổ sung thành công.");
+      await loadSubmittedRequest();
+    } catch (error: unknown) {
+      console.error("Lỗi nộp tài liệu bổ sung:", error);
+
+      let message = "Không thể nộp tài liệu bổ sung.";
+
+      if (axios.isAxiosError(error)) {
+        message =
+          error.response?.data?.error ||
+          error.response?.data?.detail ||
+          error.response?.data?.message ||
+          message;
+      } else if (error instanceof Error) {
+        message = error.message;
+      }
+
+      alert(message);
+    } finally {
+      setIsResubmitting(false);
+    }
+  };
+
+  useEffect(() => {
+    if (
+      currentStep >= 7 &&
+      activeTab === "tracking" &&
+      requestId
+    ) {
+      void loadSubmittedRequest();
+    }
+  }, [activeTab, currentStep, requestId]);
 
   const updateFormData = (
     field: keyof MajorChangeProfile,
@@ -1702,96 +2103,358 @@ export default function MajorChangePage() {
             )}
 
             {/* ================= BƯỚC 7: HOÀN TẤT & THEO DÕI ================= */}
-            {currentStep >= 7 && (
-              <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 mt-6">
+            {currentStep >= 7 && (() => {
+              const statusMeta = getSubmissionStatusMeta(submissionStatus);
 
-                {/* Banner Thành công */}
-                <div className="ml-12 bg-green-50 border border-green-200 rounded-xl p-8 flex flex-col items-center justify-center text-center shadow-sm">
-                  <div className="bg-green-500 text-white rounded-full p-2 mb-4"><Check size={32} strokeWidth={3} /></div>
-                  <h3 className="font-bold text-green-700 text-lg mb-1">Hồ sơ đã được nộp thành công!</h3>
-                  <p className="text-green-600 text-sm mb-3">Phòng Đào tạo sẽ xem xét và phản hồi trong vòng <strong>07 - 10 ngày làm việc kể từ khi nhận đủ hồ sơ</strong>.</p>
-                  <p className="text-xs text-gray-500">Mã hồ sơ: <strong>CN-2026-0728A</strong></p>
-                </div>
-
-                {/* Tracking Dashboard */}
-                <div className="ml-12 bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-                  <div className="flex border-b border-gray-200 text-sm font-medium">
-                    <button onClick={() => setActiveTab('details')} className={`flex-1 py-4 transition-colors ${activeTab === 'details' ? 'text-[#0070F4] border-b-2 border-[#0070F4]' : 'text-gray-500 hover:text-gray-700 bg-gray-50'}`}>Xem chi tiết hồ sơ</button>
-                    <button onClick={() => setActiveTab('tracking')} className={`flex-1 py-4 transition-colors ${activeTab === 'tracking' ? 'text-[#0070F4] border-b-2 border-[#0070F4]' : 'text-gray-500 hover:text-gray-700 bg-gray-50'}`}>Theo dõi trạng thái</button>
+              return (
+                <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 mt-6">
+                  {/* Banner Thành công */}
+                  <div className="ml-12 bg-green-50 border border-green-200 rounded-xl p-8 flex flex-col items-center justify-center text-center shadow-sm">
+                    <div className="bg-green-500 text-white rounded-full p-2 mb-4">
+                      <Check size={32} strokeWidth={3} />
+                    </div>
+                    <h3 className="font-bold text-green-700 text-lg mb-1">
+                      Hồ sơ đã được nộp thành công!
+                    </h3>
+                    <p className="text-green-600 text-sm mb-3">
+                      Phòng Đào tạo sẽ xem xét và phản hồi trong vòng{" "}
+                      <strong>
+                        07 - 10 ngày làm việc kể từ khi nhận đủ hồ sơ
+                      </strong>.
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      Mã hồ sơ:{" "}
+                      <strong>{trackingCode || requestId || "Đang cập nhật"}</strong>
+                    </p>
                   </div>
 
-                  {activeTab === 'details' && (
-                    <div className="animate-in fade-in">
-                      <div className="bg-[#1E3A5F] text-white p-6 flex justify-between items-start">
-                        <div>
-                          <p className="text-xs text-blue-300 font-semibold mb-1 uppercase tracking-wider">Biên nhận kỹ thuật số</p>
-                          <h4 className="font-bold text-2xl mb-6">Đơn xin chuyển ngành</h4>
-                          <div className="flex gap-12">
-                            <div><p className="text-xs text-blue-300 mb-1">Mã hồ sơ</p><p className="font-semibold">CN-2026-0728A</p></div>
-                            <div><p className="text-xs text-blue-300 mb-1">Thời gian nộp</p><p className="font-semibold flex items-center gap-1.5"><Clock size={14} /> 14:22 - 28/07/2026</p></div>
-                          </div>
-                        </div>
-                        <span className="bg-yellow-500 text-yellow-950 text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5">⏳ Đang chờ xử lý</span>
-                      </div>
+                  {/* Tracking Dashboard */}
+                  <div className="ml-12 bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                    <div className="flex border-b border-gray-200 text-sm font-medium">
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("details")}
+                        className={`flex-1 py-4 transition-colors ${
+                          activeTab === "details"
+                            ? "text-[#0070F4] border-b-2 border-[#0070F4]"
+                            : "text-gray-500 hover:text-gray-700 bg-gray-50"
+                        }`}
+                      >
+                        Xem chi tiết hồ sơ
+                      </button>
 
-                      <div className="p-6">
-                        <h5 className="text-xs font-bold text-gray-400 mb-4 uppercase tracking-wider">Thông tin cá nhân & Nguyện vọng</h5>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                          <div className="bg-gray-50 rounded-lg p-3 border border-gray-100"><p className="text-xs text-gray-400 mb-1">Họ và tên</p><p className="font-semibold text-gray-800">{formData?.fullName}</p></div>
-                          <div className="bg-gray-50 rounded-lg p-3 border border-gray-100"><p className="text-xs text-gray-400 mb-1">Mã số sinh viên</p><p className="font-semibold text-gray-800">{formData?.studentId}</p></div>
-                          <div className="bg-gray-50 rounded-lg p-3 border border-gray-100"><p className="text-xs text-gray-400 mb-1">Ngày sinh</p><p className="font-semibold text-gray-800">{additionalInfo.dob}</p></div>
-                          <div className="bg-gray-50 rounded-lg p-3 border border-gray-100"><p className="text-xs text-gray-400 mb-1">Số CCCD</p><p className="font-semibold text-gray-800">{additionalInfo.cccd}</p></div>
-                        </div>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("tracking")}
+                        className={`flex-1 py-4 transition-colors ${
+                          activeTab === "tracking"
+                            ? "text-[#0070F4] border-b-2 border-[#0070F4]"
+                            : "text-gray-500 hover:text-gray-700 bg-gray-50"
+                        }`}
+                      >
+                        Theo dõi trạng thái
+                      </button>
+                    </div>
 
-                        <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex items-center justify-between mb-8">
-                          <div className="text-center flex-1">
-                            <p className="text-xs text-gray-500 mb-1">Chuyển từ</p><p className="font-bold text-slate-800">{formData?.currentMajor}</p>
-                          </div>
-                          <div className="px-4 text-blue-400"><ArrowLeftRight size={24} /></div>
-                          <div className="text-center flex-1">
-                            <p className="text-xs text-gray-500 mb-1">Chuyển đến</p><p className="font-bold text-[#0070F4]">{targetMajor}</p>
-                          </div>
-                        </div>
-
-                        <h5 className="text-xs font-bold text-gray-400 mb-4 uppercase tracking-wider">Cơ sở xét duyệt</h5>
-                        <div className="flex gap-3 mb-8">
-                          <span className="bg-[#1E293B] text-white px-4 py-2 rounded-lg text-sm font-semibold">{admissionMethod}</span>
-                          <span className="border border-gray-200 text-gray-600 px-4 py-2 rounded-lg text-sm">Điểm xét tuyển: <strong>{admissionScores.score}</strong></span>
-                          <span className="border border-gray-200 text-gray-600 px-4 py-2 rounded-lg text-sm">Ngưỡng đầu vào: <strong>{admissionScores.threshold}</strong></span>
-                        </div>
-
-                        <h5 className="text-xs font-bold text-gray-400 mb-4 uppercase tracking-wider">Danh sách tài liệu đính kèm (4 tệp)</h5>
-                        <div className="space-y-3">
-                          {[
-                            { name: 'Đơn xin chuyển ngành đào tạo', desc: 'Bản hoàn chỉnh có chữ ký số', icon: <FileText className="text-blue-500" />, bg: 'bg-blue-50' },
-                            { name: 'Giấy báo trúng tuyển', desc: 'Bản PDF gốc đã tải lên', icon: <FileText className="text-red-400" />, bg: 'bg-red-50' },
-                            { name: 'Giấy chứng nhận Tốt nghiệp THPT', desc: 'Bản scan đã tải lên', icon: <FileText className="text-green-500" />, bg: 'bg-green-50' },
-                            { name: 'Giấy xác nhận điều kiện học vụ', desc: 'Gồm ĐK thôi học & Kỷ luật', icon: <FileText className="text-purple-500" />, bg: 'bg-purple-50' },
-                          ].map((file, idx) => (
-                            <div key={idx} className="flex items-center justify-between p-3 border border-gray-100 rounded-lg hover:bg-gray-50 transition">
-                              <div className="flex items-center gap-4">
-                                <div className={`${file.bg} p-2 rounded-lg`}>{file.icon}</div>
-                                <div><p className="text-sm font-semibold text-gray-800">{file.name}</p><p className="text-xs text-gray-400">{file.desc}</p></div>
+                    {activeTab === "details" && (
+                      <div className="animate-in fade-in">
+                        <div className="bg-[#1E3A5F] text-white p-6 flex flex-col gap-5 md:flex-row md:justify-between md:items-start">
+                          <div>
+                            <p className="text-xs text-blue-300 font-semibold mb-1 uppercase tracking-wider">
+                              Biên nhận kỹ thuật số
+                            </p>
+                            <h4 className="font-bold text-2xl mb-6">
+                              Đơn xin chuyển ngành
+                            </h4>
+                            <div className="flex flex-col sm:flex-row gap-5 sm:gap-12">
+                              <div>
+                                <p className="text-xs text-blue-300 mb-1">
+                                  Mã hồ sơ
+                                </p>
+                                <p className="font-semibold">
+                                  {trackingCode || requestId || "Đang cập nhật"}
+                                </p>
                               </div>
-                              <div className="flex gap-2">
-                                <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded hover:bg-gray-100"><Eye size={14} /> Xem</button>
-                                <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded hover:bg-gray-100"><Download size={14} /> Tải</button>
+                              <div>
+                                <p className="text-xs text-blue-300 mb-1">
+                                  Thời gian nộp
+                                </p>
+                                <p className="font-semibold flex items-center gap-1.5">
+                                  <Clock size={14} />
+                                  {formatSubmittedAt(submittedAt)}
+                                </p>
                               </div>
                             </div>
-                          ))}
+                          </div>
+
+                          <span className={`${statusMeta.badgeClass} text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5`}>
+                            {statusMeta.label}
+                          </span>
+                        </div>
+
+                        <div className="p-6">
+                          <h5 className="text-xs font-bold text-gray-400 mb-4 uppercase tracking-wider">
+                            Thông tin cá nhân & Nguyện vọng
+                          </h5>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                            <div className="bg-gray-50 rounded-lg p-3 border border-gray-100">
+                              <p className="text-xs text-gray-400 mb-1">Họ và tên</p>
+                              <p className="font-semibold text-gray-800">{formData?.fullName}</p>
+                            </div>
+                            <div className="bg-gray-50 rounded-lg p-3 border border-gray-100">
+                              <p className="text-xs text-gray-400 mb-1">Mã số sinh viên</p>
+                              <p className="font-semibold text-gray-800">{formData?.studentId}</p>
+                            </div>
+                            <div className="bg-gray-50 rounded-lg p-3 border border-gray-100">
+                              <p className="text-xs text-gray-400 mb-1">Ngày sinh</p>
+                              <p className="font-semibold text-gray-800">{additionalInfo.dob}</p>
+                            </div>
+                            <div className="bg-gray-50 rounded-lg p-3 border border-gray-100">
+                              <p className="text-xs text-gray-400 mb-1">Số CCCD</p>
+                              <p className="font-semibold text-gray-800">{additionalInfo.cccd}</p>
+                            </div>
+                          </div>
+
+                          <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex items-center justify-between mb-8">
+                            <div className="text-center flex-1">
+                              <p className="text-xs text-gray-500 mb-1">Chuyển từ</p>
+                              <p className="font-bold text-slate-800">{formData?.currentMajor}</p>
+                            </div>
+                            <div className="px-4 text-blue-400">
+                              <ArrowLeftRight size={24} />
+                            </div>
+                            <div className="text-center flex-1">
+                              <p className="text-xs text-gray-500 mb-1">Chuyển đến</p>
+                              <p className="font-bold text-[#0070F4]">{targetMajor}</p>
+                            </div>
+                          </div>
+
+                          <h5 className="text-xs font-bold text-gray-400 mb-4 uppercase tracking-wider">
+                            Cơ sở xét duyệt
+                          </h5>
+                          <div className="flex flex-wrap gap-3 mb-8">
+                            <span className="bg-[#1E293B] text-white px-4 py-2 rounded-lg text-sm font-semibold">
+                              {admissionMethod}
+                            </span>
+                            <span className="border border-gray-200 text-gray-600 px-4 py-2 rounded-lg text-sm">
+                              Điểm xét tuyển: <strong>{admissionScores.score || "Không có"}</strong>
+                            </span>
+                            <span className="border border-gray-200 text-gray-600 px-4 py-2 rounded-lg text-sm">
+                              Ngưỡng đầu vào: <strong>{admissionScores.threshold || "Không có"}</strong>
+                            </span>
+                          </div>
+
+                          <h5 className="text-xs font-bold text-gray-400 mb-4 uppercase tracking-wider">
+                            Danh sách tài liệu đã nộp
+                          </h5>
+                          <div className="space-y-3">
+                            {[
+                              {
+                                name: "Đơn xin chuyển ngành",
+                                desc: signedApplicationFile?.name || "Đơn đã ký",
+                                icon: <FileText className="text-blue-500" />,
+                                bg: "bg-blue-50",
+                              },
+                              {
+                                name: "Giấy báo trúng tuyển",
+                                desc: admissionLetterFile?.name || "Tài liệu đã xác thực",
+                                icon: <FileText className="text-red-400" />,
+                                bg: "bg-red-50",
+                              },
+                              {
+                                name: "Giấy chứng nhận Tốt nghiệp THPT",
+                                desc: graduationCertificateFile?.name || "Tài liệu đã xác thực",
+                                icon: <FileText className="text-green-500" />,
+                                bg: "bg-green-50",
+                              },
+                            ].map((file) => (
+                              <div
+                                key={file.name}
+                                className="flex items-center justify-between p-3 border border-gray-100 rounded-lg"
+                              >
+                                <div className="flex items-center gap-4 min-w-0">
+                                  <div className={`${file.bg} p-2 rounded-lg shrink-0`}>
+                                    {file.icon}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className="text-sm font-semibold text-gray-800">
+                                      {file.name}
+                                    </p>
+                                    <p className="text-xs text-gray-400 truncate">
+                                      {file.desc}
+                                    </p>
+                                  </div>
+                                </div>
+                                <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-semibold">
+                                  Đã nộp
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              router.push(
+                                requestId
+                                  ? `/student/submissions/${requestId}`
+                                  : "/student/submissions"
+                              )
+                            }
+                            className="w-full mt-6 bg-[#0070F4] text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
+                          >
+                            Xem hồ sơ trong danh sách đã nộp
+                          </button>
                         </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {activeTab === 'tracking' && (
-                    <div className="p-8 flex items-center justify-center text-gray-500 text-sm">
-                      Tính năng theo dõi lộ trình đang được cập nhật...
-                    </div>
-                  )}
+                    {activeTab === "tracking" && (
+                      <div className="p-6 animate-in fade-in">
+                        <div className={`border rounded-xl p-5 ${statusMeta.panelClass}`}>
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                              <p className="text-xs font-semibold text-gray-500 uppercase">
+                                Trạng thái hiện tại
+                              </p>
+                              <h4 className="font-bold text-gray-800 mt-1">
+                                {statusMeta.label}
+                              </h4>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => void loadSubmittedRequest()}
+                              disabled={isLoadingSubmission}
+                              className="border border-gray-300 bg-white text-gray-700 px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
+                            >
+                              {isLoadingSubmission
+                                ? "Đang cập nhật..."
+                                : "Cập nhật trạng thái"}
+                            </button>
+                          </div>
+                        </div>
+
+                        {submissionStatus === "PENDING_REVIEW" && (
+                          <div className="mt-4 border border-yellow-200 bg-yellow-50 rounded-xl p-5">
+                            <p className="font-semibold text-yellow-800">
+                              Hồ sơ đang chờ Phòng Đào tạo tiếp nhận
+                            </p>
+                            <p className="text-sm text-yellow-700 mt-1">
+                              Khi hồ sơ được duyệt, từ chối hoặc yêu cầu bổ sung,
+                              trạng thái sẽ hiển thị tại đây.
+                            </p>
+                          </div>
+                        )}
+
+                        {submissionStatus === "IN_PROGRESS" && (
+                          <div className="mt-4 border border-blue-200 bg-blue-50 rounded-xl p-5">
+                            <p className="font-semibold text-blue-800">
+                              Phòng Đào tạo đang xử lý hồ sơ
+                            </p>
+                          </div>
+                        )}
+
+                        {submissionStatus === "APPROVED" && (
+                          <div className="mt-4 border border-green-200 bg-green-50 rounded-xl p-5">
+                            <div className="flex items-start gap-3">
+                              <CheckCircle2 className="text-green-600 shrink-0" />
+                              <div>
+                                <p className="font-semibold text-green-800">
+                                  Hồ sơ chuyển ngành đã được phê duyệt
+                                </p>
+                                <p className="text-sm text-green-700 mt-1">
+                                  Bạn có thể mở trang chi tiết hồ sơ để xem toàn bộ lịch sử xử lý.
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {submissionStatus === "REJECTED" && (
+                          <div className="mt-4 border border-red-200 bg-red-50 rounded-xl p-5">
+                            <div className="flex items-start gap-3">
+                              <X className="text-red-600 shrink-0" />
+                              <div>
+                                <p className="font-semibold text-red-800">
+                                  Hồ sơ đã bị từ chối
+                                </p>
+                                {supplementNote && (
+                                  <p className="text-sm text-red-700 mt-1">
+                                    {supplementNote}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {submissionStatus === "ADDITIONAL_INFO_REQUIRED" && (
+                          <div className="mt-4 border border-orange-200 bg-orange-50 rounded-xl p-5">
+                            <div className="flex items-start gap-3">
+                              <AlertTriangle className="text-orange-600 shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <p className="font-semibold text-orange-800">
+                                  Phòng Đào tạo yêu cầu bổ sung hồ sơ
+                                </p>
+                                <p className="text-sm text-orange-700 mt-2">
+                                  {supplementNote ||
+                                    "Vui lòng bổ sung tài liệu theo yêu cầu của Phòng Đào tạo."}
+                                </p>
+
+                                <input
+                                  ref={supplementInputRef}
+                                  type="file"
+                                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                                  onChange={handleSupplementFileChange}
+                                  className="hidden"
+                                />
+
+                                <button
+                                  type="button"
+                                  onClick={() => supplementInputRef.current?.click()}
+                                  className="w-full mt-4 border-2 border-dashed border-orange-300 bg-white rounded-xl p-5 text-sm font-semibold text-orange-700 hover:bg-orange-50 transition"
+                                >
+                                  <Upload size={22} className="inline mr-2" />
+                                  {supplementFile
+                                    ? supplementFile.name
+                                    : "Chọn tài liệu bổ sung"}
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={handleResubmit}
+                                  disabled={!supplementFile || isResubmitting}
+                                  className="w-full mt-3 bg-[#0070F4] text-white py-3 rounded-lg font-semibold disabled:opacity-50"
+                                >
+                                  {isResubmitting
+                                    ? "Đang nộp bổ sung..."
+                                    : "Nộp tài liệu bổ sung"}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            router.push(
+                              requestId
+                                ? `/student/submissions/${requestId}`
+                                : "/student/submissions"
+                            )
+                          }
+                          className="w-full mt-5 border border-gray-300 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-50 transition"
+                        >
+                          Mở trang chi tiết hồ sơ
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             <div ref={chatEndRef} />
           </div>

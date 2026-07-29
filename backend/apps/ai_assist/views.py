@@ -6,7 +6,8 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from django.http import HttpResponse
 from django.utils import timezone
 import uuid
-
+from django.db import transaction
+from django.utils import timezone
 from apps.students.models import Student
 from apps.requests.models import Request as StudentRequest, DropoutRequest, RequestHistory
 
@@ -672,6 +673,348 @@ class ScanResumeDocumentAPI(APIView):
                 'error': str(e)
             })
 
+class SubmitMajorChangeApplication(APIView):
+    permission_classes = [AllowAny]
+
+    @transaction.atomic
+    def post(self, request):
+        student = _get_authenticated_student(request)
+
+        if not student:
+            return Response(
+                {
+                    'error':
+                    'Bạn cần đăng nhập để thực hiện.'
+                },
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        # =========================
+        # LẤY DỮ LIỆU TỪ FRONTEND
+        # =========================
+
+        transfer_reason = (
+            request.data.get('transfer_reason') or
+            request.data.get('reason') or
+            ''
+        ).strip()
+
+        target_major = (
+            request.data.get('target_major') or ''
+        ).strip()
+
+        enrollment_year = (
+            request.data.get('enrollment_year') or ''
+        ).strip()
+
+        training_type = (
+            request.data.get('training_type') or ''
+        ).strip()
+
+        admission_method = (
+            request.data.get('admission_method') or ''
+        ).strip()
+
+        admission_combo = (
+            request.data.get('admission_combo') or ''
+        ).strip()
+
+        admission_score = (
+            request.data.get('admission_score') or ''
+        ).strip()
+
+        priority_score = (
+            request.data.get('priority_score') or ''
+        ).strip()
+
+        admission_threshold = (
+            request.data.get('admission_threshold') or ''
+        ).strip()
+
+        place_of_birth = (
+            request.data.get('place_of_birth') or ''
+        ).strip()
+
+        phone = (
+            request.data.get('phone') or ''
+        ).strip()
+
+        id_number = (
+            request.data.get('id_number') or ''
+        ).strip()
+
+        id_issue_date = (
+            request.data.get('id_issue_date') or ''
+        ).strip()
+
+        id_issue_place = (
+            request.data.get('id_issue_place') or ''
+        ).strip()
+
+        evidence_note = (
+            request.data.get('evidence_note') or ''
+        ).strip()
+
+        if not target_major:
+            return Response(
+                {
+                    'error':
+                    'Vui lòng chọn ngành muốn chuyển đến.'
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if not transfer_reason:
+            return Response(
+                {
+                    'error':
+                    'Vui lòng nhập lý do chuyển ngành.'
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Đơn chuyển ngành đã ký
+        signed_application = request.FILES.get('file')
+
+        if not signed_application:
+            return Response(
+                {
+                    'error':
+                    'Vui lòng tải lên đơn chuyển ngành đã ký.'
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Hai file ban đầu, nếu frontend gửi lên
+        admission_letter = request.FILES.get(
+            'admission_letter'
+        )
+
+        graduation_certificate = request.FILES.get(
+            'graduation_certificate'
+        )
+
+        from apps.requests.models import (
+            Request as StudentRequest,
+            MajorChangeRequest,
+            RequestHistory,
+            RequestDocument,
+        )
+
+        # =================================
+        # KIỂM TRA HỒ SƠ ĐANG ĐƯỢC XỬ LÝ
+        # =================================
+
+        existing = StudentRequest.objects.filter(
+            student=student
+        ).exclude(
+            status__in=[
+                StudentRequest.Status.APPROVED,
+                StudentRequest.Status.REJECTED,
+                StudentRequest.Status.CANCELLED,
+            ]
+        ).first()
+
+        if existing:
+            if (
+                existing.request_type ==
+                StudentRequest.RequestType.MAJOR_CHANGE
+                and existing.status ==
+                StudentRequest.Status.DRAFT
+            ):
+                req = existing
+
+                req.status = (
+                    StudentRequest.Status.PENDING_REVIEW
+                )
+
+                req.submitted_at = timezone.now()
+
+                req.save(
+                    update_fields=[
+                        'status',
+                        'submitted_at',
+                        'updated_at',
+                    ]
+                )
+
+                # Nếu bản nháp đã có file thì xóa file cũ
+                # để tránh bị trùng khi nộp lại.
+                req.documents.filter(
+                    document_type=(
+                        RequestDocument
+                        .DocumentType
+                        .INITIAL
+                    )
+                ).delete()
+
+            else:
+                return Response(
+                    {
+                        'error':
+                        'Bạn đang có một hồ sơ học vụ đang được xử lý.'
+                    },
+                    status=status.HTTP_409_CONFLICT
+                )
+
+        else:
+            req = StudentRequest.objects.create(
+                student=student,
+
+                request_type=(
+                    StudentRequest
+                    .RequestType
+                    .MAJOR_CHANGE
+                ),
+
+                status=(
+                    StudentRequest
+                    .Status
+                    .PENDING_REVIEW
+                ),
+
+                submitted_at=timezone.now()
+            )
+
+        # =================================
+        # LƯU CHI TIẾT CHUYỂN NGÀNH
+        # =================================
+
+        reason_parts = [
+            f"Ngành muốn chuyển đến: {target_major}",
+            f"Lý do chuyển ngành: {transfer_reason}",
+        ]
+
+        if enrollment_year:
+            reason_parts.append(
+                f"Năm nhập học: {enrollment_year}"
+            )
+
+        if training_type:
+            reason_parts.append(
+                f"Hình thức đào tạo: {training_type}"
+            )
+
+        if admission_method:
+            reason_parts.append(
+                f"Phương thức xét tuyển: {admission_method}"
+            )
+
+        if admission_combo:
+            reason_parts.append(
+                f"Tổ hợp xét tuyển: {admission_combo}"
+            )
+
+        if admission_score:
+            reason_parts.append(
+                f"Điểm xét tuyển: {admission_score}"
+            )
+
+        if priority_score:
+            reason_parts.append(
+                f"Điểm ưu tiên: {priority_score}"
+            )
+
+        if admission_threshold:
+            reason_parts.append(
+                f"Ngưỡng đầu vào: {admission_threshold}"
+            )
+
+        if place_of_birth:
+            reason_parts.append(
+                f"Nơi sinh: {place_of_birth}"
+            )
+
+        if phone:
+            reason_parts.append(
+                f"Số điện thoại: {phone}"
+            )
+
+        if id_number:
+            reason_parts.append(
+                f"Số CCCD: {id_number}"
+            )
+
+        if id_issue_date:
+            reason_parts.append(
+                f"Ngày cấp CCCD: {id_issue_date}"
+            )
+
+        if id_issue_place:
+            reason_parts.append(
+                f"Nơi cấp CCCD: {id_issue_place}"
+            )
+
+        if evidence_note:
+            reason_parts.append(
+                f"Tài liệu kèm theo: {evidence_note}"
+            )
+
+        full_reason = "\n".join(reason_parts)
+
+        MajorChangeRequest.objects.update_or_create(
+            request=req,
+            defaults={
+                'reason': full_reason
+            }
+        )
+
+        # =================================
+        # LƯU CÁC FILE HỒ SƠ
+        # =================================
+
+        RequestDocument.objects.create(
+            request=req,
+            file=signed_application,
+            document_type=(
+                RequestDocument.DocumentType.INITIAL
+            )
+        )
+
+        if admission_letter:
+            RequestDocument.objects.create(
+                request=req,
+                file=admission_letter,
+                document_type=(
+                    RequestDocument.DocumentType.INITIAL
+                )
+            )
+
+        if graduation_certificate:
+            RequestDocument.objects.create(
+                request=req,
+                file=graduation_certificate,
+                document_type=(
+                    RequestDocument.DocumentType.INITIAL
+                )
+            )
+
+        # =================================
+        # LƯU LỊCH SỬ
+        # =================================
+
+        RequestHistory.objects.create(
+            request=req,
+            status=req.status,
+            actor=request.user,
+            notes='Sinh viên nộp hồ sơ xin chuyển ngành.'
+        )
+
+        tracking_code = (
+            f"CN-{str(req.id).split('-')[0].upper()}"
+        )
+
+        return Response(
+            {
+                'success': True,
+                'trackingCode': tracking_code,
+                'requestId': str(req.id),
+                'status': req.status,
+            },
+            status=status.HTTP_201_CREATED
+        )
+
+    
 class SubmitResumeApplication(APIView):
     permission_classes = [AllowAny]
 
