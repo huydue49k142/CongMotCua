@@ -1,9 +1,66 @@
 "use client";
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Search, Filter, ClipboardList, AlertCircle, Ban, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { requestService } from '@/services/request.service';
 
 export default function StaffDashboardPage() {
+  const [stats, setStats] = useState({ pending: 0, warning: 0, rejected: 0, completed: 0 });
+  const [requests, setRequests] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [statsData, requestsData] = await Promise.all([
+          requestService.getStaffStats(),
+          requestService.getStaffRequests()
+        ]);
+        setStats(statsData);
+        setRequests(requestsData);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'PENDING_REVIEW':
+        return <span className="inline-flex items-center px-3 py-1 rounded-md text-xs font-semibold bg-blue-50 text-blue-600 border border-blue-200">Chờ tiếp nhận</span>;
+      case 'ADDITIONAL_INFO_REQUIRED':
+        return <span className="inline-flex items-center px-3 py-1 rounded-md text-xs font-semibold bg-red-50 text-red-600 border border-red-200 whitespace-nowrap">Yêu cầu bổ sung</span>;
+      case 'APPROVED':
+        return <span className="inline-flex items-center px-3 py-1 rounded-md text-xs font-semibold bg-emerald-100 text-emerald-700 border border-emerald-300">Đã duyệt</span>;
+      case 'REJECTED':
+      case 'CANCELLED':
+        return <span className="inline-flex items-center px-3 py-1 rounded-md text-xs font-semibold bg-gray-100 text-gray-700 border border-gray-300">Đã hủy/Từ chối</span>;
+      case 'IN_PROGRESS':
+        return <span className="inline-flex items-center px-3 py-1 rounded-md text-xs font-semibold bg-yellow-50 text-yellow-600 border border-yellow-200">Đang xử lý</span>;
+      default:
+        return <span className="inline-flex items-center px-3 py-1 rounded-md text-xs font-semibold bg-gray-50 text-gray-600 border border-gray-200">{status}</span>;
+    }
+  };
+
+  const getRequestTypeName = (type: string) => {
+    const types: Record<string, string> = {
+      'MAJOR_CHANGE': 'Chuyển ngành',
+      'ACADEMIC_LEAVE': 'Bảo lưu',
+      'RESUME_STUDIES': 'Xin học tiếp',
+      'DROPOUT': 'Thôi học'
+    };
+    return types[type] || type;
+  };
+
+  const formatDate = (dateString: string) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('vi-VN');
+  };
+
   return (
     <div className="max-w-6xl mx-auto pb-10">
       <h1 className="text-2xl font-bold text-[#18538E] mb-6">Danh sách hồ sơ học vụ</h1>
@@ -18,7 +75,7 @@ export default function StaffDashboardPage() {
             <span className="text-xs font-semibold text-slate-700">Cần xử lý</span>
           </div>
           <div>
-            <div className="text-3xl font-bold text-[#0070F4] leading-none mb-1">10</div>
+            <div className="text-3xl font-bold text-[#0070F4] leading-none mb-1">{stats.pending}</div>
             <div className="text-xs text-slate-500 font-medium">Chờ tiếp nhận</div>
           </div>
         </div>
@@ -31,7 +88,7 @@ export default function StaffDashboardPage() {
             <span className="text-xs font-semibold text-slate-700">Cảnh báo</span>
           </div>
           <div>
-            <div className="text-3xl font-bold text-red-500 leading-none mb-1">10</div>
+            <div className="text-3xl font-bold text-red-500 leading-none mb-1">{stats.warning}</div>
             <div className="text-xs text-slate-500 font-medium">Yêu cầu bổ sung</div>
           </div>
         </div>
@@ -44,7 +101,7 @@ export default function StaffDashboardPage() {
             <span className="text-xs font-semibold text-slate-700">Từ chối</span>
           </div>
           <div>
-            <div className="text-3xl font-bold text-slate-800 leading-none mb-1">00</div>
+            <div className="text-3xl font-bold text-slate-800 leading-none mb-1">{stats.rejected < 10 && stats.rejected > 0 ? `0${stats.rejected}` : (stats.rejected === 0 ? '00' : stats.rejected)}</div>
             <div className="text-xs text-slate-500 font-medium">Đã hủy</div>
           </div>
         </div>
@@ -57,7 +114,7 @@ export default function StaffDashboardPage() {
             <span className="text-xs font-semibold text-slate-700">Đã hoàn tất</span>
           </div>
           <div>
-            <div className="text-3xl font-bold text-emerald-600 leading-none mb-1">10</div>
+            <div className="text-3xl font-bold text-emerald-600 leading-none mb-1">{stats.completed}</div>
             <div className="text-xs text-slate-500 font-medium">Đã duyệt</div>
           </div>
         </div>
@@ -104,89 +161,56 @@ export default function StaffDashboardPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
-            {/* Row 1 */}
-            <tr className="hover:bg-slate-50 transition-colors">
-              <td className="py-4 px-6 font-medium text-[#0070F4]">HS000001</td>
-              <td className="py-4 px-6 font-bold text-slate-800">Nguyễn Văn An</td>
-              <td className="py-4 px-6 text-slate-700">231121514241</td>
-              <td className="py-4 px-6 text-slate-700">Chuyển ngành</td>
-              <td className="py-4 px-6 text-slate-600">12/10/2023</td>
-              <td className="py-4 px-6">
-                <span className="inline-flex items-center px-3 py-1 rounded-md text-xs font-semibold bg-red-50 text-red-600 border border-red-200">
-                  Đã bổ sung
-                </span>
-              </td>
-            </tr>
-            {/* Row 2 */}
-            <tr className="hover:bg-slate-50 transition-colors">
-              <td className="py-4 px-6 font-medium text-[#0070F4]">HS000002</td>
-              <td className="py-4 px-6 font-bold text-slate-800">Trần Thị B</td>
-              <td className="py-4 px-6 text-slate-700">231121514245</td>
-              <td className="py-4 px-6 text-slate-700">Bảo lưu</td>
-              <td className="py-4 px-6 text-slate-600">14/10/2023</td>
-              <td className="py-4 px-6">
-                <span className="inline-flex items-center px-3 py-1 rounded-md text-xs font-semibold bg-red-50 text-red-600 border border-red-200 whitespace-nowrap">
-                  Yêu cầu bổ sung
-                </span>
-              </td>
-            </tr>
-            {/* Row 3 */}
-            <tr className="hover:bg-slate-50 transition-colors">
-              <td className="py-4 px-6 font-medium text-[#0070F4]">HS000003</td>
-              <td className="py-4 px-6 font-bold text-slate-800">Lê Văn C</td>
-              <td className="py-4 px-6 text-slate-700">231121514247</td>
-              <td className="py-4 px-6 text-slate-700">Xin học tiếp</td>
-              <td className="py-4 px-6 text-slate-600">15/10/2023</td>
-              <td className="py-4 px-6">
-                <span className="inline-flex items-center px-3 py-1 rounded-md text-xs font-semibold bg-emerald-100 text-emerald-700 border border-emerald-300">
-                  Đã duyệt
-                </span>
-              </td>
-            </tr>
-            {/* Row 4 */}
-            <tr className="hover:bg-slate-50 transition-colors bg-[#F4F9FE]/30">
-              <td className="py-4 px-6 font-medium text-[#0070F4]">HS000004</td>
-              <td className="py-4 px-6">
-                <div className="font-bold text-slate-800 flex items-center gap-2">
-                  Phạm Hoàng Long
-                  <span className="h-2 w-2 rounded-full bg-[#0070F4]"></span>
-                </div>
-              </td>
-              <td className="py-4 px-6 text-slate-700">231121514246</td>
-              <td className="py-4 px-6 text-slate-700">Thôi học</td>
-              <td className="py-4 px-6 text-slate-600">Vừa xong</td>
-              <td className="py-4 px-6">
-                <span className="inline-flex items-center px-3 py-1 rounded-md text-xs font-semibold bg-blue-50 text-blue-600 border border-blue-200">
-                  Chờ tiếp nhận
-                </span>
-              </td>
-            </tr>
+            {isLoading ? (
+              <tr>
+                <td colSpan={6} className="py-8 text-center text-slate-500">Đang tải dữ liệu...</td>
+              </tr>
+            ) : requests.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="py-8 text-center text-slate-500">Không có hồ sơ nào</td>
+              </tr>
+            ) : (
+              requests.map((request, index) => (
+                <tr 
+                  key={request.id} 
+                  onClick={() => window.location.href = `/staff/requests/${request.id}`}
+                  className={`hover:bg-slate-50 transition-colors cursor-pointer ${index % 2 !== 0 ? 'bg-[#F4F9FE]/30' : ''}`}
+                >
+                  <td className="py-4 px-6 font-medium text-[#0070F4]">
+                    HS{String(index + 1).padStart(6, '0')}
+                  </td>
+                  <td className="py-4 px-6 font-bold text-slate-800">{request.student_name}</td>
+                  <td className="py-4 px-6 text-slate-700">{request.student_code}</td>
+                  <td className="py-4 px-6 text-slate-700">{getRequestTypeName(request.request_type)}</td>
+                  <td className="py-4 px-6 text-slate-600">{formatDate(request.submitted_at || request.created_at)}</td>
+                  <td className="py-4 px-6">
+                    {getStatusBadge(request.status)}
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
 
         {/* Pagination */}
-        <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-          <div className="text-xs text-slate-500 font-medium">
-            Hiển thị 30 hồ sơ
+        {!isLoading && requests.length > 0 && (
+          <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+            <div className="text-xs text-slate-500 font-medium">
+              Hiển thị {requests.length} hồ sơ
+            </div>
+            <div className="flex items-center gap-1">
+              <button className="h-8 w-8 flex items-center justify-center border border-gray-200 rounded-md text-slate-500 hover:bg-slate-50">
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <button className="h-8 w-8 flex items-center justify-center border border-transparent bg-[#18538E] text-white rounded-md text-sm font-medium">
+                1
+              </button>
+              <button className="h-8 w-8 flex items-center justify-center border border-gray-200 rounded-md text-slate-500 hover:bg-slate-50">
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-1">
-            <button className="h-8 w-8 flex items-center justify-center border border-gray-200 rounded-md text-slate-500 hover:bg-slate-50">
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <button className="h-8 w-8 flex items-center justify-center border border-transparent bg-[#18538E] text-white rounded-md text-sm font-medium">
-              1
-            </button>
-            <button className="h-8 w-8 flex items-center justify-center border border-transparent text-slate-700 hover:bg-slate-50 rounded-md text-sm font-medium">
-              2
-            </button>
-            <button className="h-8 w-8 flex items-center justify-center border border-transparent text-slate-700 hover:bg-slate-50 rounded-md text-sm font-medium">
-              3
-            </button>
-            <button className="h-8 w-8 flex items-center justify-center border border-gray-200 rounded-md text-slate-500 hover:bg-slate-50">
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );

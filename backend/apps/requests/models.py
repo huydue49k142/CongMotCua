@@ -66,7 +66,7 @@ class AcademicLeaveRequest(models.Model):
 
 class ResumeStudiesRequest(models.Model):
     request = models.OneToOneField(Request, on_delete=models.CASCADE, primary_key=True, related_name="resume_studies_request")
-    reason = models.TextField(verbose_name="Lý do tiếp tục học")
+    courses = models.JSONField(verbose_name="Danh sách học phần dự kiến", default=list)
     
     class Meta:
         verbose_name = "Yêu cầu Tiếp tục học"
@@ -92,3 +92,26 @@ class RequestHistory(models.Model):
         verbose_name = "Lịch sử xử lý"
         verbose_name_plural = "Lịch sử xử lý"
         ordering = ['-timestamp']
+
+class RequestDocument(models.Model):
+    class DocumentType(models.TextChoices):
+        INITIAL = "INITIAL", "Hồ sơ ban đầu"
+        SUPPLEMENTARY = "SUPPLEMENTARY", "Hồ sơ bổ sung"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    request = models.ForeignKey(Request, on_delete=models.CASCADE, related_name="documents")
+    file = models.FileField(upload_to="request_documents/", max_length=255)
+    document_type = models.CharField(max_length=50, choices=DocumentType.choices, default=DocumentType.INITIAL)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    file_name = models.CharField(max_length=255, blank=True)
+
+    def save(self, *args, **kwargs):
+        if self.file and not self.file_name:
+            import os
+            self.file_name = os.path.basename(self.file.name)
+        super().save(*args, **kwargs)
+
+    class Meta:
+        verbose_name = "Tài liệu đính kèm"
+        verbose_name_plural = "Tài liệu đính kèm"
+        ordering = ['uploaded_at']

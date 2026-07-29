@@ -81,7 +81,7 @@ class DownloadDropoutFormAPIView(APIView):
         )
 
         # Dữ liệu lấy trực tiếp từ database.
-        phone = str(student.phone or "").strip()
+        phone = str(student.phone or "Chưa cập nhật").strip()
         email = str(request.user.email or "").strip()
 
         class_name = str(
@@ -221,7 +221,7 @@ class DownloadRetentionFormAPIView(APIView):
             user=request.user,
         )
 
-        phone = str(student.phone or "").strip()
+        phone = str(student.phone or "Chưa cập nhật").strip()
         email = str(request.user.email or "").strip()
 
         class_name = str(
@@ -369,9 +369,14 @@ class DownloadResumeFormAPIView(APIView):
             user=request.user,
         )
 
-        phone = str(
-            student.phone or ""
+        submitted_phone = str(
+            request.data.get("phone", "")
         ).strip()
+
+        phone = (
+            submitted_phone
+            or str(student.phone or "Chưa cập nhật").strip()
+        )
 
         email = str(
             request.user.email or ""
@@ -563,7 +568,7 @@ class DownloadMajorChangeFormAPIView(APIView):
 
         phone = (
             submitted_phone
-            or str(student.phone or "").strip()
+            or str(student.phone or "Chưa cập nhật").strip()
         )
 
         today = timezone.localdate()

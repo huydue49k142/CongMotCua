@@ -26,5 +26,21 @@ export const notificationService = {
     await axios.post(`${API_URL}/notifications/${id}/read/`, {}, {
       headers: { Authorization: `Bearer ${token}` }
     });
+  },
+
+  async markAllAsRead(): Promise<void> {
+    const token = authService.getAccessToken();
+    if (!token) return;
+    await axios.post(`${API_URL}/notifications/mark-all-read/`, {}, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+  },
+
+  async deleteAll(): Promise<void> {
+    const token = authService.getAccessToken();
+    if (!token) return;
+    await axios.delete(`${API_URL}/notifications/delete-all/`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
   }
 };

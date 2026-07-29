@@ -45,3 +45,41 @@ export const getResumeProfile = async (): Promise<ResumeProfile> => {
     throw error;
   }
 };
+
+export const scanResumeDocument = async (file: File): Promise<{format_valid: boolean; title_valid: boolean; signature_present: boolean; error?: string}> => {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const response = await axios.post(`${API_URL}/thoi-hoc/scan-resume/`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Lỗi khi scan AI:', error);
+    throw error;
+  }
+};
+
+export const submitResumeApplication = async (courses: {code: string; name: string; credits: string}[], file: File): Promise<{success: boolean; trackingCode: string; requestId: string; error?: string}> => {
+  try {
+    const token = authService.getAccessToken();
+    const formData = new FormData();
+    formData.append('courses', JSON.stringify(courses));
+    formData.append('file', file);
+
+    const response = await axios.post(`${API_URL}/thoi-hoc/submit-resume/`, formData, {
+      headers: { 
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error('Lỗi khi nộp hồ sơ:', error);
+    if (error.response && error.response.data) {
+      return error.response.data;
+    }
+    throw error;
+  }
+};
