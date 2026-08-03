@@ -10,3 +10,4 @@ pdf2image
 rapidfuzz
 gunicorn
 whitenoise
+google-genai
