@@ -11,3 +11,4 @@ rapidfuzz
 gunicorn
 whitenoise
 google-genai
+docxtpl
