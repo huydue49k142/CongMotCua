@@ -7,7 +7,7 @@ interface ChatInterfaceProps {
   title: string;
   description: string;
   Icon: React.ElementType;
-  welcomeMessage?: string;
+  welcomeMessage?: React.ReactNode;
   welcomePrimaryLabel?: string;
   welcomeSecondaryLabel?: string;
   welcomeSecondaryHref?: string;
