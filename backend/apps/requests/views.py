@@ -22,9 +22,9 @@ class StaffDashboardStatsAPIView(APIView):
     permission_classes = [StaffPermission]
 
     def get(self, request, format=None):
-        pending = Request.objects.filter(status=Request.Status.PENDING_REVIEW).count()
+        pending = Request.objects.filter(status=Request.Status.PENDING).count()
         warning = Request.objects.filter(status=Request.Status.ADDITIONAL_INFO_REQUIRED).count()
-        rejected = Request.objects.filter(status__in=[Request.Status.REJECTED, Request.Status.CANCELLED]).count()
+        rejected = Request.objects.filter(status__in=[Request.Status.REJECTED, Request.Status.DELETED]).count()
         completed = Request.objects.filter(status=Request.Status.APPROVED).count()
         
         return Response({
@@ -76,10 +76,11 @@ class RequestDetailAPIView(generics.RetrieveDestroyAPIView):
         return Request.objects.none()
 
     def perform_destroy(self, instance):
-        if instance.status != Request.Status.PENDING_REVIEW:
+        if instance.status != Request.Status.PENDING:
             from rest_framework.exceptions import ValidationError
-            raise ValidationError("Chỉ có thể xóa hồ sơ ở trạng thái Chờ tiếp nhận.")
-        instance.delete()
+            raise ValidationError("Chỉ có thể xóa hồ sơ ở trạng thái Chờ xử lý.")
+        instance.status = Request.Status.DELETED
+        instance.save()
 
 class StaffRequestDetailAPIView(generics.RetrieveAPIView):
     """
@@ -171,8 +172,8 @@ class StudentResubmitAPIView(APIView):
             document_type=RequestDocument.DocumentType.SUPPLEMENTARY
         )
 
-        # Trạng thái chuyển về IN_PROGRESS hoặc PENDING_REVIEW
-        new_status = Request.Status.PENDING_REVIEW
+        # Trạng thái chuyển về PENDING
+        new_status = Request.Status.PENDING
         req.status = new_status
         req.save()
 

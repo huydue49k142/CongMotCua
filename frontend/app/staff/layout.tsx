@@ -26,9 +26,7 @@ export default function StaffLayout({ children }: { children: React.ReactNode })
         <div>
           {/* Logo */}
           <div className="h-16 flex items-center px-6 border-b border-transparent">
-            <div className="bg-[#18538E] p-1.5 rounded-md text-white mr-3">
-              <GraduationCap className="h-6 w-6" />
-            </div>
+            <img src="/Logo_DUE.jpg" alt="Logo DUE" className="w-10 h-10 object-contain rounded-md mr-3 bg-white" />
             <div>
               <div className="font-bold text-[#18538E] text-lg leading-tight uppercase">Cổng Dịch Vụ</div>
               <div className="text-xs text-slate-500">Phòng Đào tạo</div>

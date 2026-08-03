@@ -20,14 +20,14 @@ const getStatusConfig = (status: string) => {
     case 'APPROVED':
       return { label: 'Đã duyệt', icon: <CheckCircle className="h-3.5 w-3.5 mr-1.5" />, color: 'bg-[#e6f4ea] text-[#137333]' };
     case 'REJECTED':
-    case 'CANCELLED':
-      return { label: status === 'REJECTED' ? 'Từ chối' : 'Đã hủy', icon: <XCircle className="h-3.5 w-3.5 mr-1.5" />, color: 'bg-[#FF4D4F] text-white' };
+      return { label: 'Từ chối', icon: <XCircle className="h-3.5 w-3.5 mr-1.5" />, color: 'bg-[#FF4D4F] text-white' };
+    case 'DELETED':
+      return { label: 'Đã xóa', icon: <XCircle className="h-3.5 w-3.5 mr-1.5" />, color: 'bg-gray-200 text-gray-700' };
     case 'ADDITIONAL_INFO_REQUIRED':
       return { label: 'Yêu cầu bổ sung', icon: <AlertCircle className="h-3.5 w-3.5 mr-1.5" />, color: 'bg-orange-100 text-orange-700' };
-    case 'PENDING_REVIEW':
-    case 'IN_PROGRESS':
+    case 'PENDING':
     default:
-      return { label: status === 'PENDING_REVIEW' ? 'Chờ tiếp nhận' : 'Đang xử lý', icon: <Clock className="h-3.5 w-3.5 mr-1.5" />, color: 'bg-[#91D5FF] text-[#003A8C]' };
+      return { label: 'Chờ xử lý', icon: <Clock className="h-3.5 w-3.5 mr-1.5" />, color: 'bg-[#91D5FF] text-[#003A8C]' };
   }
 };
 
@@ -35,14 +35,16 @@ const RequestCard = ({ submission, onDeleteClick }: { submission: ProcedureReque
   const statusConfig = getStatusConfig(submission.status);
   const typeLabel = getRequestTypeLabel(submission.request_type);
   const dateStr = new Date(submission.created_at).toLocaleDateString('vi-VN');
-  const canDelete = submission.status === 'PENDING_REVIEW';
+  const canDelete = submission.status === 'PENDING';
   const deleteTooltip = canDelete
-    ? 'Hủy hồ sơ'
-    : submission.status === 'IN_PROGRESS'
-    ? 'Hồ sơ đang được phòng đào tạo xử lý, không thể hủy'
+    ? 'Xóa hồ sơ'
     : submission.status === 'APPROVED'
-    ? 'Hồ sơ đã được duyệt, không thể hủy'
-    : 'Hồ sơ đã hoàn tất, không thể hủy';
+    ? 'Hồ sơ đã được duyệt, không thể xóa'
+    : submission.status === 'REJECTED'
+    ? 'Hồ sơ đã bị từ chối, không thể xóa'
+    : submission.status === 'DELETED'
+    ? 'Hồ sơ đã được xóa'
+    : 'Hồ sơ đang yêu cầu bổ sung, không thể xóa';
   const shortId = submission.id.split('-')[0].toUpperCase();
 
   return (
@@ -110,7 +112,7 @@ export default function SubmissionsPage() {
       setDeleteConfirm(null);
     } catch (error: any) {
       console.error("Failed to delete request", error);
-      alert(error.response?.data?.error || error.response?.data?.detail || "Đã xảy ra lỗi khi hủy hồ sơ. Vui lòng thử lại sau.");
+      alert(error.response?.data?.error || error.response?.data?.detail || "Đã xảy ra lỗi khi xóa hồ sơ. Vui lòng thử lại sau.");
       setDeleteConfirm(null);
     }
   };
@@ -146,9 +148,9 @@ export default function SubmissionsPage() {
             <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-5">
               <AlertTriangle className="text-[#C82323] h-8 w-8" />
             </div>
-            <h3 className="text-xl font-bold text-gray-900 mb-3">Xác nhận hủy hồ sơ</h3>
+            <h3 className="text-xl font-bold text-gray-900 mb-3">Xác nhận xóa hồ sơ</h3>
             <p className="text-gray-600 mb-8 text-sm">
-              Bạn có chắc chắn muốn hủy hồ sơ <strong className="text-gray-900 font-bold">{deleteConfirm.shortId}</strong>? Hành động này không thể hoàn tác.
+              Bạn có chắc chắn muốn xóa hồ sơ <strong className="text-gray-900 font-bold">{deleteConfirm.shortId}</strong>? Hành động này không thể hoàn tác.
             </p>
             <div className="flex gap-4">
               <button 
@@ -161,7 +163,7 @@ export default function SubmissionsPage() {
                 onClick={handleDeleteConfirm}
                 className="flex-1 py-2.5 bg-[#C82323] text-white rounded-lg font-medium hover:bg-[#A81A1A] transition-colors shadow-sm"
               >
-                Hủy hồ sơ
+                Xóa hồ sơ
               </button>
             </div>
           </div>

@@ -292,8 +292,8 @@ export default function LoginPage() {
         <div className="absolute bottom-0 left-0 translate-y-1/4 -translate-x-1/4 w-96 h-96 bg-blue-600 rounded-full blur-3xl opacity-20"></div>
 
         <div className="relative z-10">
-          <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center mb-8 border border-white/30 shadow-lg">
-            <GraduationCap className="h-10 w-10 text-white" />
+          <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mb-8 shadow-lg overflow-hidden">
+            <img src="/Logo_DUE.jpg" alt="Logo DUE" className="w-full h-full object-cover p-1" />
           </div>
           <h1 className="text-5xl font-extrabold tracking-tight mb-4">
             Cổng Dịch vụ <br /> Sinh viên

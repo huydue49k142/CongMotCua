@@ -263,7 +263,7 @@ class SubmitApplication(APIView):
 
         db_request = _resolve_request(s)
         if db_request:
-            db_request.status = StudentRequest.Status.PENDING_REVIEW
+            db_request.status = StudentRequest.Status.PENDING
             db_request.submitted_at = timezone.now()
             db_request.save()
             RequestHistory.objects.create(
@@ -825,7 +825,7 @@ class SubmitMajorChangeApplication(APIView):
                 req = existing
 
                 req.status = (
-                    StudentRequest.Status.PENDING_REVIEW
+                    StudentRequest.Status.PENDING
                 )
 
                 req.submitted_at = timezone.now()
@@ -870,7 +870,7 @@ class SubmitMajorChangeApplication(APIView):
                 status=(
                     StudentRequest
                     .Status
-                    .PENDING_REVIEW
+                    .PENDING
                 ),
 
                 submitted_at=timezone.now()
@@ -1061,7 +1061,7 @@ class SubmitResumeApplication(APIView):
         req = StudentRequest.objects.create(
             student=student,
             request_type=StudentRequest.RequestType.RESUME_STUDIES,
-            status=StudentRequest.Status.PENDING_REVIEW,
+            status=StudentRequest.Status.PENDING,
             submitted_at=timezone.now()
         )
         
@@ -1140,7 +1140,7 @@ class SubmitRetentionApplication(APIView):
         if existing:
             if existing.status == StudentRequest.Status.DRAFT:
                 req = existing
-                req.status = StudentRequest.Status.PENDING_REVIEW
+                req.status = StudentRequest.Status.PENDING
                 req.submitted_at = timezone.now()
                 req.save()
             else:
@@ -1150,7 +1150,7 @@ class SubmitRetentionApplication(APIView):
             req = StudentRequest.objects.create(
                 student=student,
                 request_type=StudentRequest.RequestType.ACADEMIC_LEAVE,
-                status=StudentRequest.Status.PENDING_REVIEW,
+                status=StudentRequest.Status.PENDING,
                 submitted_at=timezone.now()
             )
         
@@ -1333,7 +1333,7 @@ class GetDropoutDraftAPIView(APIView):
 
 class SubmitDropoutApplication(APIView):
     """
-    API endpoint để sinh viên nộp hồ sơ thôi học (chuyển từ DRAFT → PENDING_REVIEW).
+    API endpoint để sinh viên nộp hồ sơ thôi học (chuyển từ DRAFT → PENDING).
     """
     permission_classes = [AllowAny]
 
@@ -1352,8 +1352,8 @@ class SubmitDropoutApplication(APIView):
         ).first()
 
         if existing:
-            # Nâng cấp từ DRAFT → PENDING_REVIEW
-            existing.status = StudentRequest.Status.PENDING_REVIEW
+            # Nâng cấp từ DRAFT → PENDING
+            existing.status = StudentRequest.Status.PENDING
             existing.submitted_at = timezone.now()
             existing.save()
 
@@ -1387,7 +1387,7 @@ class SubmitDropoutApplication(APIView):
             req = StudentRequest.objects.create(
                 student=student,
                 request_type=StudentRequest.RequestType.DROPOUT,
-                status=StudentRequest.Status.PENDING_REVIEW,
+                status=StudentRequest.Status.PENDING,
                 submitted_at=timezone.now()
             )
             DropoutRequest.objects.create(request=req, reason=reason)

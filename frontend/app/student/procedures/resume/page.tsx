@@ -1143,7 +1143,7 @@ export default function ResumePage() {
 
             {/* ================= BƯỚC 5: SUCCESS & TRACKING ================= */}
             {currentStep >= 5 && (
-              <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 mt-6">
                 
                 <div className="flex gap-4 items-start">
                   <div className="bg-[#0070F4] p-2 rounded-full text-white shrink-0"><Bot size={24} /></div>
@@ -1153,18 +1153,89 @@ export default function ResumePage() {
                   </div>
                 </div>
 
-                <div className="ml-12 border border-green-200 bg-green-50 rounded-xl p-8 shadow-sm flex flex-col justify-center items-center text-center">
-                    <div className="bg-green-500 text-white rounded-full p-3 mb-4"><CheckCircle2 size={40} /></div>
-                    <h3 className="font-bold text-green-700 text-2xl mb-2">Nộp hồ sơ thành công!</h3>
-                    <p className="text-green-600 text-sm mb-1">Mã hồ sơ của bạn là: <strong className="font-semibold text-lg ml-1">{trackingCode}</strong></p>
-                    <p className="text-green-600/80 text-sm mb-8">Phòng Đào tạo sẽ rà soát và phản hồi trong vòng 3-5 ngày làm việc.</p>
+                {/* Banner */}
+                <div className="ml-12 border border-green-200 bg-green-50 rounded-xl p-4 shadow-sm flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-green-500 text-white rounded-full p-2"><Check size={24} /></div>
+                    <div>
+                      <h3 className="font-bold text-green-700 text-base">Nộp hồ sơ thành công!</h3>
+                      <p className="text-green-600 text-xs mt-0.5">Quyết định tiếp nhận học tiếp sẽ được cấp sau khi Ban Giám hiệu phê duyệt.</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-green-600/70 text-[10px] font-bold uppercase tracking-wider mb-0.5">Mã hồ sơ</p>
+                    <p className="text-green-800 font-bold text-base">{trackingCode}</p>
+                  </div>
+                </div>
+
+                {/* Chi tiết hồ sơ */}
+                <div className="ml-12 border border-gray-200 rounded-xl bg-white shadow-sm overflow-hidden">
+                  <div className="bg-slate-50 border-b border-gray-200 p-4">
+                    <h4 className="font-bold text-gray-800 text-center text-sm">Xem chi tiết hồ sơ</h4>
+                  </div>
+                  
+                  <div className="p-6">
+                    <div className="flex justify-between items-start mb-6">
+                      <div>
+                        <p className="text-xs text-gray-400 mb-1">Mã hồ sơ</p>
+                        <p className="font-bold text-gray-800 text-lg">{trackingCode}</p>
+                        <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
+                          Thời gian nộp: {new Date().toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'})} — {new Date().toLocaleDateString('vi-VN')}
+                        </p>
+                      </div>
+                      <span className="bg-[#0070F4] text-white px-3 py-1 rounded-full text-xs font-bold shadow-sm">
+                        Chờ xử lý
+                      </span>
+                    </div>
+
+                    <div className="border-t border-dashed border-gray-200 my-6"></div>
+
+                    <div>
+                      <h5 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">THÔNG TIN SINH VIÊN & NỘI DUNG HỌC TIẾP</h5>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-y-5 gap-x-6">
+                        <div>
+                          <p className="text-xs text-gray-400 mb-1">Người làm đơn</p>
+                          <p className="font-semibold text-gray-800 text-sm">{profile?.fullName}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-400 mb-1">Mã số sinh viên</p>
+                          <p className="font-semibold text-gray-800 text-sm">{profile?.studentId}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-400 mb-1">Lớp sinh viên</p>
+                          <p className="font-semibold text-gray-800 text-sm">{profile?.classId}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-400 mb-1">Số lượng học phần đăng ký</p>
+                          <p className="font-semibold text-gray-800 text-sm">{completedCourseCount} học phần</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="border-t border-dashed border-gray-200 my-6"></div>
+
+                    <div>
+                      <h5 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">MINH CHỨNG & DỮ LIỆU ĐÍNH KÈM</h5>
+                      <div className="border border-gray-100 bg-gray-50 rounded-lg p-3 flex items-center justify-between">
+                        <div className="flex items-start gap-3">
+                          <FileText size={20} className="text-gray-400 mt-0.5 shrink-0" />
+                          <div>
+                            <p className="text-sm font-medium text-gray-800">Đơn xin trở lại học tập (Bản scan/ảnh chụp)</p>
+                            <p className="text-xs text-green-600 font-medium mt-1">AI đã kiểm duyệt đủ chữ ký: Phụ huynh / Người giám hộ và Người làm đơn</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                     
-                    <button 
-                      onClick={() => router.push(requestId ? `/student/submissions/${requestId}` : '/student/submissions')} 
-                      className="px-6 py-3 bg-[#0070F4] text-white rounded-lg font-semibold hover:bg-blue-700 transition flex items-center gap-2 shadow-md"
-                    >
-                      <FileText size={18} /> Xem chi tiết và Theo dõi trạng thái
-                    </button>
+                    <div className="mt-8">
+                      <button 
+                        onClick={() => router.push(requestId ? `/student/submissions/${requestId}` : '/student/submissions')} 
+                        className="w-full bg-[#0070F4] text-white py-3.5 rounded-lg font-medium hover:bg-blue-700 transition flex justify-center items-center gap-2 shadow-sm text-sm"
+                      >
+                        Xem chi tiết hồ sơ
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}

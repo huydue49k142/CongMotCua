@@ -32,16 +32,16 @@ const getStatusConfig = (status: string) => {
         description: 'Quyết định phê duyệt đã được lưu trữ vào hệ thống và tự động gửi thông báo xác nhận đến cổng thông tin sinh viên và email cá nhân.'
       };
     case 'REJECTED':
-    case 'CANCELLED':
+    case 'DELETED':
       return {
-        label: 'Đã từ chối',
+        label: 'Từ chối / Đã xóa',
         topBar: 'bg-red-600',
         iconBg: 'bg-red-50',
         iconColor: 'text-red-600',
         textColor: 'text-red-600',
         border: 'border-red-200',
         Icon: Ban,
-        description: 'Hồ sơ không đủ điều kiện xét duyệt. Vui lòng kiểm tra lại quy định hoặc liên hệ Phòng Đào tạo để được hướng dẫn thêm.'
+        description: 'Hồ sơ đã bị từ chối hoặc đã bị xóa.'
       };
     case 'ADDITIONAL_INFO_REQUIRED':
       return {
@@ -54,8 +54,7 @@ const getStatusConfig = (status: string) => {
         Icon: AlertCircle,
         description: 'Hồ sơ đang thiếu hoặc sai lệch thông tin. Yêu cầu sinh viên nộp lại giấy tờ bị thiếu theo ghi chú.'
       };
-    case 'PENDING_REVIEW':
-    case 'IN_PROGRESS':
+    case 'PENDING':
     case 'DRAFT':
     default:
       return {
@@ -68,6 +67,22 @@ const getStatusConfig = (status: string) => {
         Icon: Clock,
         description: 'Hồ sơ đã được ghi nhận và đang trong quá trình rà soát bởi Phòng Đào tạo.'
       };
+  }
+};
+
+const getStatusBadgeDesign = (status: string) => {
+  switch (status) {
+    case 'APPROVED':
+      return { label: 'TRẠNG THÁI: ĐÃ DUYỆT', color: 'bg-emerald-600 text-white' };
+    case 'REJECTED':
+      return { label: 'TRẠNG THÁI: TỪ CHỐI', color: 'bg-[#C5221F] text-white' };
+    case 'DELETED':
+      return { label: 'TRẠNG THÁI: ĐÃ XÓA', color: 'bg-gray-500 text-white' };
+    case 'ADDITIONAL_INFO_REQUIRED':
+      return { label: 'TRẠNG THÁI: YÊU CẦU BỔ SUNG', color: 'bg-orange-500 text-white' };
+    case 'PENDING':
+    default:
+      return { label: 'TRẠNG THÁI: CHỜ XỬ LÝ', color: 'bg-[#0070F4] text-white' };
   }
 };
 
@@ -132,9 +147,8 @@ export default function StaffRequestDetailPage() {
 
   const typeLabel = getRequestTypeLabel(request.request_type);
   const shortId = `HS${request.id.split('-')[0].toUpperCase()}`;
-  const statusConfig = getStatusConfig(request.status);
   
-  const canAction = ['PENDING_REVIEW', 'IN_PROGRESS'].includes(request.status);
+  const canAction = ['PENDING'].includes(request.status);
 
   return (
     <div className="bg-slate-50 min-h-screen">
@@ -179,38 +193,14 @@ export default function StaffRequestDetailPage() {
       </div>
 
       <div className="px-8 pb-12">
-        {/* Status Box */}
-        <div className={`bg-white rounded-xl shadow-sm border ${statusConfig.border} mb-6 overflow-hidden`}>
-          <div className={`h-1.5 w-full ${statusConfig.topBar}`}></div>
-          <div className="p-10 flex flex-col items-center text-center relative">
-            <div className={`w-14 h-14 rounded-full flex items-center justify-center mb-4 ${statusConfig.iconBg} ${statusConfig.iconColor}`}>
-              <statusConfig.Icon size={32} strokeWidth={2.5} />
-            </div>
-            <h2 className={`text-2xl font-bold mb-3 ${statusConfig.textColor}`}>
-              Hệ thống đã cập nhật trạng thái: {statusConfig.label}
-            </h2>
-            <p className="text-slate-500 max-w-xl text-sm leading-relaxed">
-              {statusConfig.description}
-            </p>
-
-            {/* Display Reason if Rejected or Need Info */}
-            {['REJECTED', 'CANCELLED', 'ADDITIONAL_INFO_REQUIRED'].includes(request.status) && request.history.length > 0 && (
-              <div className="mt-6 w-full max-w-2xl bg-slate-50 p-4 rounded-lg border border-slate-200 text-left">
-                <p className="text-xs font-bold text-slate-500 mb-2 uppercase">Lý do từ Phòng Đào tạo</p>
-                <p className="text-sm text-slate-800 whitespace-pre-wrap">{request.history[0]?.notes}</p>
-              </div>
-            )}
-          </div>
-        </div>
-
         {/* Information Box */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
           <div className="bg-slate-50/50 px-6 py-4 border-b border-slate-200 flex justify-between items-center">
-            <h3 className="font-bold text-[#18538E] flex items-center gap-2">
-              <FileText size={18} /> Thông tin hồ sơ
+            <h3 className="font-bold text-[#18538E] uppercase text-sm tracking-wide">
+              THÔNG TIN CHI TIẾT HỒ SƠ
             </h3>
-            <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-sm text-[10px] font-bold uppercase tracking-wider">
-              {typeLabel}
+            <span className={`px-3 py-1.5 rounded-sm text-[10px] font-bold uppercase tracking-wider ${getStatusBadgeDesign(request.status).color}`}>
+              {getStatusBadgeDesign(request.status).label}
             </span>
           </div>
 
@@ -221,8 +211,8 @@ export default function StaffRequestDetailPage() {
                 <p className="font-bold text-[#18538E] text-sm">{shortId}</p>
               </div>
               <div>
-                <p className="text-xs font-bold text-slate-500 mb-1.5 tracking-wide uppercase">Phòng ban xử lý</p>
-                <p className="font-semibold text-slate-800 text-sm">Phòng Đào tạo (P.ĐT)</p>
+                <p className="text-xs font-bold text-slate-500 mb-1.5 tracking-wide uppercase">Loại yêu cầu</p>
+                <p className="font-semibold text-[#18538E] text-sm">{typeLabel}</p>
               </div>
               <div>
                 <p className="text-xs font-bold text-slate-500 mb-1.5 tracking-wide uppercase">Họ và tên sinh viên</p>
@@ -260,6 +250,17 @@ export default function StaffRequestDetailPage() {
                   )}
                 </div>
               </div>
+              
+              {['REJECTED', 'DELETED', 'ADDITIONAL_INFO_REQUIRED'].includes(request.status) && request.history.length > 0 && (
+                <div>
+                  <p className="text-xs font-bold text-slate-500 mb-1.5 tracking-wide uppercase">
+                    {request.status === 'ADDITIONAL_INFO_REQUIRED' ? 'Lý do yêu cầu bổ sung' : 'Lý do từ chối'}
+                  </p>
+                  <div className="bg-red-50 p-3 rounded-md text-red-800 text-sm italic">
+                    "{request.history[0]?.notes}"
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

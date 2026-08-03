@@ -32,7 +32,6 @@ const getStatusConfig = (status: string) => {
         description: 'Quyết định phê duyệt đã được lưu trữ vào hệ thống và tự động gửi thông báo xác nhận đến cổng thông tin sinh viên và email cá nhân.'
       };
     case 'REJECTED':
-    case 'CANCELLED':
       return {
         label: 'Đã từ chối',
         topBar: 'bg-red-600',
@@ -42,6 +41,17 @@ const getStatusConfig = (status: string) => {
         border: 'border-red-200',
         Icon: Ban,
         description: 'Hồ sơ của bạn không đủ điều kiện xét duyệt. Vui lòng kiểm tra lại quy định hoặc liên hệ Phòng Đào tạo để được hướng dẫn thêm.'
+      };
+    case 'DELETED':
+      return {
+        label: 'Đã xóa',
+        topBar: 'bg-gray-500',
+        iconBg: 'bg-gray-100',
+        iconColor: 'text-gray-600',
+        textColor: 'text-gray-700',
+        border: 'border-gray-200',
+        Icon: Ban,
+        description: 'Hồ sơ này đã được xóa.'
       };
     case 'ADDITIONAL_INFO_REQUIRED':
       return {
@@ -54,8 +64,7 @@ const getStatusConfig = (status: string) => {
         Icon: AlertCircle,
         description: 'Hồ sơ của bạn đang thiếu hoặc sai lệch thông tin. Vui lòng nộp lại giấy tờ bị thiếu theo yêu cầu của chuyên viên.'
       };
-    case 'PENDING_REVIEW':
-    case 'IN_PROGRESS':
+    case 'PENDING':
     case 'DRAFT':
     default:
       return {
@@ -68,6 +77,22 @@ const getStatusConfig = (status: string) => {
         Icon: Clock,
         description: 'Hồ sơ của bạn đã được ghi nhận và đang trong quá trình rà soát bởi Phòng Đào tạo. Vui lòng theo dõi email để nhận thông báo mới nhất.'
       };
+  }
+};
+
+const getStatusBadgeDesign = (status: string) => {
+  switch (status) {
+    case 'APPROVED':
+      return { label: 'TRẠNG THÁI: ĐÃ DUYỆT', color: 'bg-emerald-600 text-white' };
+    case 'REJECTED':
+      return { label: 'TRẠNG THÁI: TỪ CHỐI', color: 'bg-[#C5221F] text-white' };
+    case 'DELETED':
+      return { label: 'TRẠNG THÁI: ĐÃ XÓA', color: 'bg-gray-500 text-white' };
+    case 'ADDITIONAL_INFO_REQUIRED':
+      return { label: 'TRẠNG THÁI: YÊU CẦU BỔ SUNG', color: 'bg-orange-500 text-white' };
+    case 'PENDING':
+    default:
+      return { label: 'TRẠNG THÁI: CHỜ XỬ LÝ', color: 'bg-[#0070F4] text-white' };
   }
 };
 
@@ -86,11 +111,7 @@ export default function StudentRequestDetailPage() {
 
   const [request, setRequest] = useState<DetailedRequest | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isResubmitModalOpen, setIsResubmitModalOpen] = useState(false);
-  const [resubmitFile, setResubmitFile] = useState<File | null>(null);
-  const [resubmitting, setResubmitting] = useState(false);
-  
-  const fileInputRef = useRef<HTMLInputElement>(null);
+
 
   useEffect(() => {
     if (id) {
@@ -110,26 +131,7 @@ export default function StudentRequestDetailPage() {
     }
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) setResubmitFile(file);
-  };
 
-  const handleResubmit = async () => {
-    if (!resubmitFile) return;
-    setResubmitting(true);
-    try {
-      await requestService.resubmitRequestFiles(id, resubmitFile);
-      setIsResubmitModalOpen(false);
-      setResubmitFile(null);
-      await fetchData(); // Refresh data
-    } catch (error) {
-      console.error('Lỗi khi tải file bổ sung:', error);
-      alert('Có lỗi xảy ra khi nộp file bổ sung.');
-    } finally {
-      setResubmitting(false);
-    }
-  };
 
   if (loading) {
     return <div className="p-10 flex justify-center"><Loader2 className="animate-spin text-blue-600" /></div>;
@@ -141,8 +143,6 @@ export default function StudentRequestDetailPage() {
 
   const typeLabel = getRequestTypeLabel(request.request_type);
   const shortId = `HS${request.id.split('-')[0].toUpperCase()}`;
-  const statusConfig = getStatusConfig(request.status);
-  const files = getMockFiles(request.request_type);
 
   return (
     <div className="bg-slate-50 min-h-screen">
@@ -156,7 +156,7 @@ export default function StudentRequestDetailPage() {
         <div className="flex items-center gap-3">
           {request.status === 'ADDITIONAL_INFO_REQUIRED' && (
             <button 
-              onClick={() => setIsResubmitModalOpen(true)}
+              onClick={() => router.push(`/student/submissions/${id}/resubmit`)}
               className="px-5 py-2.5 bg-orange-500 text-white rounded-md text-sm font-medium hover:bg-orange-600 transition flex items-center gap-2 shadow-sm"
             >
               <UploadCloud size={16} /> Bổ sung hồ sơ
@@ -172,39 +172,14 @@ export default function StudentRequestDetailPage() {
       </div>
 
       <div className="px-8 pb-12">
-        {/* Status Box */}
-        <div className={`bg-white rounded-xl shadow-sm border ${statusConfig.border} mb-6 overflow-hidden`}>
-          <div className={`h-1.5 w-full ${statusConfig.topBar}`}></div>
-          <div className="p-10 flex flex-col items-center text-center">
-            <div className={`w-14 h-14 rounded-full flex items-center justify-center mb-4 ${statusConfig.iconBg} ${statusConfig.iconColor}`}>
-              <statusConfig.Icon size={32} strokeWidth={2.5} />
-            </div>
-            <h2 className={`text-2xl font-bold mb-3 ${statusConfig.textColor}`}>
-              Hệ thống đã cập nhật trạng thái: {statusConfig.label}
-            </h2>
-            <p className="text-slate-500 max-w-xl text-sm leading-relaxed">
-              {statusConfig.description}
-            </p>
-            
-            {/* Display Reason if Rejected or Need Info */}
-            {['REJECTED', 'CANCELLED', 'ADDITIONAL_INFO_REQUIRED'].includes(request.status) && request.history.length > 0 && (
-              <div className="mt-6 w-full max-w-2xl bg-slate-50 p-4 rounded-lg border border-slate-200 text-left relative">
-                <div className="absolute top-0 left-0 w-1 h-full bg-slate-400 rounded-l-lg"></div>
-                <p className="text-xs font-bold text-slate-500 mb-2 uppercase ml-2">Phản hồi từ Phòng Đào tạo</p>
-                <p className="text-sm text-slate-800 whitespace-pre-wrap ml-2 font-medium">{request.history[0]?.notes}</p>
-              </div>
-            )}
-          </div>
-        </div>
-
         {/* Information Box */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
           <div className="bg-slate-50/50 px-6 py-4 border-b border-slate-200 flex justify-between items-center">
-            <h3 className="font-bold text-[#18538E] flex items-center gap-2">
-              <FileText size={18} /> Thông tin hồ sơ
+            <h3 className="font-bold text-[#18538E] uppercase text-sm tracking-wide">
+              THÔNG TIN CHI TIẾT HỒ SƠ
             </h3>
-            <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-sm text-[10px] font-bold uppercase tracking-wider">
-              {typeLabel}
+            <span className={`px-3 py-1.5 rounded-sm text-[10px] font-bold uppercase tracking-wider ${getStatusBadgeDesign(request.status).color}`}>
+              {getStatusBadgeDesign(request.status).label}
             </span>
           </div>
 
@@ -215,8 +190,8 @@ export default function StudentRequestDetailPage() {
                 <p className="font-bold text-[#18538E] text-sm">{shortId}</p>
               </div>
               <div>
-                <p className="text-xs font-bold text-slate-500 mb-1.5 tracking-wide uppercase">Phòng ban xử lý</p>
-                <p className="font-semibold text-slate-800 text-sm">Phòng Đào tạo (P.ĐT)</p>
+                <p className="text-xs font-bold text-slate-500 mb-1.5 tracking-wide uppercase">Loại yêu cầu</p>
+                <p className="font-semibold text-[#18538E] text-sm">{typeLabel}</p>
               </div>
               <div>
                 <p className="text-xs font-bold text-slate-500 mb-1.5 tracking-wide uppercase">Họ và tên sinh viên</p>
@@ -254,85 +229,23 @@ export default function StudentRequestDetailPage() {
                   )}
                 </div>
               </div>
+              
+              {['REJECTED', 'DELETED', 'ADDITIONAL_INFO_REQUIRED'].includes(request.status) && request.history.length > 0 && (
+                <div>
+                  <p className="text-xs font-bold text-slate-500 mb-1.5 tracking-wide uppercase">
+                    {request.status === 'ADDITIONAL_INFO_REQUIRED' ? 'Lý do yêu cầu bổ sung' : 'Lý do từ chối'}
+                  </p>
+                  <div className="bg-red-50 p-3 rounded-md text-red-800 text-sm italic">
+                    "{request.history[0]?.notes}"
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Resubmit Modal */}
-      {isResubmitModalOpen && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex justify-center items-center backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-2xl w-[500px] overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-center relative">
-              <div className="flex items-center gap-4">
-                <div className="p-2 rounded-lg bg-orange-50 text-orange-500">
-                  <UploadCloud size={24} />
-                </div>
-                <div>
-                  <h3 className="font-bold text-lg text-slate-800">Bổ sung hồ sơ</h3>
-                  <p className="text-sm text-slate-500">Vui lòng tải lên tài liệu minh chứng theo yêu cầu.</p>
-                </div>
-              </div>
-              <button 
-                onClick={() => {
-                  setIsResubmitModalOpen(false);
-                  setResubmitFile(null);
-                }}
-                className="absolute top-6 right-6 text-slate-400 hover:text-slate-600"
-              >
-                <XCircle size={20} />
-              </button>
-            </div>
-            
-            <div className="p-6 bg-slate-50/50 flex flex-col items-center">
-              {!resubmitFile ? (
-                <div 
-                  onClick={() => fileInputRef.current?.click()}
-                  className="w-full border-2 border-dashed border-gray-300 rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer hover:bg-white hover:border-blue-400 transition"
-                >
-                  <div className="bg-blue-50 text-blue-500 p-3 rounded-full mb-3"><UploadCloud size={24} /></div>
-                  <p className="font-semibold text-gray-800 text-sm mb-1">Tải lên file minh chứng</p>
-                  <p className="text-xs text-gray-400">Click để chọn file (.pdf, .docx, .jpg)</p>
-                </div>
-              ) : (
-                <div className="w-full bg-white border border-green-200 rounded-xl p-6 flex flex-col items-center justify-center relative">
-                  <button 
-                    onClick={() => setResubmitFile(null)}
-                    className="absolute top-2 right-2 text-gray-400 hover:text-red-500 transition"
-                  >
-                    <XCircle size={20} />
-                  </button>
-                  <div className="bg-green-50 text-green-500 p-3 rounded-full mb-3"><CheckCircle2 size={24} /></div>
-                  <p className="font-semibold text-gray-800 text-sm mb-1">{resubmitFile.name}</p>
-                  <p className="text-xs text-gray-400">Đã chọn file thành công</p>
-                </div>
-              )}
-              <input type="file" className="hidden" ref={fileInputRef} onChange={handleFileSelect} accept=".pdf,.docx,.doc,.jpg,.png" />
-            </div>
 
-            <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
-              <button 
-                onClick={() => {
-                  setIsResubmitModalOpen(false);
-                  setResubmitFile(null);
-                }}
-                className="px-5 py-2 rounded-md font-medium text-slate-600 hover:bg-slate-200 transition text-sm"
-              >
-                Hủy bỏ
-              </button>
-              <button 
-                disabled={!resubmitFile || resubmitting}
-                onClick={handleResubmit}
-                className={`px-5 py-2 rounded-md font-medium text-white transition text-sm flex items-center gap-2 ${
-                  !resubmitFile ? 'bg-gray-400 cursor-not-allowed' : 'bg-orange-500 hover:bg-orange-600'
-                }`}
-              >
-                {resubmitting ? <Loader2 className="animate-spin" size={16} /> : <><UploadCloud size={16}/> Gửi file bổ sung</>}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

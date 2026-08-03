@@ -13,12 +13,11 @@ class Request(BaseModel):
 
     class Status(models.TextChoices):
         DRAFT = "DRAFT", "Bản nháp"
-        PENDING_REVIEW = "PENDING_REVIEW", "Chờ tiếp nhận"
-        IN_PROGRESS = "IN_PROGRESS", "Đang xử lý"
+        PENDING = "PENDING", "Chờ xử lý"
         ADDITIONAL_INFO_REQUIRED = "ADDITIONAL_INFO_REQUIRED", "Yêu cầu bổ sung"
         APPROVED = "APPROVED", "Đã duyệt"
         REJECTED = "REJECTED", "Từ chối"
-        CANCELLED = "CANCELLED", "Đã hủy"
+        DELETED = "DELETED", "Đã xóa"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name="requests")
@@ -34,13 +33,13 @@ class Request(BaseModel):
         verbose_name = "Yêu cầu"
         verbose_name_plural = "Các yêu cầu"
         ordering = ['-created_at']
-        constraints = [
-            models.UniqueConstraint(
-                fields=['student'],
-                condition=~models.Q(status__in=['APPROVED', 'REJECTED', 'CANCELLED']),
-                name='unique_active_request_per_student'
-            )
-        ]
+        # constraints = [
+        #     models.UniqueConstraint(
+        #         fields=['student'],
+        #         condition=~models.Q(status__in=['APPROVED', 'REJECTED', 'DELETED']),
+        #         name='unique_active_request_per_student'
+        #     )
+        # ]
         indexes = [
             models.Index(fields=['student', 'status']),
         ]

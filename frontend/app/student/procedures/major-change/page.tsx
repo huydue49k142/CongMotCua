@@ -62,12 +62,11 @@ type SignedScanErrorType =
 
 type SubmissionStatus =
   | "DRAFT"
-  | "PENDING_REVIEW"
-  | "IN_PROGRESS"
+  | "PENDING"
   | "ADDITIONAL_INFO_REQUIRED"
   | "APPROVED"
   | "REJECTED"
-  | "CANCELLED";
+  | "DELETED";
 
 type RequestHistoryItem = {
   status?: string;
@@ -89,7 +88,7 @@ const getSubmissionStatusMeta = (status: SubmissionStatus) => {
         badgeClass: "bg-red-100 text-red-700",
         panelClass: "border-red-200 bg-red-50",
       };
-    case "CANCELLED":
+    case "DELETED":
       return {
         label: "Đã hủy",
         badgeClass: "bg-gray-100 text-gray-700",
@@ -101,19 +100,13 @@ const getSubmissionStatusMeta = (status: SubmissionStatus) => {
         badgeClass: "bg-orange-100 text-orange-700",
         panelClass: "border-orange-200 bg-orange-50",
       };
-    case "IN_PROGRESS":
-      return {
-        label: "Đang xử lý",
-        badgeClass: "bg-blue-100 text-blue-700",
-        panelClass: "border-blue-200 bg-blue-50",
-      };
     case "DRAFT":
       return {
         label: "Bản nháp",
         badgeClass: "bg-gray-100 text-gray-700",
         panelClass: "border-gray-200 bg-gray-50",
       };
-    case "PENDING_REVIEW":
+    case "PENDING":
     default:
       return {
         label: "Chờ tiếp nhận",
@@ -189,7 +182,7 @@ export default function MajorChangePage() {
   const [requestId, setRequestId] = useState("");
   const [submittedAt, setSubmittedAt] = useState("");
   const [submissionStatus, setSubmissionStatus] =
-    useState<SubmissionStatus>("PENDING_REVIEW");
+    useState<SubmissionStatus>("PENDING");
   const [supplementNote, setSupplementNote] = useState("");
   const [supplementFile, setSupplementFile] =
     useState<File | null>(null);
@@ -832,7 +825,7 @@ export default function MajorChangePage() {
       setTrackingCode(newTrackingCode);
       setSubmissionStatus(
         (response.data?.status ||
-          "PENDING_REVIEW") as SubmissionStatus
+          "PENDING") as SubmissionStatus
       );
       setSubmittedAt(new Date().toISOString());
       setActiveTab("details");
@@ -1265,7 +1258,7 @@ export default function MajorChangePage() {
 
       const data = response.data || {};
       const nextStatus = String(
-        data.status || data.request_status || "PENDING_REVIEW"
+        data.status || data.request_status || "PENDING"
       ) as SubmissionStatus;
 
       setSubmissionStatus(nextStatus);
@@ -1361,7 +1354,7 @@ export default function MajorChangePage() {
       setSupplementNote("");
       setSubmissionStatus(
         (response.data?.status ||
-          "PENDING_REVIEW") as SubmissionStatus
+          "PENDING") as SubmissionStatus
       );
 
       if (supplementInputRef.current) {
@@ -2335,7 +2328,7 @@ export default function MajorChangePage() {
                           </div>
                         </div>
 
-                        {submissionStatus === "PENDING_REVIEW" && (
+                        {submissionStatus === "PENDING" && (
                           <div className="mt-4 border border-yellow-200 bg-yellow-50 rounded-xl p-5">
                             <p className="font-semibold text-yellow-800">
                               Hồ sơ đang chờ Phòng Đào tạo tiếp nhận
@@ -2347,7 +2340,7 @@ export default function MajorChangePage() {
                           </div>
                         )}
 
-                        {submissionStatus === "IN_PROGRESS" && (
+                        {false && (
                           <div className="mt-4 border border-blue-200 bg-blue-50 rounded-xl p-5">
                             <p className="font-semibold text-blue-800">
                               Phòng Đào tạo đang xử lý hồ sơ

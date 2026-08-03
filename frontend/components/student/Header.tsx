@@ -72,8 +72,8 @@ const Header = () => {
     <header className="flex items-center justify-between px-6 bg-primary text-white relative" style={{ gridArea: 'header' }}>
       {/* Left side */}
       <div className="flex items-center gap-3">
-        <div className="w-11 h-11 rounded-lg bg-white/15 flex items-center justify-center">
-          <GraduationCap className="h-6 w-6 text-white" />
+        <div className="w-11 h-11 bg-white rounded-lg flex items-center justify-center p-1">
+          <img src="/Logo_DUE.jpg" alt="Logo DUE" className="w-full h-full object-contain rounded-md" />
         </div>
 
         <div className="flex flex-col">

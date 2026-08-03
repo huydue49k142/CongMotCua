@@ -45,7 +45,7 @@ SECRET_KEY = env('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env('DEBUG')
 
-ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=[])
+ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['*'])
 
 
 # Application definition
@@ -79,6 +79,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -169,10 +170,10 @@ REST_FRAMEWORK = {
 }
 
 # CORS Settings
-CORS_ALLOWED_ORIGINS = [
+CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS', default=[
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-]
+])
 
 # Simple JWT Settings
 from datetime import timedelta
@@ -191,15 +192,10 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.1-flash-lite")
 
 
-TESSERACT_CMD = (
-    r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-)
-
-POPPLER_PATH = (
-    r"D:\FileDownload\Release-26.02.0-0"
-    r"\poppler-26.02.0\Library\bin"
-)
-
-TESSERACT_CMD = (
-    r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-)
+import platform
+if platform.system() == "Windows":
+    TESSERACT_CMD = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+    POPPLER_PATH = r"D:\FileDownload\Release-26.02.0-0\poppler-26.02.0\Library\bin"
+else:
+    TESSERACT_CMD = "/usr/bin/tesseract"
+    POPPLER_PATH = None

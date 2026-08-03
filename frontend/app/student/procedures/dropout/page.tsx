@@ -66,8 +66,7 @@ export default function DropoutPage() {
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [hasSavedDraft, setHasSavedDraft] = useState(false);
-  const [isSavingDraft, setIsSavingDraft] = useState(false);
+
   
   const [studentProfile, setStudentProfile] = useState<StudentProfile | null>(null);
   const [formData, setFormData] = useState<DropoutFormData>({
@@ -97,59 +96,7 @@ export default function DropoutPage() {
     }
   }, [isStarted]);
 
-  useEffect(() => {
-    if (!isStarted || !studentProfile) return;
 
-    const accessToken =
-      localStorage.getItem("access_token") ||
-      localStorage.getItem("access");
-
-    if (!accessToken) return;
-
-    const apiBase = (
-      process.env.NEXT_PUBLIC_API_URL ||
-      "http://127.0.0.1:8000/api"
-    ).replace(/\/$/, "");
-
-    axios
-      .get(`${apiBase}/thoi-hoc/draft/dropout/get/`, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      })
-      .then((response) => {
-        if (!response.data.hasDraft || !response.data.draft) return;
-
-        const draft = response.data.draft;
-        const savedFormData = draft.formData || {
-          reason: '',
-          expectedDate: '',
-          contactAddress: '',
-          notes: '',
-        };
-
-        setFormData(savedFormData);
-
-        // Bản nháp được lưu sau khi sinh viên đã tải đơn.
-        // Khi mở lại thủ tục, hiển thị lại bước 3 và đổi khu vực
-        // hành động thành một nút “Tiếp tục”.
-        if (Number(draft.step) >= 3) {
-          setCurrentStep(3);
-          setIsDownloaded(true);
-          setHasSavedDraft(true);
-        } else {
-          const restoredStep = Math.min(
-            Math.max(Number(draft.step) || 1, 1),
-            2
-          ) as 1 | 2;
-
-          setCurrentStep(restoredStep);
-        }
-      })
-      .catch((error) => {
-        console.error("Lỗi khi tải bản nháp:", error);
-      });
-  }, [isStarted, studentProfile]);
 
   // Cuộn xuống cuối mỗi khi chuyển sang bước mới
   const chatEndRef = React.useRef<HTMLDivElement>(null);
@@ -169,80 +116,7 @@ export default function DropoutPage() {
 
 
 
-  const handleSaveDraft = async () => {
-    if (isSavingDraft) return;
 
-    try {
-      setIsSavingDraft(true);
-
-      const accessToken =
-        localStorage.getItem("access_token") ||
-        localStorage.getItem("access");
-
-      if (!accessToken) {
-        throw new Error(
-          "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại."
-        );
-      }
-
-      const apiBase = (
-        process.env.NEXT_PUBLIC_API_URL ||
-        "http://127.0.0.1:8000/api"
-      ).replace(/\/$/, "");
-
-      const response = await axios.post(
-        `${apiBase}/thoi-hoc/draft/dropout/save/`,
-        {
-          // Lưu mốc tiếp theo để lần sau hệ thống biết sinh viên
-          // đã hoàn thành bước tải đơn và có thể tiếp tục upload.
-          step: 4,
-          formData,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
-      );
-
-      if (response.data.success === false) {
-        throw new Error(
-          response.data.error || "Không thể lưu bản nháp."
-        );
-      }
-
-      // Không chuyển về Dashboard. Nút hành động ngay tại bước 3
-      // sẽ đổi từ “Lưu nháp và tạm dừng” thành “Tiếp tục”.
-      setHasSavedDraft(true);
-      setToastMessage({
-        type: "success",
-        text: "Đã lưu bản nháp thành công. Nhấn Tiếp tục để thực hiện bước tiếp theo.",
-      });
-    } catch (error: any) {
-      console.error(
-        "Lỗi lưu bản nháp thôi học:",
-        error.response?.data || error
-      );
-
-      setToastMessage({
-        type: "error",
-        text:
-          error.response?.data?.error ||
-          error.response?.data?.detail ||
-          error.message ||
-          "Có lỗi xảy ra khi lưu bản nháp.",
-      });
-    } finally {
-      setIsSavingDraft(false);
-      window.setTimeout(() => setToastMessage(null), 3000);
-    }
-  };
-
-  const handleContinueDraft = () => {
-    setHasSavedDraft(false);
-    setUploadState("idle");
-    setCurrentStep(4);
-  };
 
   const handleSubmitForm = (e: React.FormEvent) => {
     e.preventDefault();
@@ -883,40 +757,15 @@ export default function DropoutPage() {
                           <CheckCircle2 size={18} className="text-green-600" /> Don_xin_thoi_hoc.docx đã tải xuống
                         </div>
 
-                        {/* Sau khi lưu nháp, thay toàn bộ khu vực hành động bằng nút Tiếp tục. */}
                         {currentStep === 3 && (
-                          hasSavedDraft ? (
-                            <button
-                              type="button"
-                              onClick={handleContinueDraft}
-                              className="w-full bg-[#0070F4] text-white py-3 rounded-md font-medium hover:bg-blue-700 transition flex justify-center items-center gap-2"
-                            >
-                              Tiếp tục
-                              <ChevronRight size={18} />
-                            </button>
-                          ) : (
-                            <div className="flex items-center gap-4">
-                              <button
-                                type="button"
-                                onClick={handleNextToUpload}
-                                className="flex-1 bg-[#0070F4] text-white py-3 rounded-md font-medium hover:bg-blue-700 transition flex justify-center items-center gap-2"
-                              >
-                                Tiếp tục tải lên hồ sơ đã ký
-                                <ChevronRight size={18} />
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={handleSaveDraft}
-                                disabled={isSavingDraft}
-                                className="text-sm font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap px-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                              >
-                                {isSavingDraft
-                                  ? "Đang lưu..."
-                                  : "Lưu nháp và tạm dừng"}
-                              </button>
-                            </div>
-                          )
+                          <button
+                            type="button"
+                            onClick={handleNextToUpload}
+                            className="w-full bg-[#0070F4] text-white py-3 rounded-md font-medium hover:bg-blue-700 transition flex justify-center items-center gap-2"
+                          >
+                            Tiếp tục tải lên hồ sơ đã ký
+                            <ChevronRight size={18} />
+                          </button>
                         )}
                       </div>
                     )}
@@ -1223,7 +1072,7 @@ export default function DropoutPage() {
 
             {/* --- BƯỚC 6: SUCCESS & ĐIỀU HƯỚNG --- */}
             {currentStep >= 6 && (
-              <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 mt-6">
                 <div className="flex gap-4 items-start">
                   <div className="bg-[#0070F4] p-2 rounded-full text-white shrink-0">
                     <Bot size={24} />
@@ -1239,40 +1088,96 @@ export default function DropoutPage() {
                   </div>
                 </div>
 
-                <div className="ml-12 border border-green-200 bg-green-50 rounded-xl p-8 shadow-sm flex flex-col justify-center items-center text-center">
-                  <div className="bg-green-500 text-white rounded-full p-3 mb-4">
-                    <CheckCircle2 size={40} />
+                {/* Banner */}
+                <div className="ml-12 border border-green-200 bg-green-50 rounded-xl p-4 shadow-sm flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-green-500 text-white rounded-full p-2"><Check size={24} /></div>
+                    <div>
+                      <h3 className="font-bold text-green-700 text-base">Nộp hồ sơ thành công!</h3>
+                      <p className="text-green-600 text-xs mt-0.5">Quyết định thôi học sẽ được cấp sau khi Ban Giám hiệu phê duyệt.</p>
+                    </div>
                   </div>
+                  <div className="text-right">
+                    <p className="text-green-600/70 text-[10px] font-bold uppercase tracking-wider mb-0.5">Mã hồ sơ</p>
+                    <p className="text-green-800 font-bold text-base">{trackingCode || requestId || 'Đang cập nhật'}</p>
+                  </div>
+                </div>
 
-                  <h3 className="font-bold text-green-700 text-2xl mb-2">
-                    Nộp hồ sơ thành công!
-                  </h3>
+                {/* Chi tiết hồ sơ */}
+                <div className="ml-12 border border-gray-200 rounded-xl bg-white shadow-sm overflow-hidden">
+                  <div className="bg-slate-50 border-b border-gray-200 p-4">
+                    <h4 className="font-bold text-gray-800 text-center text-sm">Xem chi tiết hồ sơ</h4>
+                  </div>
+                  
+                  <div className="p-6">
+                    <div className="flex justify-between items-start mb-6">
+                      <div>
+                        <p className="text-xs text-gray-400 mb-1">Mã hồ sơ</p>
+                        <p className="font-bold text-gray-800 text-lg">{trackingCode || requestId || 'Đang cập nhật'}</p>
+                        <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
+                          Thời gian nộp: {new Date().toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'})} — {new Date().toLocaleDateString('vi-VN')}
+                        </p>
+                      </div>
+                      <span className="bg-[#0070F4] text-white px-3 py-1 rounded-full text-xs font-bold shadow-sm">
+                        Chờ xử lý
+                      </span>
+                    </div>
 
-                  <p className="text-green-600 text-sm mb-1">
-                    Mã hồ sơ:{' '}
-                    <strong className="font-semibold text-lg ml-1">
-                      {trackingCode || requestId || 'Đang cập nhật'}
-                    </strong>
-                  </p>
+                    <div className="border-t border-dashed border-gray-200 my-6"></div>
 
-                  <p className="text-green-600/80 text-sm mb-8">
-                    Phòng Đào tạo sẽ rà soát và phản hồi trong vòng 3–5 ngày làm việc.
-                  </p>
+                    <div>
+                      <h5 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">THÔNG TIN SINH VIÊN & NỘI DUNG THÔI HỌC</h5>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-y-5 gap-x-6">
+                        <div>
+                          <p className="text-xs text-gray-400 mb-1">Người làm đơn</p>
+                          <p className="font-semibold text-gray-800 text-sm">{studentProfile?.fullName}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-400 mb-1">Mã số sinh viên</p>
+                          <p className="font-semibold text-gray-800 text-sm">{studentProfile?.studentId}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-400 mb-1">Lớp sinh viên</p>
+                          <p className="font-semibold text-gray-800 text-sm">{studentProfile?.classId}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-400 mb-1">Lý do thôi học</p>
+                          <p className="font-semibold text-gray-800 text-sm">{dropoutReasonLabel}</p>
+                        </div>
+                      </div>
+                    </div>
 
-                  <button
-                    type="button"
-                    onClick={() =>
-                      router.push(
-                        requestId
-                          ? `/student/submissions/${requestId}`
-                          : '/student/submissions'
-                      )
-                    }
-                    className="px-6 py-3 bg-[#0070F4] text-white rounded-lg font-semibold hover:bg-blue-700 transition flex items-center gap-2 shadow-md"
-                  >
-                    <FileText size={18} />
-                    Xem chi tiết và Theo dõi trạng thái
-                  </button>
+                    <div className="border-t border-dashed border-gray-200 my-6"></div>
+
+                    <div>
+                      <h5 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">MINH CHỨNG & DỮ LIỆU ĐÍNH KÈM</h5>
+                      <div className="border border-gray-100 bg-gray-50 rounded-lg p-3 flex items-center justify-between">
+                        <div className="flex items-start gap-3">
+                          <FileText size={20} className="text-gray-400 mt-0.5 shrink-0" />
+                          <div>
+                            <p className="text-sm font-medium text-gray-800">Đơn xin thôi học (Bản scan/ảnh chụp)</p>
+                            <p className="text-xs text-green-600 font-medium mt-1">AI đã kiểm duyệt đủ chữ ký: Phụ huynh / Người giám hộ và Người làm đơn</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-8">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          router.push(
+                            requestId
+                              ? `/student/submissions/${requestId}`
+                              : '/student/submissions'
+                          )
+                        }
+                        className="w-full bg-[#0070F4] text-white py-3.5 rounded-lg font-medium hover:bg-blue-700 transition flex justify-center items-center gap-2 shadow-sm text-sm"
+                      >
+                        Xem chi tiết hồ sơ
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}

@@ -1,0 +1,51 @@
+[
+  {
+    "model": "students.major",
+    "pk": "8173a53c-5772-4a10-abca-40e7980e6cab",
+    "fields": {
+      "name": "Ngành 1",
+      "major_id": "N001",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "students.class",
+    "pk": "97202499-3a94-4ee7-b1f6-38335474eadb",
+    "fields": {
+      "name": "Lớp 1",
+      "class_id": "L001",
+      "major": "c0d52a66-382e-41b3-bdb4-6dc8c0e6c1c8",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": "104b6d25-658d-46f8-8aa1-0a2155d606f2",
+    "fields": {
+      "password": "pbkdf2_sha256$1200000$placeholder$oK9H1MD1r1pZrhNU27dYpSYwxsdk5PY26dPZ1xzkqik=",
+      "is_superuser": false,
+      "username": "231121514201",
+      "first_name": "Khánh",
+      "last_name": "Bùi",
+      "email": "231121514201@example.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-07-27T11:00:56.143796+00:00",
+      "role": "STUDENT"
+    }
+  },
+  {
+    "model": "students.student",
+    "fields": {
+      "user": "104b6d25-658d-46f8-8aa1-0a2155d606f2",
+      "student_id": "231121514201",
+      "full_name": "Bùi Khánh",
+      "date_of_birth": "2006-10-23",
+      "student_class": "fef72ae3-8ce8-43b5-b460-21a3446ff238",
+      "created_at": "2026-07-27T11:00:56.143796+00:00",
+      "updated_at": "2026-07-27T11:00:56.143796+00:00"
+    }
+  }
+]

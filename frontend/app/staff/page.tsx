@@ -4,10 +4,20 @@ import React, { useEffect, useState } from 'react';
 import { Search, Filter, ClipboardList, AlertCircle, Ban, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { requestService } from '@/services/request.service';
 
+interface StaffStats {
+  pending: number;
+  warning: number;
+  rejected: number;
+  completed: number;
+}
+
 export default function StaffDashboardPage() {
-  const [stats, setStats] = useState({ pending: 0, warning: 0, rejected: 0, completed: 0 });
+  const [stats, setStats] = useState<StaffStats>({ pending: 0, warning: 0, rejected: 0, completed: 0 });
   const [requests, setRequests] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterType, setFilterType] = useState('ALL');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -29,17 +39,15 @@ export default function StaffDashboardPage() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'PENDING_REVIEW':
-        return <span className="inline-flex items-center px-3 py-1 rounded-md text-xs font-semibold bg-blue-50 text-blue-600 border border-blue-200">Chờ tiếp nhận</span>;
+      case 'PENDING':
+        return <span className="inline-flex items-center px-3 py-1 rounded-md text-xs font-semibold bg-blue-50 text-blue-600 border border-blue-200">Chờ xử lý</span>;
       case 'ADDITIONAL_INFO_REQUIRED':
         return <span className="inline-flex items-center px-3 py-1 rounded-md text-xs font-semibold bg-red-50 text-red-600 border border-red-200 whitespace-nowrap">Yêu cầu bổ sung</span>;
       case 'APPROVED':
         return <span className="inline-flex items-center px-3 py-1 rounded-md text-xs font-semibold bg-emerald-100 text-emerald-700 border border-emerald-300">Đã duyệt</span>;
       case 'REJECTED':
-      case 'CANCELLED':
-        return <span className="inline-flex items-center px-3 py-1 rounded-md text-xs font-semibold bg-gray-100 text-gray-700 border border-gray-300">Đã hủy/Từ chối</span>;
-      case 'IN_PROGRESS':
-        return <span className="inline-flex items-center px-3 py-1 rounded-md text-xs font-semibold bg-yellow-50 text-yellow-600 border border-yellow-200">Đang xử lý</span>;
+      case 'DELETED':
+        return <span className="inline-flex items-center px-3 py-1 rounded-md text-xs font-semibold bg-gray-100 text-gray-700 border border-gray-300">Từ chối / Đã xóa</span>;
       default:
         return <span className="inline-flex items-center px-3 py-1 rounded-md text-xs font-semibold bg-gray-50 text-gray-600 border border-gray-200">{status}</span>;
     }
@@ -61,6 +69,20 @@ export default function StaffDashboardPage() {
     return date.toLocaleDateString('vi-VN');
   };
 
+  const getShortId = (id: string) => `HS${id.split('-')[0].toUpperCase()}`;
+
+  const filteredRequests = requests.filter(request => {
+    const shortId = getShortId(request.id);
+    const matchesSearch = 
+      request.student_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      request.student_code.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      shortId.toLowerCase().includes(searchQuery.toLowerCase());
+      
+    const matchesType = filterType === 'ALL' || request.request_type === filterType;
+    
+    return matchesSearch && matchesType;
+  });
+
   return (
     <div className="max-w-6xl mx-auto pb-10">
       <h1 className="text-2xl font-bold text-[#18538E] mb-6">Danh sách hồ sơ học vụ</h1>
@@ -76,7 +98,7 @@ export default function StaffDashboardPage() {
           </div>
           <div>
             <div className="text-3xl font-bold text-[#0070F4] leading-none mb-1">{stats.pending}</div>
-            <div className="text-xs text-slate-500 font-medium">Chờ tiếp nhận</div>
+            <div className="text-xs text-slate-500 font-medium">Chờ xử lý</div>
           </div>
         </div>
 
@@ -102,7 +124,7 @@ export default function StaffDashboardPage() {
           </div>
           <div>
             <div className="text-3xl font-bold text-slate-800 leading-none mb-1">{stats.rejected < 10 && stats.rejected > 0 ? `0${stats.rejected}` : (stats.rejected === 0 ? '00' : stats.rejected)}</div>
-            <div className="text-xs text-slate-500 font-medium">Đã hủy</div>
+            <div className="text-xs text-slate-500 font-medium">Đã từ chối/xóa</div>
           </div>
         </div>
 
@@ -127,21 +149,30 @@ export default function StaffDashboardPage() {
           <input 
             type="text" 
             placeholder="Tìm tên SV, MSSV hoặc Mã hồ sơ..." 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full bg-slate-50 border border-gray-200 rounded-md py-2.5 pl-10 pr-4 text-sm text-slate-700 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
           />
         </div>
         <div className="w-48 relative">
-          <select className="w-full bg-slate-50 border border-gray-200 rounded-md py-2.5 px-4 text-sm text-slate-700 appearance-none focus:outline-none focus:border-blue-500">
-            <option>Tất cả thủ tục</option>
-            <option>Chuyển ngành</option>
-            <option>Thôi học</option>
-            <option>Bảo lưu</option>
+          <select 
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value)}
+            className="w-full bg-slate-50 border border-gray-200 rounded-md py-2.5 px-4 text-sm text-slate-700 appearance-none focus:outline-none focus:border-blue-500"
+          >
+            <option value="ALL">Tất cả thủ tục</option>
+            <option value="MAJOR_CHANGE">Chuyển ngành</option>
+            <option value="DROPOUT">Thôi học</option>
+            <option value="ACADEMIC_LEAVE">Bảo lưu</option>
+            <option value="RESUME_STUDIES">Xin học tiếp</option>
           </select>
           <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
           </div>
         </div>
-        <button className="bg-[#18538E] hover:bg-blue-800 text-white px-6 py-2.5 rounded-md text-sm font-medium flex items-center gap-2 transition-colors">
+        <button 
+          className="bg-[#18538E] hover:bg-blue-800 text-white px-6 py-2.5 rounded-md text-sm font-medium flex items-center gap-2 transition-colors shadow-sm"
+        >
           <Filter className="h-4 w-4" />
           Lọc dữ liệu
         </button>
@@ -165,19 +196,19 @@ export default function StaffDashboardPage() {
               <tr>
                 <td colSpan={6} className="py-8 text-center text-slate-500">Đang tải dữ liệu...</td>
               </tr>
-            ) : requests.length === 0 ? (
+            ) : filteredRequests.length === 0 ? (
               <tr>
                 <td colSpan={6} className="py-8 text-center text-slate-500">Không có hồ sơ nào</td>
               </tr>
             ) : (
-              requests.map((request, index) => (
+              filteredRequests.map((request, index) => (
                 <tr 
                   key={request.id} 
                   onClick={() => window.location.href = `/staff/requests/${request.id}`}
                   className={`hover:bg-slate-50 transition-colors cursor-pointer ${index % 2 !== 0 ? 'bg-[#F4F9FE]/30' : ''}`}
                 >
                   <td className="py-4 px-6 font-medium text-[#0070F4]">
-                    HS{String(index + 1).padStart(6, '0')}
+                    {getShortId(request.id)}
                   </td>
                   <td className="py-4 px-6 font-bold text-slate-800">{request.student_name}</td>
                   <td className="py-4 px-6 text-slate-700">{request.student_code}</td>

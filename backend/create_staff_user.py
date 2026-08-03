@@ -27,6 +27,23 @@ def create_staff_user():
     )
     print(f"Successfully created staff user: {username}")
 
+    admin_user = 'admin'
+    admin_pass = '1'
+    if User.objects.filter(username=admin_user).exists():
+        u = User.objects.get(username=admin_user)
+        u.set_password(admin_pass)
+        u.is_superuser = True
+        u.is_staff = True
+        u.save()
+        print(f"Superuser {admin_user} already exists. Password reset and superuser flag set.")
+    else:
+        User.objects.create_superuser(
+            username=admin_user,
+            password=admin_pass,
+            email='admin@example.com'
+        )
+        print(f"Successfully created superuser: {admin_user}")
+
 if __name__ == "__main__":
     try:
         create_staff_user()
