@@ -21,6 +21,7 @@ export interface MajorChangeProfile {
   studentId: string;
   idNumber: string;
   currentMajor: string;
+  phone?: string;
 }
 
 export const getMajorChangeProfile = async (): Promise<MajorChangeProfile> => {
