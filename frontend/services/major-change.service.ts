@@ -22,6 +22,8 @@ export interface MajorChangeProfile {
   idNumber: string;
   currentMajor: string;
   phone?: string;
+  admissionScore?: number;
+  admissionCombo?: string;
 }
 
 export const getMajorChangeProfile = async (): Promise<MajorChangeProfile> => {
@@ -44,10 +46,31 @@ export const getMajorChangeProfile = async (): Promise<MajorChangeProfile> => {
       dob: data.date_of_birth ? data.date_of_birth.split('-').reverse().join('/') : '',
       currentMajor: data.student_class?.major?.name || 'Công nghệ Thông tin',
       enrollmentYear: data.student_class?.major?.faculty?.name || '2024',
-      idNumber: '079203001234' // Mocked CCCD as it might not be in DB
+      idNumber: '079203001234', // Mocked CCCD as it might not be in DB
+      admissionScore: data.admission_score || 0,
+      admissionCombo: data.admission_combo || ''
     };
   } catch (error) {
     console.error('Lỗi khi lấy dữ liệu sinh viên:', error);
+    throw error;
+  }
+};
+
+export interface Major {
+  name: string;
+  major_id: string;
+  admission_threshold: number;
+}
+
+export const getMajors = async (): Promise<Major[]> => {
+  try {
+    const token = authService.getAccessToken();
+    const response = await axios.get(`${API_URL}/students/majors/`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Lỗi khi lấy danh sách ngành:', error);
     throw error;
   }
 };

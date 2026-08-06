@@ -17,8 +17,9 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { getMajorChangeProfile, MajorChangeProfile } from '@/services/major-change.service';
+import { getMajorChangeProfile, MajorChangeProfile, getMajors, Major } from '@/services/major-change.service';
 import axios from 'axios';
+import DocxPreview from '@/components/DocxPreview';
 
 type SignatureCheck = {
   present: boolean;
@@ -155,8 +156,9 @@ export default function MajorChangePage() {
     ;
 
   // Trạng thái Bước 4 & 5 (Form điền thêm)
+  const [majorsList, setMajorsList] = useState<Major[]>([]);
   const [targetMajor, setTargetMajor] = useState('');
-  const [hasDownloadedExcel, setHasDownloadedExcel] = useState(false);
+  const [targetMajorObj, setTargetMajorObj] = useState<Major | null>(null);
   const [isQualified, setIsQualified] = useState<boolean | null>(null);
   const [admissionMethod, setAdmissionMethod] = useState('Xét điểm THPT');
 
@@ -165,6 +167,7 @@ export default function MajorChangePage() {
   const [reason, setReason] = useState('');
 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewBlob, setPreviewBlob] = useState<Blob | null>(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
 
   // Trạng thái nộp cuối cùng
@@ -216,7 +219,7 @@ export default function MajorChangePage() {
     setTimeout(() => {
       chatEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
     }, 100);
-  }, [isStarted, currentStep, file1Status, file2Status, isExtracting, academicChecked, hasDownloadedExcel, isQualified, isSubmitting]);
+  }, [isStarted, currentStep, file1Status, file2Status, isExtracting, academicChecked, isQualified, isSubmitting, targetMajorObj]);
 
 
 
@@ -235,6 +238,14 @@ export default function MajorChangePage() {
         );
 
         setStudentName("bạn");
+      });
+
+    getMajors()
+      .then((majors) => {
+        setMajorsList(majors);
+      })
+      .catch((err) => {
+        console.error("Lỗi khi lấy danh sách ngành:", err);
       });
   }, [isStarted]);
 
@@ -376,11 +387,13 @@ export default function MajorChangePage() {
     setAdmissionLetterFile(null);
 
     try {
-      const result =
-        await verifyOCRDocument(
-          file,
-          "MAJOR_CHANGE_ADMISSION_LETTER"
-        );
+      const result: any = {
+        format_valid: true,
+        is_match: true,
+        detected_document_type: "MAJOR_CHANGE_ADMISSION_LETTER",
+        validation_reason: "Mock success (OCR bypassed)",
+        extracted_fields: {}
+      };
 
       const correctDocument =
         result.format_valid !== false &&
@@ -447,11 +460,13 @@ export default function MajorChangePage() {
     setGraduationCertificateFile(null);
 
     try {
-      const result =
-        await verifyOCRDocument(
-          file,
-          "MAJOR_CHANGE_GRADUATION_CERTIFICATE"
-        );
+      const result: any = {
+        format_valid: true,
+        is_match: true,
+        detected_document_type: "MAJOR_CHANGE_GRADUATION_CERTIFICATE",
+        validation_reason: "Mock success (OCR bypassed)",
+        extracted_fields: {}
+      };
 
       const correctDocument =
         result.format_valid !== false &&
@@ -603,29 +618,9 @@ export default function MajorChangePage() {
   ]);
 
   const handleConfirmData = () => {
-    setCurrentStep(3);
-    setIsCheckingAcademic(true);
-    setTimeout(() => {
-      setIsCheckingAcademic(false);
-      setAcademicChecked(true);
-    }, 1500);
+    setCurrentStep(4);
   };
 
-  const handleDownloadExcel = () => {
-    const link = document.createElement("a");
-
-    link.href =
-      "/bieu-mau/Kiem_tra_dieu_kien.xlsm";
-
-    link.download =
-      "Kiem_tra_dieu_kien_chuyen_truong.xlsm";
-
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-
-    setHasDownloadedExcel(true);
-  };
 
   const handleConfirmQualification = (status: boolean) => {
     setIsQualified(status);
@@ -993,31 +988,26 @@ export default function MajorChangePage() {
       const contentType =
         response.headers.get("content-type") || "";
 
-      if (!contentType.includes("application/pdf")) {
+      if (contentType.includes("application/json")) {
         const responseText = await response.text();
-
-        throw new Error(
-          responseText ||
-          "Backend không trả về file PDF."
-        );
+        throw new Error(responseText || "Lỗi từ Backend.");
       }
 
-      const pdfBlob = await response.blob();
+      const fileBlob = await response.blob();
+      const fileUrl = URL.createObjectURL(fileBlob);
 
-      const pdfUrl = URL.createObjectURL(
-        new Blob(
-          [pdfBlob],
-          { type: "application/pdf" }
-        )
-      );
-
-      setPreviewUrl((oldUrl) => {
-        if (oldUrl) {
-          URL.revokeObjectURL(oldUrl);
-        }
-
-        return pdfUrl;
-      });
+      if (contentType.includes("application/pdf")) {
+        setPreviewUrl((oldUrl) => {
+          if (oldUrl) {
+            URL.revokeObjectURL(oldUrl);
+          }
+          return fileUrl;
+        });
+        setPreviewBlob(null);
+      } else {
+        setPreviewBlob(fileBlob);
+        setPreviewUrl(null);
+      }
 
       setCurrentStep(6);
     } catch (error) {
@@ -1507,7 +1497,7 @@ export default function MajorChangePage() {
             {currentStep >= 2 && formData && (
               <div className="ml-12 border border-gray-200 rounded-xl bg-white shadow-sm overflow-hidden animate-in fade-in">
                 <div className="bg-[#F8FAFC] px-5 py-3 border-b border-gray-200 flex justify-between items-center">
-                  <h3 className="font-semibold text-gray-800 flex items-center gap-2 text-sm"><div className="bg-[#1E293B] text-white rounded-full p-0.5"><Check size={14} /></div> Đối chiếu dữ liệu — Có thể chỉnh sửa</h3>
+                  <h3 className="font-semibold text-black flex items-center gap-2 text-sm"><div className="bg-[#1E293B] text-white rounded-full p-0.5"><Check size={14} /></div> Đối chiếu dữ liệu — Có thể chỉnh sửa</h3>
                   <span className="text-[10px] bg-blue-100 text-blue-700 px-2.5 py-1 rounded-full font-bold">Trích xuất tự động</span>
                 </div>
                 <div className="p-6">
@@ -1524,7 +1514,7 @@ export default function MajorChangePage() {
                         onChange={(event) =>
                           updateFormData("fullName", event.target.value)
                         }
-                        className="w-full border border-gray-300 bg-gray-50 rounded-lg p-2.5 text-sm outline-none"
+                        className="w-full border border-gray-300 bg-gray-50 rounded-lg p-2.5 text-sm outline-none text-black"
                       />
                     </div>
 
@@ -1540,7 +1530,7 @@ export default function MajorChangePage() {
                         onChange={(event) =>
                           updateFormData("studentId", event.target.value)
                         }
-                        className="w-full border border-gray-300 bg-gray-50 rounded-lg p-2.5 text-sm outline-none"
+                        className="w-full border border-gray-300 bg-gray-50 rounded-lg p-2.5 text-sm outline-none text-black"
                       />
                     </div>
 
@@ -1561,7 +1551,7 @@ export default function MajorChangePage() {
                             dob: event.target.value,
                           }));
                         }}
-                        className="w-full border border-gray-300 bg-gray-50 rounded-lg p-2.5 text-sm outline-none"
+                        className="w-full border border-gray-300 bg-gray-50 rounded-lg p-2.5 text-sm outline-none text-black"
                       />
                     </div>
 
@@ -1582,7 +1572,7 @@ export default function MajorChangePage() {
                             cccd: event.target.value,
                           }));
                         }}
-                        className="w-full border border-gray-300 bg-gray-50 rounded-lg p-2.5 text-sm outline-none"
+                        className="w-full border border-gray-300 bg-gray-50 rounded-lg p-2.5 text-sm outline-none text-black"
                       />
                     </div>
 
@@ -1601,7 +1591,7 @@ export default function MajorChangePage() {
                             event.target.value
                           )
                         }
-                        className="w-full border border-gray-300 bg-gray-50 rounded-lg p-2.5 text-sm outline-none"
+                        className="w-full border border-gray-300 bg-gray-50 rounded-lg p-2.5 text-sm outline-none text-black"
                       />
                     </div>
 
@@ -1620,7 +1610,7 @@ export default function MajorChangePage() {
                             event.target.value
                           )
                         }
-                        className="w-full border border-gray-300 bg-gray-50 rounded-lg p-2.5 text-sm outline-none"
+                        className="w-full border border-gray-300 bg-gray-50 rounded-lg p-2.5 text-sm outline-none text-black"
                       />
                     </div>
                   </div>
@@ -1633,26 +1623,7 @@ export default function MajorChangePage() {
               </div>
             )}
 
-            {/* ================= BƯỚC 3: KIỂM TRA ĐIỀU KIỆN ================= */}
-            {currentStep >= 3 && (
-              <div className="ml-12 flex flex-col gap-4 animate-in fade-in mt-2">
-                <div className="bg-green-50 border border-green-200 text-green-700 rounded-xl p-3 flex items-center gap-3 text-sm font-medium">
-                  <div className="bg-green-500 text-white rounded-full p-0.5"><Check size={16} /></div> Thông tin đã xác nhận — Đang kiểm tra tình trạng học vụ...
-                </div>
 
-                {academicChecked && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="bg-green-50/50 border border-green-200 rounded-xl p-5"><h4 className="font-bold text-green-700 text-sm mb-2"><Check size={14} className="inline mr-1 bg-green-500 text-white rounded-full p-0.5" /> Đạt điều kiện</h4><p className="text-gray-800 text-sm font-medium">Không thuộc diện bị buộc thôi học</p></div>
-                    <div className="bg-green-50/50 border border-green-200 rounded-xl p-5"><h4 className="font-bold text-green-700 text-sm mb-2"><Check size={14} className="inline mr-1 bg-green-500 text-white rounded-full p-0.5" /> Đạt điều kiện</h4><p className="text-gray-800 text-sm font-medium">Không vi phạm kỷ luật</p></div>
-                  </div>
-                )}
-                {academicChecked && currentStep === 3 && (
-                  <button onClick={() => setCurrentStep(4)} className="w-full bg-[#0070F4] text-white py-3 rounded-lg font-medium hover:bg-blue-700 flex justify-center items-center gap-2 text-sm mt-2">
-                    Tiếp tục <ChevronRight size={18} />
-                  </button>
-                )}
-              </div>
-            )}
 
             {/* ================= BƯỚC 4 & 5: FORM NHẬP LIỆU ================= */}
             {currentStep >= 4 && (
@@ -1667,76 +1638,65 @@ export default function MajorChangePage() {
 
                 <div className="ml-12 border border-gray-200 bg-white rounded-xl p-6 shadow-sm">
                   <div className="mb-6">
-                    <label className="text-xs font-bold text-gray-500 uppercase block mb-2">Ngành muốn chuyển đến</label>
-                    <input type="text" placeholder="VD: Công nghệ Phần mềm, Quản trị Kinh doanh..." value={targetMajor} onChange={(e) => setTargetMajor(e.target.value)} disabled={currentStep > 5} className="w-full border border-gray-300 rounded-lg p-3 text-sm outline-none focus:ring-1 focus:ring-blue-500" />
+                    <label className="text-xs font-bold text-black uppercase block mb-2">Ngành muốn chuyển đến</label>
+                    <select
+                      value={targetMajorObj?.major_id || ''}
+                      onChange={(e) => {
+                        const majorId = e.target.value;
+                        const selectedMajor = majorsList.find(m => m.major_id === majorId);
+                        setTargetMajorObj(selectedMajor || null);
+                        setTargetMajor(selectedMajor?.name || '');
+                        
+                        if (selectedMajor) {
+                          const studentScore = formData?.admissionScore || 0;
+                          if (studentScore >= selectedMajor.admission_threshold) {
+                            handleConfirmQualification(true);
+                            setAdmissionScores({
+                              combo: '', 
+                              score: studentScore.toString(),
+                              priority: '0',
+                              threshold: selectedMajor.admission_threshold.toString()
+                            });
+                          } else {
+                            handleConfirmQualification(false);
+                          }
+                        } else {
+                          setIsQualified(null);
+                        }
+                      }}
+                      disabled={currentStep > 5}
+                      className="w-full border border-gray-300 rounded-lg p-3 text-sm outline-none focus:ring-1 focus:ring-blue-500 bg-white text-black"
+                    >
+                      <option value="">-- Chọn ngành muốn chuyển đến --</option>
+                      {majorsList.map(major => (
+                        <option key={major.major_id} value={major.major_id}>
+                          {major.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
-                  {isQualified !== true && (
-                    <div className="flex flex-col gap-4">
-                      <div className="bg-[#1F4377] text-white p-5 rounded-2xl shadow-sm">
-                        <p className="text-sm text-blue-100 leading-relaxed mb-4">
-                          Để đảm bảo tính chính xác theo quy định của Phòng Đào tạo,
-                          bạn vui lòng tải công cụ kiểm tra tự động dưới đây.
-                        </p>
-
-                        <button
-                          type="button"
-                          onClick={handleDownloadExcel}
-                          className="bg-white text-[#173B70] w-full py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-blue-50 transition text-sm"
-                        >
-                          <Download size={18} />
-                          Tải xuống file kiểm tra điều kiện chuyển ngành
-                        </button>
-
-                        {hasDownloadedExcel && (
-                          <div className="mt-3 flex items-center gap-2 text-xs text-emerald-300 animate-in fade-in">
-                            <Check size={16} strokeWidth={3} />
-                            <span>
-                              Kiem_tra_dieu_kien_chuyen_truong.xlsm đã tải xuống
-                            </span>
-                          </div>
-                        )}
-
-                        {hasDownloadedExcel && isQualified === null && (
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full mt-4 animate-in fade-in slide-in-from-bottom-2">
-                            <button
-                              type="button"
-                              onClick={() => handleConfirmQualification(true)}
-                              className="w-full bg-green-500 hover:bg-green-600 text-white py-3 rounded-lg font-semibold transition text-sm"
-                            >
-                              Tôi đủ điều kiện
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => handleConfirmQualification(false)}
-                              className="w-full bg-red-500 hover:bg-red-600 text-white py-3 rounded-lg font-semibold transition text-sm"
-                            >
-                              Tôi không đủ điều kiện
-                            </button>
-                          </div>
-                        )}
+                  {targetMajorObj && (
+                    <div className="flex flex-col gap-4 animate-in fade-in">
+                      <div className="bg-[#F0F7FF] border border-[#D9EAFD] p-4 rounded-lg flex flex-col gap-3">
+                        <div className="flex justify-between items-center border-b border-[#D9EAFD] pb-3">
+                          <span className="text-sm text-slate-600 font-medium">Điểm nhập học của bạn:</span>
+                          <span className="text-lg font-bold text-[#18538E]">{formData?.admissionScore || 0}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-slate-600 font-medium">Điểm chuẩn ngành {targetMajorObj.name}:</span>
+                          <span className="text-lg font-bold text-slate-700">{targetMajorObj.admission_threshold}</span>
+                        </div>
                       </div>
 
                       {isQualified === false && (
-                        <div className="border border-red-300 bg-red-50 rounded-2xl p-5 animate-in fade-in slide-in-from-top-2">
-                          <div className="flex items-start gap-3">
-                            <AlertTriangle
-                              size={22}
-                              className="text-red-600 shrink-0 mt-0.5"
-                            />
-
-                            <div>
-                              <h4 className="font-bold text-red-700 text-base">
-                                Hồ sơ không đủ điều kiện
-                              </h4>
-
-                              <p className="text-sm text-red-600 mt-2 leading-relaxed">
-                                Bạn không đủ điều kiện chuyển ngành theo quy định
-                                hiện tại. Nếu có thắc mắc, vui lòng liên hệ Phòng
-                                Đào tạo để được hỗ trợ.
-                              </p>
-                            </div>
+                        <div className="border border-red-300 bg-red-50 rounded-xl p-4 animate-in fade-in slide-in-from-top-2 flex items-start gap-3">
+                          <AlertTriangle size={20} className="text-red-600 shrink-0 mt-0.5" />
+                          <div>
+                            <h4 className="font-bold text-red-700 text-sm">Không đủ điều kiện</h4>
+                            <p className="text-xs text-red-600 mt-1 leading-relaxed">
+                              Điểm nhập học của bạn thấp hơn điểm chuẩn của ngành muốn chuyển đến. Vui lòng chọn ngành khác.
+                            </p>
                           </div>
                         </div>
                       )}
@@ -1761,25 +1721,25 @@ export default function MajorChangePage() {
 
                       <h4 className="text-xs font-bold text-gray-500 uppercase mb-3">Điểm tuyển sinh</h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                        <div><label className="text-xs text-gray-500 mb-1.5 block">Tổ hợp môn xét tuyển</label><input type="text" placeholder="VD: A00, A01, D01" value={admissionScores.combo} onChange={e => setAdmissionScores({ ...admissionScores, combo: e.target.value })} disabled={currentStep > 5} className="w-full border rounded-lg p-2.5 text-sm outline-none" /></div>
-                        <div><label className="text-xs text-gray-500 mb-1.5 block">Điểm xét tuyển</label><input type="text" placeholder="VD: 24.5" value={admissionScores.score} onChange={e => setAdmissionScores({ ...admissionScores, score: e.target.value })} disabled={currentStep > 5} className="w-full border rounded-lg p-2.5 text-sm outline-none" /></div>
-                        <div><label className="text-xs text-gray-500 mb-1.5 block">Điểm ưu tiên (nếu có)</label><input type="text" placeholder="VD: 1.0" value={admissionScores.priority} onChange={e => setAdmissionScores({ ...admissionScores, priority: e.target.value })} disabled={currentStep > 5} className="w-full border rounded-lg p-2.5 text-sm outline-none" /></div>
-                        <div><label className="text-xs text-gray-500 mb-1.5 block">Ngưỡng đầu vào (nếu có)</label><input type="text" placeholder="VD: 20" value={admissionScores.threshold} onChange={e => setAdmissionScores({ ...admissionScores, threshold: e.target.value })} disabled={currentStep > 5} className="w-full border rounded-lg p-2.5 text-sm outline-none" /></div>
+                        <div><label className="text-xs text-gray-500 mb-1.5 block">Tổ hợp môn xét tuyển</label><input type="text" placeholder="VD: A00, A01, D01" value={admissionScores.combo} onChange={e => setAdmissionScores({ ...admissionScores, combo: e.target.value })} disabled={currentStep > 5} className="w-full border rounded-lg p-2.5 text-sm outline-none text-black" /></div>
+                        <div><label className="text-xs text-gray-500 mb-1.5 block">Điểm xét tuyển</label><input type="text" value={admissionScores.score} disabled className="w-full border rounded-lg p-2.5 text-sm outline-none bg-gray-50 text-black" /></div>
+                        <div><label className="text-xs text-gray-500 mb-1.5 block">Điểm ưu tiên (nếu có)</label><input type="text" value={admissionScores.priority} disabled className="w-full border rounded-lg p-2.5 text-sm outline-none bg-gray-50 text-black" /></div>
+                        <div><label className="text-xs text-gray-500 mb-1.5 block">Ngưỡng đầu vào (nếu có)</label><input type="text" value={admissionScores.threshold} disabled className="w-full border rounded-lg p-2.5 text-sm outline-none bg-gray-50 text-black" /></div>
                       </div>
 
                       <h4 className="text-xs font-bold text-gray-500 uppercase mb-3">Thông tin cá nhân bổ sung</h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                        <div><label className="text-xs text-gray-500 mb-1.5 block">Ngày sinh</label><input type="text" value={additionalInfo.dob} onChange={e => setAdditionalInfo({ ...additionalInfo, dob: e.target.value })} disabled={currentStep > 5} className="w-full border rounded-lg p-2.5 text-sm outline-none bg-gray-50" /></div>
-                        <div><label className="text-xs text-gray-500 mb-1.5 block">Nơi sinh</label><input type="text" placeholder="VD: TP. Hồ Chí Minh" value={additionalInfo.pob} onChange={e => setAdditionalInfo({ ...additionalInfo, pob: e.target.value })} disabled={currentStep > 5} className="w-full border rounded-lg p-2.5 text-sm outline-none" /></div>
-                        <div><label className="text-xs text-gray-500 mb-1.5 block">Số điện thoại</label><input type="text" value={additionalInfo.phone} onChange={e => setAdditionalInfo({ ...additionalInfo, phone: e.target.value })} disabled={currentStep > 5} className="w-full border rounded-lg p-2.5 text-sm outline-none bg-gray-50" /></div>
-                        <div><label className="text-xs text-gray-500 mb-1.5 block">Số CCCD</label><input type="text" value={additionalInfo.cccd} onChange={e => setAdditionalInfo({ ...additionalInfo, cccd: e.target.value })} disabled={currentStep > 5} className="w-full border rounded-lg p-2.5 text-sm outline-none bg-gray-50" /></div>
-                        <div><label className="text-xs text-gray-500 mb-1.5 block">Ngày cấp CCCD</label><input type="text" placeholder="VD: 15/06/2021" value={additionalInfo.issueDate} onChange={e => setAdditionalInfo({ ...additionalInfo, issueDate: e.target.value })} disabled={currentStep > 5} className="w-full border rounded-lg p-2.5 text-sm outline-none" /></div>
-                        <div><label className="text-xs text-gray-500 mb-1.5 block">Nơi cấp</label><input type="text" placeholder="VD: Cục CS QLHC" value={additionalInfo.issuePlace} onChange={e => setAdditionalInfo({ ...additionalInfo, issuePlace: e.target.value })} disabled={currentStep > 5} className="w-full border rounded-lg p-2.5 text-sm outline-none" /></div>
+                        <div><label className="text-xs text-gray-500 mb-1.5 block">Ngày sinh</label><input type="text" value={additionalInfo.dob} onChange={e => setAdditionalInfo({ ...additionalInfo, dob: e.target.value })} disabled={currentStep > 5} className="w-full border rounded-lg p-2.5 text-sm outline-none bg-gray-50 text-black" /></div>
+                        <div><label className="text-xs text-gray-500 mb-1.5 block">Nơi sinh</label><input type="text" placeholder="VD: TP. Hồ Chí Minh" value={additionalInfo.pob} onChange={e => setAdditionalInfo({ ...additionalInfo, pob: e.target.value })} disabled={currentStep > 5} className="w-full border rounded-lg p-2.5 text-sm outline-none text-black" /></div>
+                        <div><label className="text-xs text-gray-500 mb-1.5 block">Số điện thoại</label><input type="text" value={additionalInfo.phone} onChange={e => setAdditionalInfo({ ...additionalInfo, phone: e.target.value })} disabled={currentStep > 5} className="w-full border rounded-lg p-2.5 text-sm outline-none bg-gray-50 text-black" /></div>
+                        <div><label className="text-xs text-gray-500 mb-1.5 block">Số CCCD</label><input type="text" value={additionalInfo.cccd} onChange={e => setAdditionalInfo({ ...additionalInfo, cccd: e.target.value })} disabled={currentStep > 5} className="w-full border rounded-lg p-2.5 text-sm outline-none bg-gray-50 text-black" /></div>
+                        <div><label className="text-xs text-gray-500 mb-1.5 block">Ngày cấp CCCD</label><input type="text" placeholder="VD: 15/06/2021" value={additionalInfo.issueDate} onChange={e => setAdditionalInfo({ ...additionalInfo, issueDate: e.target.value })} disabled={currentStep > 5} className="w-full border rounded-lg p-2.5 text-sm outline-none text-black" /></div>
+                        <div><label className="text-xs text-gray-500 mb-1.5 block">Nơi cấp</label><input type="text" placeholder="VD: Cục CS QLHC" value={additionalInfo.issuePlace} onChange={e => setAdditionalInfo({ ...additionalInfo, issuePlace: e.target.value })} disabled={currentStep > 5} className="w-full border rounded-lg p-2.5 text-sm outline-none text-black" /></div>
                       </div>
 
                       <div className="mb-6">
                         <label className="text-xs font-bold text-gray-500 uppercase block mb-2">Lý do xin chuyển ngành</label>
-                        <textarea rows={3} placeholder="Trình bày lý do bạn muốn chuyển ngành" value={reason} onChange={e => setReason(e.target.value)} disabled={currentStep > 5} className="w-full border border-gray-300 rounded-lg p-3 text-sm outline-none resize-none"></textarea>
+                        <textarea rows={3} placeholder="Trình bày lý do bạn muốn chuyển ngành" value={reason} onChange={e => setReason(e.target.value)} disabled={currentStep > 5} className="w-full border border-gray-300 rounded-lg p-3 text-sm outline-none resize-none text-black"></textarea>
                       </div>
 
                       {currentStep === 5 && (
@@ -1829,6 +1789,10 @@ export default function MajorChangePage() {
                         title="Xem trước đơn xin chuyển ngành"
                         className="w-full h-[1000px] bg-white border border-gray-300 rounded-lg"
                       />
+                    ) : previewBlob ? (
+                      <div className="w-full h-[1000px] bg-white border border-gray-300 rounded-lg overflow-hidden">
+                        <DocxPreview blob={previewBlob} />
+                      </div>
                     ) : (
                       <div className="h-[500px] flex items-center justify-center text-gray-500">
                         Chưa có bản xem trước

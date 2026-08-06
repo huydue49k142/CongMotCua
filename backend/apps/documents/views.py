@@ -758,18 +758,12 @@ class PreviewMajorChangeFormAPIView(APIView):
             # Tạo Word từ đúng template chính thức
             docx_buffer = generate_major_change_form(context)
 
-            # Chuyển Word sang PDF
-            pdf_buffer = convert_docx_to_pdf(docx_buffer)
-
+            # Không convert sang PDF nữa mà tải file Word (.docx) xuống
             response = FileResponse(
-                pdf_buffer,
-                as_attachment=False,
-                filename="Don_xin_chuyen_nganh_preview.pdf",
-                content_type="application/pdf",
-            )
-
-            response["Content-Disposition"] = (
-                'inline; filename="Don_xin_chuyen_nganh_preview.pdf"'
+                docx_buffer,
+                as_attachment=True,
+                filename="Don_xin_chuyen_nganh_preview.docx",
+                content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             )
 
             return response
