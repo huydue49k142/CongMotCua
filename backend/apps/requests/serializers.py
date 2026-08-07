@@ -1,5 +1,8 @@
+from django.urls import reverse
 from rest_framework import serializers
 from .models import Request, Student
+
+from .models import RequestHistory, RequestDocument, ProcedureDraft, ProcedureDraftDocument
 
 class RequestSerializer(serializers.ModelSerializer):
     class Meta:
@@ -72,3 +75,64 @@ class DraftRequestSerializer(serializers.Serializer):
             status=Request.Status.DRAFT
         )
         return request
+
+
+class ProcedureDraftSerializer(
+    serializers.ModelSerializer
+):
+    class Meta:
+        model = ProcedureDraft
+
+        fields = [
+            "id",
+            "request_type",
+            "is_started",
+            "current_step",
+            "draft_data",
+            "created_at",
+            "updated_at",
+        ]
+
+        read_only_fields = [
+            "id",
+            "created_at",
+            "updated_at",
+        ]
+
+
+class ProcedureDraftDocumentSerializer(
+    serializers.ModelSerializer
+):
+    file_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ProcedureDraftDocument
+        fields = [
+            "id",
+            "document_key",
+            "original_name",
+            "content_type",
+            "file_size",
+            "file_url",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = fields
+
+    def get_file_url(self, obj):
+        relative_url = reverse(
+            "procedure-draft-document-file",
+            kwargs={
+                "request_type": obj.draft.request_type,
+                "document_id": obj.id,
+            },
+        )
+
+        request = self.context.get("request")
+
+        if request is not None:
+            return request.build_absolute_uri(
+                relative_url
+            )
+
+        return relative_url

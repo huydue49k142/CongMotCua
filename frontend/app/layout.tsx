@@ -2,11 +2,18 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"] });
+import {
+  ProcedureProvider,
+} from "@/contexts/ProcedureContext";
+
+const inter = Inter({
+  subsets: ["latin"],
+});
 
 export const metadata: Metadata = {
   title: "Cổng Một Cửa - Phòng Đào Tạo",
-  description: "Hệ thống hỗ trợ thủ tục hành chính tích hợp AI cho sinh viên",
+  description:
+    "Hệ thống hỗ trợ thủ tục hành chính tích hợp AI cho sinh viên",
 };
 
 export default function RootLayout({
@@ -16,8 +23,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="vi">
-      <body className={`${inter.className} antialiased`}>
-        {children}
+      <body
+        className={`${inter.className} antialiased`}
+      >
+        <ProcedureProvider>
+          {children}
+        </ProcedureProvider>
       </body>
     </html>
   );

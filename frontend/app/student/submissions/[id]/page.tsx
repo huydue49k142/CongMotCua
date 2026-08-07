@@ -2,8 +2,8 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { 
-  ArrowLeft, CheckCircle2, XCircle, AlertCircle, Clock, 
+import {
+  ArrowLeft, CheckCircle2, XCircle, AlertCircle, Clock,
   FileText, Paperclip, Ban, UploadCloud, Loader2, PlayCircle
 } from 'lucide-react';
 import { requestService, DetailedRequest } from '@/services/request.service';
@@ -152,21 +152,21 @@ export default function StudentRequestDetailPage() {
           <span className="text-xs text-slate-500 font-bold tracking-wider mr-2 uppercase">MÃ HỒ SƠ {shortId}</span>
           <span className="font-bold text-slate-900 text-2xl">Chi tiết hồ sơ {typeLabel}</span>
         </h1>
-        
+
         <div className="flex items-center gap-3">
           {request.status === 'ADDITIONAL_INFO_REQUIRED' && (
-            <button 
+            <button
               onClick={() => router.push(`/student/submissions/${id}/resubmit`)}
               className="px-5 py-2.5 bg-orange-500 text-white rounded-md text-sm font-medium hover:bg-orange-600 transition flex items-center gap-2 shadow-sm"
             >
               <UploadCloud size={16} /> Bổ sung hồ sơ
             </button>
           )}
-          <button 
-            onClick={() => router.push('/student/submissions')} 
+          <button
+            onClick={() => router.push('/student/submissions')}
             className="px-5 py-2.5 bg-white border border-slate-300 rounded-md text-sm font-medium hover:bg-slate-50 flex items-center gap-2 shadow-sm text-black"
           >
-             Quay lại danh sách
+            Quay lại danh sách
           </button>
         </div>
       </div>
@@ -184,62 +184,123 @@ export default function StudentRequestDetailPage() {
           </div>
 
           <div className="p-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-12">
-              <div>
-                <p className="text-xs font-bold text-slate-500 mb-1.5 tracking-wide uppercase">Mã hồ sơ</p>
-                <p className="font-bold text-[#18538E] text-sm">{shortId}</p>
-              </div>
-              <div>
-                <p className="text-xs font-bold text-slate-500 mb-1.5 tracking-wide uppercase">Loại yêu cầu</p>
-                <p className="font-semibold text-[#18538E] text-sm">{typeLabel}</p>
-              </div>
-              <div>
-                <p className="text-xs font-bold text-slate-500 mb-1.5 tracking-wide uppercase">Họ và tên sinh viên</p>
-                <p className="font-bold text-slate-800 text-sm">{request.student_name}</p>
-              </div>
-              <div>
-                <p className="text-xs font-bold text-slate-500 mb-1.5 tracking-wide uppercase">Ngày tiếp nhận</p>
-                <p className="font-semibold text-slate-800 text-sm">
-                  {new Date(request.submitted_at || request.created_at).toLocaleDateString('vi-VN')}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs font-bold text-slate-500 mb-1.5 tracking-wide uppercase">Mã số sinh viên</p>
-                <p className="font-semibold text-slate-800 text-sm">{request.student_code}</p>
-              </div>
-              <div>
-                <p className="text-xs font-bold text-slate-500 mb-2 tracking-wide uppercase">Tài liệu đính kèm</p>
-                <div className="flex flex-col gap-2">
-                  {request.documents && request.documents.length > 0 ? (
-                    request.documents.map((doc, i) => (
-                      <a 
-                        key={i} 
-                        href={doc.file} 
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#F4F9FE] hover:bg-[#EBF1F9] border border-[#EBF1F9] rounded-md text-xs font-semibold text-[#18538E] w-fit transition-colors"
-                      >
-                        <Paperclip size={14} /> 
-                        {doc.file_name} 
-                        {doc.document_type === 'SUPPLEMENTARY' && <span className="text-orange-500 ml-1 font-normal">(Hồ sơ bổ sung)</span>}
-                      </a>
-                    ))
-                  ) : (
-                    <span className="text-sm text-gray-500 italic">Không có tài liệu đính kèm</span>
-                  )}
-                </div>
-              </div>
-              
-              {['REJECTED', 'DELETED', 'ADDITIONAL_INFO_REQUIRED'].includes(request.status) && request.history.length > 0 && (
+            <div className="grid grid-cols-1 gap-10 md:grid-cols-2 md:gap-x-16">
+              {/* CỘT TRÁI */}
+              <div className="flex flex-col gap-8">
                 <div>
-                  <p className="text-xs font-bold text-slate-500 mb-1.5 tracking-wide uppercase">
-                    {request.status === 'ADDITIONAL_INFO_REQUIRED' ? 'Lý do yêu cầu bổ sung' : 'Lý do từ chối'}
+                  <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-slate-500">
+                    Mã hồ sơ
                   </p>
-                  <div className="bg-red-50 p-3 rounded-md text-red-800 text-sm italic">
-                    "{request.history[0]?.notes}"
+
+                  <p className="text-sm font-bold text-[#18538E]">
+                    {shortId}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-slate-500">
+                    Họ và tên sinh viên
+                  </p>
+
+                  <p className="text-sm font-bold text-slate-800">
+                    {request.student_name}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-slate-500">
+                    Mã số sinh viên
+                  </p>
+
+                  <p className="text-sm font-semibold text-slate-800">
+                    {request.student_code}
+                  </p>
+                </div>
+
+                {/* Tệp đính kèm nằm cuối cột trái */}
+                <div>
+                  <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">
+                    Tệp đính kèm
+                  </p>
+
+                  <div className="flex flex-wrap gap-2">
+                    {request.documents &&
+                      request.documents.length > 0 ? (
+                      request.documents.map((doc, i) => (
+                        <a
+                          key={i}
+                          href={doc.file}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex w-fit items-center gap-2 rounded-md border border-[#D9E7F5] bg-[#F4F9FE] px-3 py-2 text-xs font-semibold text-[#18538E] transition-colors hover:bg-[#EBF1F9]"
+                        >
+                          <Paperclip size={14} />
+
+                          <span>{doc.file_name}</span>
+
+                          {doc.document_type ===
+                            "SUPPLEMENTARY" && (
+                              <span className="ml-1 font-normal text-orange-500">
+                                (Hồ sơ bổ sung)
+                              </span>
+                            )}
+                        </a>
+                      ))
+                    ) : (
+                      <span className="text-sm italic text-gray-500">
+                        Không có tài liệu đính kèm
+                      </span>
+                    )}
                   </div>
                 </div>
-              )}
+              </div>
+
+              {/* CỘT PHẢI */}
+              <div className="flex flex-col gap-8">
+                <div>
+                  <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-slate-500">
+                    Loại yêu cầu
+                  </p>
+
+                  <p className="text-sm font-semibold text-[#18538E]">
+                    {typeLabel}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-slate-500">
+                    Ngày tiếp nhận
+                  </p>
+
+                  <p className="text-sm font-semibold text-slate-800">
+                    {new Date(
+                      request.submitted_at ||
+                      request.created_at
+                    ).toLocaleDateString("vi-VN")}
+                  </p>
+                </div>
+
+                {/* Lý do nằm dưới ngày tiếp nhận */}
+                {[
+                  "REJECTED",
+                  "DELETED",
+                  "ADDITIONAL_INFO_REQUIRED",
+                ].includes(request.status) &&
+                  (request.history?.length ?? 0) > 0 && (
+                    <div>
+                      <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">
+                        {request.status ===
+                          "ADDITIONAL_INFO_REQUIRED"
+                          ? "Lý do yêu cầu bổ sung"
+                          : "Lý do từ chối"}
+                      </p>
+
+                      <div className="max-w-md rounded-md bg-red-50 px-4 py-3 text-sm italic leading-6 text-red-800">
+                        “{request.history[0]?.notes}”
+                      </div>
+                    </div>
+                  )}
+              </div>
             </div>
           </div>
         </div>

@@ -4,7 +4,8 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { 
   ArrowLeft, CheckCircle2, XCircle, AlertCircle, Clock, 
-  FileText, Paperclip, Ban, Edit3, Loader2, Download
+  FileText, Paperclip, Ban, Edit3, Loader2, Download,
+  Info, Send, History
 } from 'lucide-react';
 import { requestService, DetailedRequest } from '@/services/request.service';
 
@@ -86,6 +87,15 @@ const getStatusBadgeDesign = (status: string) => {
   }
 };
 
+const COMMON_ADDITIONAL_INFO_REASONS = [
+  'Thiếu bảng điểm gốc',
+  'Minh chứng không hợp lệ',
+  'Cần chữ ký xác nhận',
+  'Ảnh chân dung mờ/sai quy chuẩn',
+  'CCCD hết hạn/mờ số',
+  'Khác...',
+];
+
 export default function StaffRequestDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -96,6 +106,7 @@ export default function StaffRequestDetailPage() {
 
   const [actionModal, setActionModal] = useState<{isOpen: boolean; action: 'REJECT' | 'REQUEST_INFO' | null}>({isOpen: false, action: null});
   const [notes, setNotes] = useState('');
+  const [selectedReasons, setSelectedReasons] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -121,16 +132,94 @@ export default function StaffRequestDetailPage() {
     submitAction('APPROVE');
   };
 
-  const submitAction = async (action: 'APPROVE' | 'REJECT' | 'REQUEST_INFO') => {
-    if (action !== 'APPROVE' && !notes.trim()) return;
+  const openActionModal = (
+    action: 'REJECT' | 'REQUEST_INFO'
+  ) => {
+    setNotes('');
+    setSelectedReasons([]);
+    setActionModal({
+      isOpen: true,
+      action,
+    });
+  };
+
+  const closeActionModal = () => {
+    if (submitting) return;
+
+    setActionModal({
+      isOpen: false,
+      action: null,
+    });
+    setNotes('');
+    setSelectedReasons([]);
+  };
+
+  const toggleAdditionalReason = (
+    reason: string
+  ) => {
+    setSelectedReasons((current) =>
+      current.includes(reason)
+        ? current.filter((item) => item !== reason)
+        : [...current, reason]
+    );
+  };
+
+  const submitAction = async (
+    action: 'APPROVE' | 'REJECT' | 'REQUEST_INFO'
+  ) => {
+    const trimmedNotes = notes.trim();
+
+    if (
+      action === 'REJECT' &&
+      !trimmedNotes
+    ) {
+      return;
+    }
+
+    if (
+      action === 'REQUEST_INFO' &&
+      selectedReasons.length === 0 &&
+      !trimmedNotes
+    ) {
+      return;
+    }
+
+    const requestInfoNotes =
+      action === 'REQUEST_INFO'
+        ? [
+            selectedReasons.length > 0
+              ? `Lý do bổ sung: ${selectedReasons.join('; ')}`
+              : '',
+            trimmedNotes
+              ? `Nội dung yêu cầu chi tiết: ${trimmedNotes}`
+              : '',
+          ]
+            .filter(Boolean)
+            .join('\n')
+        : trimmedNotes;
+
     setSubmitting(true);
+
     try {
-      await requestService.updateRequestStatus(id, action, notes);
-      setActionModal({isOpen: false, action: null});
+      await requestService.updateRequestStatus(
+        id,
+        action,
+        requestInfoNotes
+      );
+
+      setActionModal({
+        isOpen: false,
+        action: null,
+      });
       setNotes('');
-      await fetchData(); // Refresh data
+      setSelectedReasons([]);
+
+      await fetchData();
     } catch (error) {
-      console.error('Lỗi khi xử lý hồ sơ:', error);
+      console.error(
+        'Lỗi khi xử lý hồ sơ:',
+        error
+      );
       alert('Có lỗi xảy ra khi xử lý.');
     } finally {
       setSubmitting(false);
@@ -163,13 +252,13 @@ export default function StaffRequestDetailPage() {
           {canAction && (
             <>
               <button 
-                onClick={() => setActionModal({isOpen: true, action: 'REJECT'})}
+                onClick={() => openActionModal('REJECT')}
                 className="bg-[#C5221F] text-white hover:bg-red-800 px-5 py-2.5 rounded-md text-sm font-medium flex items-center gap-2 transition"
               >
                 <Ban size={16} /> Từ chối
               </button>
               <button 
-                onClick={() => setActionModal({isOpen: true, action: 'REQUEST_INFO'})}
+                onClick={() => openActionModal('REQUEST_INFO')}
                 className="bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 px-5 py-2.5 rounded-md text-sm font-medium flex items-center gap-2 transition shadow-sm"
               >
                 <Edit3 size={16} /> Yêu cầu bổ sung
@@ -267,75 +356,277 @@ export default function StaffRequestDetailPage() {
       </div>
 
       {/* Action Modal */}
-      {actionModal.isOpen && actionModal.action && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex justify-center items-center backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-2xl w-[500px] overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-center relative">
-              <div className="flex items-center gap-4">
-                <div className={`p-2 rounded-lg ${actionModal.action === 'REJECT' ? 'bg-red-50 text-red-500' : 'bg-orange-50 text-orange-500'}`}>
-                  <AlertCircle size={24} />
+      {actionModal.isOpen &&
+        actionModal.action === 'REQUEST_INFO' && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/55 px-4 py-6 backdrop-blur-[2px]">
+            <div className="flex max-h-[94vh] w-full max-w-[560px] flex-col overflow-hidden rounded-xl bg-[#F5F7FA] shadow-2xl">
+              {/* Header */}
+              <div className="flex items-start justify-between border-b border-slate-200 bg-white px-5 py-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded bg-blue-50 text-[#0878BE]">
+                    <Info size={21} />
+                  </div>
+
+                  <div>
+                    <h3 className="text-xl font-bold leading-tight text-slate-900">
+                      Yêu cầu bổ sung hồ sơ
+                    </h3>
+
+                    <p className="mt-1 text-xs text-slate-500">
+                      Mã hồ sơ: #{shortId} • Sinh viên: {request.student_name}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-bold text-lg text-slate-800">
-                    {actionModal.action === 'REJECT' ? 'Xác nhận từ chối hồ sơ' : 'Yêu cầu bổ sung hồ sơ'}
-                  </h3>
-                  <p className="text-sm text-slate-500">
-                    {actionModal.action === 'REJECT' ? 'Vui lòng nhập lý do từ chối để thông báo cho sinh viên biết.' : 'Nhập thông tin cần bổ sung cho sinh viên.'}
+
+                <button
+                  type="button"
+                  onClick={closeActionModal}
+                  disabled={submitting}
+                  aria-label="Đóng"
+                  className="rounded p-1 text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <XCircle size={21} />
+                </button>
+              </div>
+
+              {/* Nội dung có thể cuộn */}
+              <div className="overflow-y-auto px-5 py-5">
+                <div className="flex items-start gap-3 rounded border border-blue-200 bg-blue-50 px-4 py-4 text-sm leading-6 text-slate-700">
+                  <Info
+                    size={18}
+                    className="mt-0.5 shrink-0 text-[#0878BE]"
+                  />
+
+                  <p>
+                    Vui lòng chỉ rõ các thành phần hoặc thông tin cần sinh viên
+                    cập nhật thêm. Hệ thống sẽ tạm dừng quy trình xét duyệt cho
+                    đến khi nhận được phản hồi.
+                  </p>
+                </div>
+
+                <div className="mt-5">
+                  <p className="mb-3 text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                    Lý do bổ sung phổ biến
+                  </p>
+
+                  <div className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
+                    {COMMON_ADDITIONAL_INFO_REASONS.map(
+                      (reason) => {
+                        const checked =
+                          selectedReasons.includes(
+                            reason
+                          );
+
+                        return (
+                          <label
+                            key={reason}
+                            className="flex cursor-pointer items-start gap-3 text-sm leading-5 text-slate-800"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() =>
+                                toggleAdditionalReason(
+                                  reason
+                                )
+                              }
+                              className="mt-0.5 h-4 w-4 rounded border-slate-400 accent-[#0878BE]"
+                            />
+
+                            <span>{reason}</span>
+                          </label>
+                        );
+                      }
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-6 flex items-center gap-3 rounded border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">
+                  <AlertCircle
+                    size={17}
+                    className="shrink-0 text-red-600"
+                  />
+
+                  <p>
+                    <strong>Lưu ý:</strong> Trạng thái hồ sơ sẽ chuyển sang{' '}
+                    <span className="rounded-full bg-red-100 px-2 py-0.5 font-bold text-red-700">
+                      Yêu cầu bổ sung
+                    </span>
+                  </p>
+                </div>
+
+                <div className="mt-5">
+                  <label
+                    htmlFor="additional-info-notes"
+                    className="mb-2 block text-[11px] font-bold uppercase tracking-wide text-slate-500"
+                  >
+                    Nội dung yêu cầu chi tiết
+                  </label>
+
+                  <textarea
+                    id="additional-info-notes"
+                    rows={5}
+                    value={notes}
+                    onChange={(event) =>
+                      setNotes(event.target.value)
+                    }
+                    placeholder="Ví dụ: Vui lòng tải bảng điểm học kì 1 (2023–2024)"
+                    className="w-full resize-none rounded border border-slate-300 bg-white px-3 py-3 text-sm leading-6 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#0878BE] focus:ring-2 focus:ring-blue-100"
+                  />
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="flex items-center justify-between gap-3 border-t border-slate-200 bg-white px-5 py-3">
+                <div className="ml-auto flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={closeActionModal}
+                    disabled={submitting}
+                    className="rounded px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Hủy bỏ
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      submitAction(
+                        'REQUEST_INFO'
+                      )
+                    }
+                    disabled={
+                      submitting ||
+                      (
+                        selectedReasons.length ===
+                          0 &&
+                        !notes.trim()
+                      )
+                    }
+                    className="inline-flex items-center gap-2 rounded bg-[#0878BE] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#06689F] disabled:cursor-not-allowed disabled:bg-slate-400"
+                  >
+                    {submitting ? (
+                      <Loader2
+                        size={17}
+                        className="animate-spin"
+                      />
+                    ) : (
+                      <Send size={17} />
+                    )}
+
+                    Gửi yêu cầu
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+      {actionModal.isOpen &&
+        actionModal.action === 'REJECT' && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 backdrop-blur-sm">
+            <div className="w-full max-w-[500px] overflow-hidden rounded-xl bg-white shadow-2xl">
+              <div className="relative flex items-center justify-between border-b border-gray-100 p-6">
+                <div className="flex items-center gap-4">
+                  <div className="rounded-lg bg-red-50 p-2 text-red-500">
+                    <AlertCircle size={24} />
+                  </div>
+
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-800">
+                      Xác nhận từ chối hồ sơ
+                    </h3>
+
+                    <p className="text-sm text-slate-500">
+                      Vui lòng nhập lý do từ chối để thông báo cho sinh viên.
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={closeActionModal}
+                  disabled={submitting}
+                  className="absolute right-6 top-6 text-slate-400 hover:text-slate-600 disabled:opacity-50"
+                >
+                  <XCircle size={20} />
+                </button>
+              </div>
+
+              <div className="bg-slate-50/50 p-6">
+                <label
+                  htmlFor="reject-notes"
+                  className="mb-2 block text-xs font-bold text-slate-700"
+                >
+                  LÝ DO TỪ CHỐI{' '}
+                  <span className="text-red-500">
+                    *
+                  </span>
+                </label>
+
+                <textarea
+                  id="reject-notes"
+                  rows={5}
+                  value={notes}
+                  onChange={(event) =>
+                    setNotes(event.target.value)
+                  }
+                  placeholder="Nhập lý do chi tiết..."
+                  className="w-full resize-none rounded-lg border border-gray-300 bg-white p-3 text-sm text-gray-900 outline-none shadow-sm focus:border-red-500 focus:ring-2 focus:ring-red-100"
+                />
+
+                <div className="mt-4 flex items-start gap-3 rounded-r-md border-l-4 border-red-500 bg-red-50 p-4">
+                  <AlertCircle
+                    size={16}
+                    className="mt-0.5 shrink-0 text-red-500"
+                  />
+
+                  <p className="text-xs leading-relaxed text-red-700">
+                    <strong>
+                      Hành động này không thể hoàn tác.
+                    </strong>{' '}
+                    Hồ sơ sẽ chuyển sang trạng thái Từ chối và sinh viên sẽ nhận
+                    được thông báo ngay lập tức.
                   </p>
                 </div>
               </div>
-              <button 
-                onClick={() => setActionModal({isOpen: false, action: null})}
-                className="absolute top-6 right-6 text-slate-400 hover:text-slate-600"
-              >
-                <XCircle size={20} />
-              </button>
-            </div>
-            
-            <div className="p-6 bg-slate-50/50">
-              <label className="block text-xs font-bold text-slate-700 mb-2">
-                LÝ DO {actionModal.action === 'REJECT' ? 'TỪ CHỐI' : 'YÊU CẦU BỔ SUNG'} <span className="text-red-500">*</span>
-              </label>
-              <textarea 
-                rows={5}
-                className="w-full border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none shadow-sm text-gray-900 bg-white"
-                placeholder="Nhập lý do chi tiết..."
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-              ></textarea>
 
-              <div className="mt-4 bg-red-50 border-l-4 border-red-500 p-4 rounded-r-md flex items-start gap-3">
-                <AlertCircle className="text-red-500 mt-0.5 shrink-0" size={16} />
-                <p className="text-xs text-red-700 leading-relaxed">
-                  <strong>Hành động này không thể hoàn tác.</strong> Hồ sơ sẽ được chuyển sang trạng thái 
-                  {actionModal.action === 'REJECT' ? ' Từ chối ' : ' Yêu cầu bổ sung '} 
-                  và sinh viên sẽ nhận được thông báo ngay lập tức.
-                </p>
+              <div className="flex justify-end gap-3 border-t border-gray-100 bg-gray-50 p-4">
+                <button
+                  type="button"
+                  onClick={closeActionModal}
+                  disabled={submitting}
+                  className="rounded-md px-5 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-200 disabled:opacity-50"
+                >
+                  Hủy bỏ
+                </button>
+
+                <button
+                  type="button"
+                  disabled={
+                    !notes.trim() ||
+                    submitting
+                  }
+                  onClick={() =>
+                    submitAction('REJECT')
+                  }
+                  className="flex items-center gap-2 rounded-md bg-[#C5221F] px-5 py-2 text-sm font-medium text-white transition hover:bg-red-800 disabled:cursor-not-allowed disabled:bg-gray-400"
+                >
+                  {submitting ? (
+                    <Loader2
+                      className="animate-spin"
+                      size={16}
+                    />
+                  ) : (
+                    <Ban size={16} />
+                  )}
+
+                  Xác nhận từ chối
+                </button>
               </div>
             </div>
-
-            <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
-              <button 
-                onClick={() => setActionModal({isOpen: false, action: null})}
-                className="px-5 py-2 rounded-md font-medium text-slate-600 hover:bg-slate-200 transition text-sm"
-              >
-                Hủy bỏ
-              </button>
-              <button 
-                disabled={!notes.trim() || submitting}
-                onClick={() => submitAction(actionModal.action!)}
-                className={`px-5 py-2 rounded-md font-medium text-white transition text-sm flex items-center gap-2 ${
-                  !notes.trim() ? 'bg-gray-400 cursor-not-allowed' : 
-                  actionModal.action === 'REJECT' ? 'bg-[#C5221F] hover:bg-red-800' : 'bg-orange-500 hover:bg-orange-600'
-                }`}
-              >
-                {submitting ? <Loader2 className="animate-spin" size={16} /> : 
-                 actionModal.action === 'REJECT' ? <><Ban size={16}/> Xác nhận từ chối</> : <><Edit3 size={16}/> Xác nhận yêu cầu</>}
-              </button>
-            </div>
           </div>
-        </div>
-      )}
+        )}
     </div>
   );
 }

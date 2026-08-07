@@ -1,11 +1,20 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import ChatInterface from '@/components/student/ChatInterface';
 import { LogOut, Bot, AlertTriangle, Download, CheckCircle2, ChevronRight, UploadCloud, Scan, Check, FileText, X, ScanSearch, User, AlertCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { getStudentProfile, StudentProfile, DropoutFormData } from '@/services/dropout.service';
 import axios from 'axios';
+import { usePersistentProcedureDraft } from "@/hooks/usePersistentProcedureDraft";
+import {
+  fetchProcedureDraftDocumentAsFile,
+  listProcedureDraftDocuments,
+  openProcedureDraftDocument,
+  ProcedureDraftDocument,
+  saveProcedureDraft,
+  uploadProcedureDraftDocument,
+} from "@/services/procedure-draft.service";
 
 const DROPOUT_REASON_LABELS: Record<string, string> = {
   ca_nhan: "Lý do cá nhân",
@@ -45,6 +54,34 @@ type DropoutOCRResult = {
   };
 };
 
+type DropoutDraftData = {
+  isAgreed: boolean;
+  isDownloaded: boolean;
+  uploadState: "idle" | "analyzing" | "success" | "error";
+  uploadErrorType: "document" | "signature" | null;
+  aiResult: DropoutOCRResult | null;
+  formData: DropoutFormData;
+  requestId: string | null;
+  trackingCode: string;
+  hasSavedDraft: boolean;
+  uploadedFileName: string | null;
+  signedApplicationDocumentId: string | null;
+};
+
+type StudentRequestListItem = {
+  id: string;
+  request_type: string;
+  status: string;
+  created_at?: string;
+  updated_at?: string;
+};
+
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+const isUuid = (value: unknown): value is string =>
+  typeof value === "string" && UUID_PATTERN.test(value.trim());
+
 export default function DropoutPage() {
   const router = useRouter();
     
@@ -56,6 +93,10 @@ export default function DropoutPage() {
   const [trackingCode, setTrackingCode] = useState<string>('');
   const [isDownloaded, setIsDownloaded] = useState(false);
   const [signedApplicationFile, setSignedApplicationFile] = useState<File | null>(null);
+  const [
+    signedApplicationDocument,
+    setSignedApplicationDocument,
+  ] = useState<ProcedureDraftDocument | null>(null);
   const [uploadState, setUploadState] = useState<
     "idle" | "analyzing" | "success" | "error"
   >("idle");
@@ -66,7 +107,9 @@ export default function DropoutPage() {
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-
+  const [hasSavedDraft, setHasSavedDraft] = useState(false);
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
+  const [isOpeningDetail, setIsOpeningDetail] = useState(false);
   
   const [studentProfile, setStudentProfile] = useState<StudentProfile | null>(null);
   const [formData, setFormData] = useState<DropoutFormData>({
@@ -79,6 +122,155 @@ export default function DropoutPage() {
   const dropoutReasonLabel = getDropoutReasonLabel(
     formData.reason
   );
+
+  const restoreDropoutDraft = useCallback(
+    (draft: {
+      is_started: boolean;
+      current_step: number;
+      draft_data?: Partial<DropoutDraftData>;
+    }) => {
+      const savedData = draft.draft_data || {};
+
+      setIsStarted(draft.is_started === true);
+      setIsAgreed(savedData.isAgreed ?? false);
+      setIsDownloaded(
+        savedData.isDownloaded ??
+          Number(draft.current_step) >= 3
+      );
+      setFormData(
+        savedData.formData ?? {
+          reason: "",
+          expectedDate: "",
+          contactAddress: "",
+          notes: "",
+        }
+      );
+      setRequestId(savedData.requestId ?? null);
+      setTrackingCode(savedData.trackingCode ?? "");
+      setHasSavedDraft(savedData.hasSavedDraft ?? false);
+
+      const normalizedStep = Math.min(
+        Math.max(Number(draft.current_step) || 1, 1),
+        6
+      ) as 1 | 2 | 3 | 4 | 5 | 6;
+
+      /*
+       * Đối tượng File của trình duyệt không thể lưu trong JSON.
+       * Nội dung file thật sẽ được lấy lại từ ProcedureDraftDocument.
+       */
+      setSignedApplicationFile(null);
+      setCurrentStep(normalizedStep);
+
+      if (
+        normalizedStep >= 5 ||
+        savedData.uploadState === "success"
+      ) {
+        setUploadState("success");
+        setUploadErrorType(null);
+        setAiResult(savedData.aiResult ?? null);
+        return;
+      }
+
+      setUploadState(
+        savedData.uploadState === "analyzing"
+          ? "idle"
+          : savedData.uploadState ?? "idle"
+      );
+      setUploadErrorType(
+        savedData.uploadErrorType ?? null
+      );
+      setAiResult(savedData.aiResult ?? null);
+    },
+    []
+  );
+
+  const dropoutDraftData = useMemo<DropoutDraftData>(
+    () => ({
+      isAgreed,
+      isDownloaded,
+      uploadState,
+      uploadErrorType,
+      aiResult,
+      formData,
+      requestId,
+      trackingCode,
+      hasSavedDraft,
+      uploadedFileName:
+        signedApplicationFile?.name ??
+        signedApplicationDocument?.original_name ??
+        null,
+      signedApplicationDocumentId:
+        signedApplicationDocument?.id ?? null,
+    }),
+    [
+      isAgreed,
+      isDownloaded,
+      uploadState,
+      uploadErrorType,
+      aiResult,
+      formData,
+      requestId,
+      trackingCode,
+      hasSavedDraft,
+      signedApplicationFile,
+      signedApplicationDocument,
+    ]
+  );
+
+  const { isDraftLoaded } =
+    usePersistentProcedureDraft<DropoutDraftData>({
+      requestType: "DROPOUT",
+      isStarted,
+      currentStep,
+      draftData: dropoutDraftData,
+      restore: restoreDropoutDraft,
+    });
+
+  useEffect(() => {
+    if (!isDraftLoaded || !isStarted) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadDraftDocuments = async () => {
+      try {
+        const documents =
+          await listProcedureDraftDocuments(
+            "DROPOUT"
+          );
+
+        if (cancelled) {
+          return;
+        }
+
+        const savedSignedApplication =
+          documents.find(
+            (document) =>
+              document.document_key ===
+              "DROPOUT_SIGNED_APPLICATION"
+          ) ?? null;
+
+        setSignedApplicationDocument(
+          savedSignedApplication
+        );
+      } catch (error) {
+        console.error(
+          "Không thể tải tài liệu thôi học:",
+          error
+        );
+      }
+    };
+
+    void loadDraftDocuments();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    isDraftLoaded,
+    isStarted,
+  ]);
 
   useEffect(() => {
     if (isStarted) {
@@ -95,7 +287,6 @@ export default function DropoutPage() {
         });
     }
   }, [isStarted]);
-
 
 
   // Cuộn xuống cuối mỗi khi chuyển sang bước mới
@@ -117,6 +308,67 @@ export default function DropoutPage() {
 
 
 
+  const handleSaveDraft = async () => {
+    if (isSavingDraft) return;
+
+    try {
+      setIsSavingDraft(true);
+
+      await saveProcedureDraft<DropoutDraftData>(
+        "DROPOUT",
+        {
+          isStarted: true,
+          currentStep: 3,
+          draftData: {
+            ...dropoutDraftData,
+            hasSavedDraft: true,
+          },
+        }
+      );
+
+      setHasSavedDraft(true);
+      setToastMessage({
+        type: "success",
+        text:
+          "Đã lưu bản nháp thành công. Bạn có thể đăng xuất và quay lại tiếp tục sau.",
+      });
+    } catch (error: unknown) {
+      console.error(
+        "Lỗi lưu bản nháp thôi học:",
+        error
+      );
+
+      let message =
+        "Có lỗi xảy ra khi lưu bản nháp.";
+
+      if (axios.isAxiosError(error)) {
+        message =
+          error.response?.data?.error ||
+          error.response?.data?.detail ||
+          message;
+      } else if (error instanceof Error) {
+        message = error.message;
+      }
+
+      setToastMessage({
+        type: "error",
+        text: message,
+      });
+    } finally {
+      setIsSavingDraft(false);
+
+      window.setTimeout(
+        () => setToastMessage(null),
+        3500
+      );
+    }
+  };
+
+  const handleContinueDraft = () => {
+    setHasSavedDraft(false);
+    setUploadState("idle");
+    setCurrentStep(4);
+  };
 
   const handleSubmitForm = (e: React.FormEvent) => {
     e.preventDefault();
@@ -425,9 +677,44 @@ export default function DropoutPage() {
         return;
       }
 
+      const savedDocument =
+        await uploadProcedureDraftDocument(
+          "DROPOUT",
+          "DROPOUT_SIGNED_APPLICATION",
+          file
+        );
+
       setSignedApplicationFile(file);
+      setSignedApplicationDocument(
+        savedDocument
+      );
       setUploadErrorType(null);
       setUploadState("success");
+
+      try {
+        await saveProcedureDraft<DropoutDraftData>(
+          "DROPOUT",
+          {
+            isStarted: true,
+            currentStep: 4,
+            draftData: {
+              ...dropoutDraftData,
+              uploadState: "success",
+              uploadErrorType: null,
+              aiResult: normalizedResult,
+              uploadedFileName:
+                savedDocument.original_name,
+              signedApplicationDocumentId:
+                savedDocument.id,
+            },
+          }
+        );
+      } catch (draftError) {
+        console.error(
+          "Không thể lưu bước tải đơn thôi học:",
+          draftError
+        );
+      }
     } catch (error) {
       console.error("Lỗi kiểm tra OCR:", error);
 
@@ -480,22 +767,309 @@ export default function DropoutPage() {
     }
   };
 
-  const handlePreviewBeforeSubmit = () => {
+  const handleOpenSignedApplication = async () => {
+    if (signedApplicationFile) {
+      const previewUrl =
+        window.URL.createObjectURL(
+          signedApplicationFile
+        );
+
+      const previewWindow = window.open(
+        previewUrl,
+        "_blank",
+        "noopener,noreferrer"
+      );
+
+      if (!previewWindow) {
+        window.URL.revokeObjectURL(
+          previewUrl
+        );
+
+        alert(
+          "Trình duyệt đang chặn tab mới. " +
+          "Vui lòng cho phép pop-up cho localhost."
+        );
+
+        return;
+      }
+
+      window.setTimeout(() => {
+        window.URL.revokeObjectURL(
+          previewUrl
+        );
+      }, 60_000);
+
+      return;
+    }
+
+    if (!signedApplicationDocument) {
+      alert(
+        "Không tìm thấy Đơn xin thôi học đã ký trên hệ thống. " +
+        "Vui lòng quay lại bước tải file và chọn lại tài liệu."
+      );
+      return;
+    }
+
+    try {
+      await openProcedureDraftDocument(
+        signedApplicationDocument
+      );
+    } catch (error) {
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Không thể mở đơn thôi học đã ký."
+      );
+    }
+  };
+
+  const handlePreviewBeforeSubmit = async () => {
+    if (
+      !signedApplicationFile &&
+      !signedApplicationDocument
+    ) {
+      alert(
+        "Không tìm thấy Đơn xin thôi học đã ký. " +
+        "Vui lòng tải lại tài liệu."
+      );
+      return;
+    }
+
+    const nextDraftData: DropoutDraftData = {
+      ...dropoutDraftData,
+      uploadState: "success",
+      uploadErrorType: null,
+      uploadedFileName:
+        signedApplicationFile?.name ??
+        signedApplicationDocument?.original_name ??
+        null,
+      signedApplicationDocumentId:
+        signedApplicationDocument?.id ?? null,
+    };
+
+    try {
+      await saveProcedureDraft<DropoutDraftData>(
+        "DROPOUT",
+        {
+          isStarted: true,
+          currentStep: 5,
+          draftData: nextDraftData,
+        }
+      );
+    } catch (error) {
+      console.error(
+        "Không thể lưu bước xem trước thôi học:",
+        error
+      );
+    }
+
     setCurrentStep(5);
   };
 
+  const getApiBase = () => {
+    const configuredApi = (
+      process.env.NEXT_PUBLIC_API_URL ||
+      "http://127.0.0.1:8000/api"
+    ).replace(/\/$/, "");
+
+    return configuredApi.endsWith("/api")
+      ? configuredApi
+      : `${configuredApi}/api`;
+  };
+
+  const getAccessToken = () =>
+    localStorage.getItem("access_token") ||
+    localStorage.getItem("access");
+
+  const findLatestSubmittedDropoutRequestId = async (): Promise<
+    string | null
+  > => {
+    const accessToken = getAccessToken();
+
+    if (!accessToken) {
+      return null;
+    }
+
+    const response = await fetch(`${getApiBase()}/requests/`, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+
+      throw new Error(
+        errorData?.detail ||
+          errorData?.error ||
+          "Không thể tìm hồ sơ Thôi học đã nộp."
+      );
+    }
+
+    const payload = await response.json();
+    const items: StudentRequestListItem[] = Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload?.results)
+        ? payload.results
+        : [];
+
+    const dropoutRequest = items.find(
+      (item) =>
+        item.request_type === "DROPOUT" &&
+        item.status !== "DRAFT" &&
+        isUuid(item.id)
+    );
+
+    return dropoutRequest?.id ?? null;
+  };
+
+  const isValidDropoutRequestId = async (
+    candidate: unknown
+  ): Promise<boolean> => {
+    if (!isUuid(candidate)) {
+      return false;
+    }
+
+    const accessToken = getAccessToken();
+
+    if (!accessToken) {
+      return false;
+    }
+
+    try {
+      const response = await fetch(
+        `${getApiBase()}/requests/${candidate.trim()}/`,
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        return false;
+      }
+
+      const data = await response.json();
+
+      return data?.request_type === "DROPOUT";
+    } catch (error) {
+      console.error(
+        "Không thể kiểm tra requestId Thôi học:",
+        error
+      );
+
+      return false;
+    }
+  };
+
+  const resolveDropoutRequestId = async (
+    responseData?: any
+  ): Promise<string | null> => {
+    const candidates = [
+      responseData?.requestId,
+      responseData?.request_id,
+      responseData?.request?.id,
+      responseData?.data?.requestId,
+      responseData?.data?.request_id,
+      responseData?.data?.request?.id,
+      requestId,
+    ];
+
+    /*
+     * Không chỉ kiểm tra đúng định dạng UUID.
+     * UUID cũ trong bản nháp có thể đã bị xóa,
+     * thuộc hồ sơ cũ hoặc không thuộc tài khoản hiện tại.
+     */
+    for (const candidate of candidates) {
+      if (await isValidDropoutRequestId(candidate)) {
+        return String(candidate).trim();
+      }
+    }
+
+    /*
+     * Không có ID hợp lệ thì lấy hồ sơ Thôi học
+     * mới nhất trong danh sách hồ sơ của sinh viên.
+     */
+    return findLatestSubmittedDropoutRequestId();
+  };
+
+  const handleOpenRequestDetail = async () => {
+    if (isOpeningDetail) {
+      return;
+    }
+
+    try {
+      setIsOpeningDetail(true);
+
+      const resolvedRequestId = await resolveDropoutRequestId();
+
+      if (!resolvedRequestId) {
+        setToastMessage({
+          type: "error",
+          text:
+            "Không tìm thấy hồ sơ Thôi học đã nộp. Vui lòng kiểm tra trong mục Hồ sơ đã gửi.",
+        });
+        return;
+      }
+
+      if (resolvedRequestId !== requestId) {
+        setRequestId(resolvedRequestId);
+
+        try {
+          await saveProcedureDraft<DropoutDraftData>(
+            "DROPOUT",
+            {
+              isStarted: true,
+              currentStep: 6,
+              draftData: {
+                ...dropoutDraftData,
+                requestId: resolvedRequestId,
+                trackingCode,
+                hasSavedDraft: true,
+              },
+            }
+          );
+        } catch (draftError) {
+          console.error(
+            "Không thể cập nhật requestId trong bản nháp:",
+            draftError
+          );
+        }
+      }
+
+      router.push(`/student/submissions/${resolvedRequestId}`);
+    } catch (error) {
+      console.error("Lỗi mở chi tiết hồ sơ Thôi học:", error);
+
+      setToastMessage({
+        type: "error",
+        text:
+          error instanceof Error
+            ? error.message
+            : "Không thể mở chi tiết hồ sơ Thôi học.",
+      });
+    } finally {
+      setIsOpeningDetail(false);
+    }
+  };
+
   const handleSubmitFinal = async () => {
-    if (!signedApplicationFile) {
-      alert("Vui lòng tải lên Đơn xin thôi học đã ký và chờ AI xác nhận hợp lệ.");
+    if (
+      !signedApplicationFile &&
+      !signedApplicationDocument
+    ) {
+      alert(
+        "Vui lòng tải lên Đơn xin thôi học đã ký " +
+        "và chờ AI xác nhận hợp lệ."
+      );
       return;
     }
 
     try {
       setIsLoading(true);
 
-      const accessToken =
-        localStorage.getItem("access_token") ||
-        localStorage.getItem("access");
+      const accessToken = getAccessToken();
 
       if (!accessToken) {
         alert("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
@@ -503,22 +1077,85 @@ export default function DropoutPage() {
         return;
       }
 
-      const apiBase = (
-        process.env.NEXT_PUBLIC_API_URL ||
-        "http://127.0.0.1:8000/api"
-      ).replace(/\/$/, "");
+      const apiBase = getApiBase();
+
+      let documentToSubmit =
+        signedApplicationDocument;
+
+      if (
+        !signedApplicationFile &&
+        !documentToSubmit
+      ) {
+        const documents =
+          await listProcedureDraftDocuments(
+            "DROPOUT"
+          );
+
+        documentToSubmit =
+          documents.find(
+            (document) =>
+              document.document_key ===
+              "DROPOUT_SIGNED_APPLICATION"
+          ) ?? null;
+
+        setSignedApplicationDocument(
+          documentToSubmit
+        );
+      }
+
+      const fileToSubmit =
+        signedApplicationFile ??
+        (
+          documentToSubmit
+            ? await fetchProcedureDraftDocumentAsFile(
+                documentToSubmit
+              )
+            : null
+        );
+
+      if (!fileToSubmit) {
+        alert(
+          "Không tìm thấy Đơn xin thôi học đã ký để nộp."
+        );
+        return;
+      }
+
+      const submitData = new FormData();
+
+      submitData.append(
+        "file",
+        fileToSubmit
+      );
+
+      submitData.append(
+        "reason",
+        formData.reason
+      );
+
+      submitData.append(
+        "expectedDate",
+        formData.expectedDate || ""
+      );
+
+      submitData.append(
+        "contactAddress",
+        formData.contactAddress || ""
+      );
+
+      submitData.append(
+        "notes",
+        formData.notes || ""
+      );
 
       const response = await fetch(
         `${apiBase}/thoi-hoc/submit-dropout/`,
         {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
+            Authorization:
+              `Bearer ${accessToken}`,
           },
-          body: JSON.stringify({
-            reason: formData.reason,
-          }),
+          body: submitData,
         }
       );
 
@@ -529,13 +1166,53 @@ export default function DropoutPage() {
         return;
       }
 
-      const returnedRequestId = data.requestId || data.request_id || null;
+      const returnedRequestId = await resolveDropoutRequestId(data);
       const returnedTrackingCode =
-        data.trackingCode || data.requestCode || data.request_code || "";
+        data.trackingCode ||
+        data.requestCode ||
+        data.request_code ||
+        data.data?.trackingCode ||
+        data.data?.requestCode ||
+        data.data?.request_code ||
+        "";
 
       setRequestId(returnedRequestId);
       setTrackingCode(returnedTrackingCode);
       setCurrentStep(6);
+
+      /*
+       * Giữ lại màn hình hoàn tất sau khi đổi tab,
+       * tải lại trang hoặc đăng nhập lại.
+       */
+      try {
+        await saveProcedureDraft<DropoutDraftData>(
+          "DROPOUT",
+          {
+            isStarted: true,
+            currentStep: 6,
+            draftData: {
+              ...dropoutDraftData,
+              requestId: returnedRequestId,
+              trackingCode: returnedTrackingCode,
+              hasSavedDraft: true,
+              uploadState: "success",
+              uploadErrorType: null,
+              aiResult,
+              uploadedFileName:
+                signedApplicationFile?.name ??
+                signedApplicationDocument?.original_name ??
+                null,
+              signedApplicationDocumentId:
+                signedApplicationDocument?.id ?? null,
+            },
+          }
+        );
+      } catch (draftError) {
+        console.error(
+          "Không thể lưu trạng thái hoàn tất:",
+          draftError
+        );
+      }
     } catch (error) {
       console.error("Lỗi khi nộp hồ sơ:", error);
       alert("Có lỗi xảy ra khi nộp hồ sơ. Vui lòng thử lại.");
@@ -554,6 +1231,19 @@ export default function DropoutPage() {
     label: "Người làm đơn",
   },
 ] as const;
+
+  if (!isDraftLoaded) {
+    return (
+      <div className="h-full w-full flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3 text-gray-500">
+          <span className="w-9 h-9 rounded-full border-4 border-blue-500 border-t-transparent animate-spin" />
+          <p className="text-sm font-medium">
+            Đang khôi phục thủ tục thôi học...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-full w-full">
@@ -758,14 +1448,38 @@ export default function DropoutPage() {
                         </div>
 
                         {currentStep === 3 && (
-                          <button
-                            type="button"
-                            onClick={handleNextToUpload}
-                            className="w-full bg-[#0070F4] text-white py-3 rounded-md font-medium hover:bg-blue-700 transition flex justify-center items-center gap-2"
-                          >
-                            Tiếp tục tải lên hồ sơ đã ký
-                            <ChevronRight size={18} />
-                          </button>
+                          hasSavedDraft ? (
+                            <button
+                              type="button"
+                              onClick={handleContinueDraft}
+                              className="w-full bg-[#0070F4] text-white py-3 rounded-md font-medium hover:bg-blue-700 transition flex justify-center items-center gap-2"
+                            >
+                              Tiếp tục
+                              <ChevronRight size={18} />
+                            </button>
+                          ) : (
+                            <div className="flex items-center gap-4">
+                              <button
+                                type="button"
+                                onClick={handleNextToUpload}
+                                className="flex-1 bg-[#0070F4] text-white py-3 rounded-md font-medium hover:bg-blue-700 transition flex justify-center items-center gap-2"
+                              >
+                                Tiếp tục tải lên hồ sơ đã ký
+                                <ChevronRight size={18} />
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={handleSaveDraft}
+                                disabled={isSavingDraft}
+                                className="text-sm font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap px-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {isSavingDraft
+                                  ? "Đang lưu..."
+                                  : "Lưu nháp và tạm dừng"}
+                              </button>
+                            </div>
+                          )
                         )}
                       </div>
                     )}
@@ -1046,14 +1760,39 @@ export default function DropoutPage() {
                   </span>
                 </div>
                 
-                <div className="flex items-center justify-between bg-gray-50 p-3.5 rounded-lg border border-gray-200 mb-5">
-                  <div className="flex items-center gap-2.5 text-sm font-medium text-gray-700">
-                    <FileText size={18} className="text-gray-400"/> Đơn xin thôi học (Bản scan đã ký đủ 2 bên)
+                <button
+                  type="button"
+                  onClick={
+                    handleOpenSignedApplication
+                  }
+                  className="w-full flex items-center justify-between gap-4 bg-gray-50 p-3.5 rounded-lg border border-gray-200 mb-5 text-left hover:bg-blue-50 hover:border-blue-300 transition cursor-pointer"
+                  title="Nhấn để mở bản scan đã ký trong tab mới"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <FileText
+                      size={18}
+                      className="text-blue-500 shrink-0"
+                    />
+
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-700">
+                        Đơn xin thôi học
+                        (Bản scan đã ký đủ 2 bên)
+                      </p>
+
+                      <p className="text-xs text-blue-600 mt-1 truncate">
+                        {signedApplicationFile?.name ||
+                          signedApplicationDocument?.original_name ||
+                          "Nhấn để xem file đã ký"}
+                      </p>
+                    </div>
                   </div>
-                  <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-md flex items-center gap-1 font-medium">
-                    AI xác nhận <Check size={14}/>
+
+                  <span className="shrink-0 text-xs bg-green-100 text-green-700 px-2 py-1 rounded-md flex items-center gap-1 font-medium">
+                    AI xác nhận
+                    <Check size={14} />
                   </span>
-                </div>
+                </button>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-6 text-sm mb-6">
                   <div className="flex justify-between md:flex-col md:gap-1 border-b md:border-none border-gray-100 pb-2 md:pb-0"><span className="text-gray-500">Sinh viên:</span> <span className="font-semibold text-gray-800">{studentProfile.fullName}</span></div>
@@ -1161,20 +1900,25 @@ export default function DropoutPage() {
                         </div>
                       </div>
                     </div>
-                    
+
                     <div className="mt-8">
                       <button
                         type="button"
-                        onClick={() =>
-                          router.push(
-                            requestId
-                              ? `/student/submissions/${requestId}`
-                              : '/student/submissions'
-                          )
-                        }
-                        className="w-full bg-[#0070F4] text-white py-3.5 rounded-lg font-medium hover:bg-blue-700 transition flex justify-center items-center gap-2 shadow-sm text-sm"
+                        onClick={handleOpenRequestDetail}
+                        disabled={isOpeningDetail}
+                        className="w-full bg-[#0070F4] text-white py-3.5 rounded-lg font-medium hover:bg-blue-700 transition flex justify-center items-center gap-2 shadow-sm text-sm disabled:opacity-70 disabled:cursor-not-allowed"
                       >
-                        Xem chi tiết hồ sơ
+                        {isOpeningDetail ? (
+                          <>
+                            <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                            Đang mở hồ sơ...
+                          </>
+                        ) : (
+                          <>
+                            <FileText size={18} />
+                            Xem chi tiết và Theo dõi trạng thái
+                          </>
+                        )}
                       </button>
                     </div>
                   </div>

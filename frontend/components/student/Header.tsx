@@ -1,79 +1,254 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
-import { Bell, ChevronDown, GraduationCap, Zap, Check } from 'lucide-react';
-import { authService } from '@/services/auth.service';
-import { notificationService, Notification } from '@/services/notification.service';
+import React, {
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import {
+  Bell,
+} from "lucide-react";
+
+import { authService } from "@/services/auth.service";
+import {
+  notificationService,
+  Notification,
+} from "@/services/notification.service";
+import {
+  getStudentProfile,
+} from "@/services/dropout.service";
 
 const Header = () => {
-  const [user, setUser] = useState<any>(null);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [showNotifications, setShowNotifications] = useState(false);
-  const notifRef = useRef<HTMLDivElement>(null);
+  const [user, setUser] =
+    useState<any>(null);
 
-  useEffect(() => {
-    const currentUser = authService.getUser();
-    if (currentUser) {
-      setUser(currentUser);
-      fetchNotifications();
-    }
+  const [
+    studentFullName,
+    setStudentFullName,
+  ] = useState("");
 
-    const handleClickOutside = (event: MouseEvent) => {
-      if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
-        setShowNotifications(false);
+  const [
+    notifications,
+    setNotifications,
+  ] = useState<Notification[]>([]);
+
+  const [
+    showNotifications,
+    setShowNotifications,
+  ] = useState(false);
+
+  const notifRef =
+    useRef<HTMLDivElement>(null);
+
+  const fetchNotifications =
+    async () => {
+      try {
+        const data =
+          await notificationService
+            .getNotifications();
+
+        setNotifications(data);
+      } catch (error) {
+        console.error(
+          "Failed to fetch notifications",
+          error
+        );
       }
     };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadHeaderData = async () => {
+      const currentUser =
+        authService.getUser();
+
+      if (!currentUser) {
+        return;
+      }
+
+      if (isMounted) {
+        setUser(currentUser);
+      }
+
+      /*
+       * authService thường chỉ lưu username/role.
+       * Vì vậy tải thêm StudentProfile để lấy đúng họ tên.
+       */
+      try {
+        const profile: any =
+          await getStudentProfile();
+
+        const fullName = String(
+          profile?.full_name ||
+          profile?.fullName ||
+          profile?.name ||
+          ""
+        ).trim();
+
+        if (
+          isMounted &&
+          fullName
+        ) {
+          setStudentFullName(
+            fullName
+          );
+        }
+      } catch (error) {
+        console.error(
+          "Không thể tải tên sinh viên:",
+          error
+        );
+      }
+
+      if (isMounted) {
+        await fetchNotifications();
+      }
+    };
+
+    void loadHeaderData();
+
+    const handleClickOutside = (
+      event: MouseEvent
+    ) => {
+      if (
+        notifRef.current &&
+        !notifRef.current.contains(
+          event.target as Node
+        )
+      ) {
+        setShowNotifications(
+          false
+        );
+      }
+    };
+
+    document.addEventListener(
+      "mousedown",
+      handleClickOutside
+    );
+
+    return () => {
+      isMounted = false;
+
+      document.removeEventListener(
+        "mousedown",
+        handleClickOutside
+      );
+    };
   }, []);
 
-  const fetchNotifications = async () => {
+  const handleMarkAsRead = async (
+    id: number
+  ) => {
     try {
-      const data = await notificationService.getNotifications();
-      setNotifications(data);
+      await notificationService
+        .markAsRead(id);
+
+      setNotifications(
+        (previous) =>
+          previous.map(
+            (notification) =>
+              notification.id === id
+                ? {
+                    ...notification,
+                    is_read: true,
+                  }
+                : notification
+          )
+      );
     } catch (error) {
-      console.error('Failed to fetch notifications', error);
+      console.error(
+        "Failed to mark as read",
+        error
+      );
     }
   };
 
-  const handleMarkAsRead = async (id: number) => {
-    try {
-      await notificationService.markAsRead(id);
-      setNotifications(notifications.map(n => n.id === id ? { ...n, is_read: true } : n));
-    } catch (error) {
-      console.error('Failed to mark as read', error);
-    }
-  };
+  const handleMarkAllAsRead =
+    async () => {
+      try {
+        await notificationService
+          .markAllAsRead();
 
-  const handleMarkAllAsRead = async () => {
-    try {
-      await notificationService.markAllAsRead();
-      setNotifications(notifications.map(n => ({ ...n, is_read: true })));
-    } catch (error) {
-      console.error('Failed to mark all as read', error);
-    }
-  };
+        setNotifications(
+          (previous) =>
+            previous.map(
+              (notification) => ({
+                ...notification,
+                is_read: true,
+              })
+            )
+        );
+      } catch (error) {
+        console.error(
+          "Failed to mark all as read",
+          error
+        );
+      }
+    };
 
-  const handleDeleteAll = async () => {
-    if (!confirm('Bạn có chắc chắn muốn xóa tất cả thông báo?')) return;
-    try {
-      await notificationService.deleteAll();
-      setNotifications([]);
-    } catch (error) {
-      console.error('Failed to delete all notifications', error);
-    }
-  };
+  const handleDeleteAll =
+    async () => {
+      const confirmed =
+        window.confirm(
+          "Bạn có chắc chắn muốn xóa tất cả thông báo?"
+        );
 
-  const unreadCount = notifications.filter(n => !n.is_read).length;
-  const displayName = user?.full_name || user?.name || 'Người dùng';
-  const initial = displayName.charAt(0).toUpperCase();
+      if (!confirmed) {
+        return;
+      }
+
+      try {
+        await notificationService
+          .deleteAll();
+
+        setNotifications([]);
+      } catch (error) {
+        console.error(
+          "Failed to delete all notifications",
+          error
+        );
+      }
+    };
+
+  const unreadCount =
+    notifications.filter(
+      (notification) =>
+        !notification.is_read
+    ).length;
+
+  const displayName =
+    studentFullName ||
+    user?.student_profile
+      ?.full_name ||
+    user?.student?.full_name ||
+    user?.fullName ||
+    user?.full_name ||
+    user?.name ||
+    "Người dùng";
+
+  const initial =
+    displayName
+      .trim()
+      .charAt(0)
+      .toUpperCase() || "N";
 
   return (
-    <header className="flex items-center justify-between px-6 bg-primary text-white relative" style={{ gridArea: 'header' }}>
+    <header
+      className="relative flex items-center justify-between bg-primary px-6 text-white"
+      style={{
+        gridArea: "header",
+      }}
+    >
       {/* Left side */}
       <div className="flex items-center gap-3">
-        <div className="w-11 h-11 bg-white rounded-lg flex items-center justify-center p-1">
-          <img src="/Logo_DUE.jpg" alt="Logo DUE" className="w-full h-full object-contain rounded-md" />
+        <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-white p-1">
+          <img
+            src="/Logo_DUE.jpg"
+            alt="Logo DUE"
+            className="h-full w-full rounded-md object-contain"
+          />
         </div>
 
         <div className="flex flex-col">
@@ -81,72 +256,127 @@ const Header = () => {
             CỔNG DỊCH VỤ SINH VIÊN
           </span>
 
-          <span className="text-xs text-blue-100 mt-0.5">
+          <span className="mt-0.5 text-xs text-blue-100">
             Hệ thống hỗ trợ thủ tục hành chính - AI Agent
           </span>
         </div>
       </div>
-      <div className='flex-grow'></div>
+
+      <div className="flex-grow" />
 
       {/* Right side */}
       <div className="flex items-center gap-6">
-        <div className="relative" ref={notifRef}>
-          <button 
-            className="relative hover:bg-white/10 p-2 rounded-full transition-colors"
-            onClick={() => setShowNotifications(!showNotifications)}
+        <div
+          className="relative"
+          ref={notifRef}
+        >
+          <button
+            type="button"
+            className="relative rounded-full p-2 transition-colors hover:bg-white/10"
+            onClick={() =>
+              setShowNotifications(
+                (previous) =>
+                  !previous
+              )
+            }
+            aria-label="Mở thông báo"
           >
             <Bell className="h-5 w-5" />
+
             {unreadCount > 0 && (
-              <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border border-primary"></span>
+              <span className="absolute right-1 top-1 h-2.5 w-2.5 rounded-full border border-primary bg-red-500" />
             )}
           </button>
 
           {showNotifications && (
-            <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden z-50">
-              <div className="p-4 border-b border-slate-100 flex justify-between items-center">
-                <h3 className="font-bold text-slate-800 text-sm">Thông báo</h3>
+            <div className="absolute right-0 z-50 mt-2 w-80 overflow-hidden rounded-xl border border-slate-100 bg-white shadow-xl">
+              <div className="flex items-center justify-between border-b border-slate-100 p-4">
+                <h3 className="text-sm font-bold text-slate-800">
+                  Thông báo
+                </h3>
+
                 {unreadCount > 0 && (
-                  <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full font-medium">
+                  <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
                     {unreadCount} mới
                   </span>
                 )}
               </div>
+
               <div className="max-h-96 overflow-y-auto">
-                {notifications.length === 0 ? (
-                  <div className="p-6 text-center text-slate-500 text-sm">
+                {notifications.length ===
+                0 ? (
+                  <div className="p-6 text-center text-sm text-slate-500">
                     Không có thông báo nào
                   </div>
                 ) : (
                   <div className="divide-y divide-slate-50">
-                    {notifications.map(notif => (
-                      <div 
-                        key={notif.id} 
-                        className={`p-4 hover:bg-slate-50 transition-colors flex gap-3 ${!notif.is_read ? 'bg-blue-50/50' : ''}`}
-                      >
-                        <div className="flex-1">
-                          <p className={`text-sm text-slate-700 ${!notif.is_read ? 'font-medium' : ''}`}>
-                            {notif.message}
-                          </p>
-                          <p className="text-xs text-slate-400 mt-1">
-                            {new Date(notif.created_at).toLocaleString('vi-VN')}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
+                    {notifications.map(
+                      (
+                        notification
+                      ) => (
+                        <button
+                          type="button"
+                          key={
+                            notification.id
+                          }
+                          onClick={() =>
+                            handleMarkAsRead(
+                              notification.id
+                            )
+                          }
+                          className={`flex w-full gap-3 p-4 text-left transition-colors hover:bg-slate-50 ${
+                            !notification.is_read
+                              ? "bg-blue-50/50"
+                              : ""
+                          }`}
+                        >
+                          <div className="flex-1">
+                            <p
+                              className={`text-sm text-slate-700 ${
+                                !notification.is_read
+                                  ? "font-medium"
+                                  : ""
+                              }`}
+                            >
+                              {
+                                notification.message
+                              }
+                            </p>
+
+                            <p className="mt-1 text-xs text-slate-400">
+                              {new Date(
+                                notification.created_at
+                              ).toLocaleString(
+                                "vi-VN"
+                              )}
+                            </p>
+                          </div>
+                        </button>
+                      )
+                    )}
                   </div>
                 )}
               </div>
-              {notifications.length > 0 && (
-                <div className="p-3 border-t border-slate-100 bg-slate-50 flex justify-between items-center gap-2">
-                  <button 
-                    onClick={handleMarkAllAsRead}
-                    className="text-xs font-semibold text-blue-600 hover:text-blue-800 transition"
+
+              {notifications.length >
+                0 && (
+                <div className="flex items-center justify-between gap-2 border-t border-slate-100 bg-slate-50 p-3">
+                  <button
+                    type="button"
+                    onClick={
+                      handleMarkAllAsRead
+                    }
+                    className="text-xs font-semibold text-blue-600 transition hover:text-blue-800"
                   >
-                    Đã đọc
+                    Đánh dấu đã đọc
                   </button>
-                  <button 
-                    onClick={handleDeleteAll}
-                    className="text-xs font-semibold text-red-500 hover:text-red-700 transition"
+
+                  <button
+                    type="button"
+                    onClick={
+                      handleDeleteAll
+                    }
+                    className="text-xs font-semibold text-red-500 transition hover:text-red-700"
                   >
                     Xóa hết thông báo
                   </button>
@@ -157,10 +387,13 @@ const Header = () => {
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center font-bold">
-              {initial}
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/20 font-bold">
+            {initial}
           </div>
-          <div className="text-sm font-semibold">{displayName}</div>
+
+          <div className="text-sm font-semibold">
+            {displayName}
+          </div>
         </div>
       </div>
     </header>

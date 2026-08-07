@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ChatInterface from '@/components/student/ChatInterface';
 import {
   Archive,
@@ -18,6 +18,16 @@ import {
 import { useRouter } from 'next/navigation';
 import { getRetentionProfile, RetentionProfile } from '@/services/retention.service';
 import axios from 'axios';
+import { usePersistentProcedureDraft } from "@/hooks/usePersistentProcedureDraft";
+import {
+  deleteProcedureDraftDocument,
+  fetchProcedureDraftDocumentAsFile,
+  listProcedureDraftDocuments,
+  openProcedureDraftDocument,
+  ProcedureDraftDocument,
+  saveProcedureDraft,
+  uploadProcedureDraftDocument,
+} from "@/services/procedure-draft.service";
 
 type SignatureCheck = {
   present: boolean;
@@ -41,6 +51,26 @@ type RetentionOCRResult = {
   };
 };
 
+type RetentionFormData = {
+  reason: string;
+  duration: string;
+  attachmentNote: string;
+};
+
+type RetentionDraftData = {
+  formData: RetentionFormData;
+  downloadState: "idle" | "downloading" | "downloaded";
+  scanState: "idle" | "scanning" | "success" | "error";
+  scanErrorType: "document" | "signature" | null;
+  aiResult: RetentionOCRResult | null;
+  trackingCode: string;
+  requestId: string;
+  evidenceFileName: string | null;
+  signedApplicationFileName: string | null;
+  evidenceDocumentId: string | null;
+  signedApplicationDocumentId: string | null;
+};
+
 export default function RetentionPage() {
   const router = useRouter();
 
@@ -59,7 +89,7 @@ export default function RetentionPage() {
     useState<string>("");
 
   // State: Bước 1 - Form khai báo & File minh chứng
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<RetentionFormData>({
     reason: "",
     duration: "",
     attachmentNote: "",
@@ -67,6 +97,13 @@ export default function RetentionPage() {
 
   const [evidenceFile, setEvidenceFile] =
     useState<File | null>(null);
+
+  const [
+    evidenceDocument,
+    setEvidenceDocument,
+  ] = useState<ProcedureDraftDocument | null>(
+    null
+  );
 
   const evidenceFileRef =
     useRef<HTMLInputElement>(null);
@@ -80,6 +117,13 @@ export default function RetentionPage() {
   // State: Bước 3 - Upload đơn đã ký & AI quét
   const [docFile, setDocFile] =
     useState<File | null>(null);
+
+  const [
+    signedApplicationDocument,
+    setSignedApplicationDocument,
+  ] = useState<ProcedureDraftDocument | null>(
+    null
+  );
 
   const docFileRef =
     useRef<HTMLInputElement>(null);
@@ -96,6 +140,15 @@ const [scanErrorType, setScanErrorType] =
   useState<"document" | "signature" | null>(
     null
   );
+
+  const [isSubmitting, setIsSubmitting] =
+    useState(false);
+
+  const [trackingCode, setTrackingCode] =
+    useState("");
+
+  const [requestId, setRequestId] =
+    useState("");
 
   const chatEndRef =
     useRef<HTMLDivElement>(null);
@@ -141,13 +194,131 @@ useEffect(() => {
   const handleStart = () => setIsStarted(true);
   const handleCancel = () => router.push('/student/dashboard');
   const handleInputChange = (field: keyof typeof formData, value: string) => setFormData(prev => ({ ...prev, [field]: value }));
-  const handleEvidenceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) setEvidenceFile(e.target.files[0]);
+  const handleEvidenceChange = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    setEvidenceFile(file);
+
+    try {
+      const savedDocument =
+        await uploadProcedureDraftDocument(
+          "ACADEMIC_LEAVE",
+          "ACADEMIC_LEAVE_EVIDENCE",
+          file
+        );
+
+      setEvidenceDocument(savedDocument);
+    } catch (error) {
+      console.error(
+        "Không thể lưu file minh chứng bảo lưu:",
+        error
+      );
+
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Không thể lưu file minh chứng."
+      );
+    } finally {
+      if (evidenceFileRef.current) {
+        evidenceFileRef.current.value = "";
+      }
+    }
   };
-  const removeEvidence = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setEvidenceFile(null);
-    if (evidenceFileRef.current) evidenceFileRef.current.value = '';
+
+  const removeEvidence = async (
+    event: React.MouseEvent
+  ) => {
+    event.stopPropagation();
+
+    try {
+      if (evidenceDocument) {
+        await deleteProcedureDraftDocument(
+          "ACADEMIC_LEAVE",
+          evidenceDocument.id
+        );
+      }
+
+      setEvidenceFile(null);
+      setEvidenceDocument(null);
+    } catch (error) {
+      console.error(
+        "Không thể xóa file minh chứng bảo lưu:",
+        error
+      );
+
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Không thể xóa file minh chứng."
+      );
+    } finally {
+      if (evidenceFileRef.current) {
+        evidenceFileRef.current.value = "";
+      }
+    }
+  };
+
+  const handleOpenEvidence = async () => {
+    if (evidenceFile) {
+      const previewUrl =
+        window.URL.createObjectURL(
+          evidenceFile
+        );
+
+      const previewWindow =
+        window.open(
+          previewUrl,
+          "_blank",
+          "noopener,noreferrer"
+        );
+
+      if (!previewWindow) {
+        window.URL.revokeObjectURL(
+          previewUrl
+        );
+
+        alert(
+          "Trình duyệt đang chặn tab mới. " +
+          "Vui lòng cho phép pop-up cho localhost."
+        );
+
+        return;
+      }
+
+      window.setTimeout(() => {
+        window.URL.revokeObjectURL(
+          previewUrl
+        );
+      }, 60_000);
+
+      return;
+    }
+
+    if (!evidenceDocument) {
+      alert(
+        "Không tìm thấy file minh chứng đã lưu."
+      );
+      return;
+    }
+
+    try {
+      await openProcedureDraftDocument(
+        evidenceDocument
+      );
+    } catch (error) {
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Không thể mở file minh chứng."
+      );
+    }
   };
   const handleSubmitForm = () => setCurrentStep(2);
 
@@ -488,8 +659,53 @@ useEffect(() => {
       return;
     }
 
+    const savedDocument =
+      await uploadProcedureDraftDocument(
+        "ACADEMIC_LEAVE",
+        "ACADEMIC_LEAVE_SIGNED_APPLICATION",
+        file
+      );
+
+    setDocFile(file);
+    setSignedApplicationDocument(
+      savedDocument
+    );
     setScanErrorType(null);
     setScanState("success");
+
+    try {
+      await saveProcedureDraft<RetentionDraftData>(
+        "ACADEMIC_LEAVE",
+        {
+          isStarted: true,
+          currentStep: 3,
+          draftData: {
+            formData,
+            downloadState,
+            scanState: "success",
+            scanErrorType: null,
+            aiResult: normalizedResult,
+            trackingCode,
+            requestId,
+            evidenceFileName:
+              evidenceFile?.name ??
+              evidenceDocument?.original_name ??
+              null,
+            signedApplicationFileName:
+              savedDocument.original_name,
+            evidenceDocumentId:
+              evidenceDocument?.id ?? null,
+            signedApplicationDocumentId:
+              savedDocument.id,
+          },
+        }
+      );
+    } catch (draftError) {
+      console.error(
+        "Không thể lưu bước 3 bảo lưu:",
+        draftError
+      );
+    }
   } catch (error) {
     console.error(
       "Lỗi kiểm tra OCR bảo lưu:",
@@ -533,6 +749,8 @@ useEffect(() => {
         errorData?.uploaded_file?.[0] ||
         errorData?.document_type?.[0] ||
         message;
+    } else if (error instanceof Error) {
+      message = error.message;
     }
 
     setAiResult({
@@ -554,6 +772,63 @@ useEffect(() => {
   }
 };
 
+const handleOpenSignedApplication = async () => {
+  if (docFile) {
+    const previewUrl =
+      window.URL.createObjectURL(
+        docFile
+      );
+
+    const previewWindow =
+      window.open(
+        previewUrl,
+        "_blank",
+        "noopener,noreferrer"
+      );
+
+    if (!previewWindow) {
+      window.URL.revokeObjectURL(
+        previewUrl
+      );
+
+      alert(
+        "Trình duyệt đang chặn tab mới. " +
+        "Vui lòng cho phép pop-up cho localhost."
+      );
+
+      return;
+    }
+
+    window.setTimeout(() => {
+      window.URL.revokeObjectURL(
+        previewUrl
+      );
+    }, 60_000);
+
+    return;
+  }
+
+  if (!signedApplicationDocument) {
+    alert(
+      "Không tìm thấy Đơn xin nghỉ học tạm thời đã ký trên hệ thống. " +
+      "Vui lòng quay lại bước tải file và chọn lại tài liệu."
+    );
+    return;
+  }
+
+  try {
+    await openProcedureDraftDocument(
+      signedApplicationDocument
+    );
+  } catch (error) {
+    alert(
+      error instanceof Error
+        ? error.message
+        : "Không thể mở đơn đã ký."
+    );
+  }
+};
+
 const handleRetryScan = () => {
   setDocFile(null);
   setAiResult(null);
@@ -564,11 +839,219 @@ const handleRetryScan = () => {
     docFileRef.current?.click();
   }, 0);
 };
-  const handleContinueToPreview = () => setCurrentStep(4);
+  const handleContinueToPreview = async () => {
+    const nextDraftData: RetentionDraftData = {
+      ...retentionDraftData,
+      scanState: "success",
+      scanErrorType: null,
+      evidenceFileName:
+        evidenceFile?.name ??
+        evidenceDocument?.original_name ??
+        null,
+      signedApplicationFileName:
+        docFile?.name ??
+        signedApplicationDocument?.original_name ??
+        null,
+      evidenceDocumentId:
+        evidenceDocument?.id ?? null,
+      signedApplicationDocumentId:
+        signedApplicationDocument?.id ??
+        null,
+    };
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [trackingCode, setTrackingCode] = useState("");
-  const [requestId, setRequestId] = useState("");
+    try {
+      await saveProcedureDraft<RetentionDraftData>(
+        "ACADEMIC_LEAVE",
+        {
+          isStarted: true,
+          currentStep: 4,
+          draftData: nextDraftData,
+        }
+      );
+    } catch (error) {
+      console.error(
+        "Không thể lưu bước xem trước bảo lưu:",
+        error
+      );
+    }
+
+    setCurrentStep(4);
+  };
+
+  const restoreRetentionDraft = useCallback(
+    (draft: {
+      is_started: boolean;
+      current_step: number;
+      draft_data?: Partial<RetentionDraftData>;
+    }) => {
+      const savedData = draft.draft_data || {};
+
+      setIsStarted(draft.is_started === true);
+
+      setFormData(
+        savedData.formData ?? {
+          reason: "",
+          duration: "",
+          attachmentNote: "",
+        }
+      );
+
+      setTrackingCode(savedData.trackingCode ?? "");
+      setRequestId(savedData.requestId ?? "");
+
+      const normalizedStep = Math.min(
+        Math.max(Number(draft.current_step) || 1, 1),
+        5
+      ) as 1 | 2 | 3 | 4 | 5;
+
+      const restoredDownloadState =
+        normalizedStep >= 3
+          ? "downloaded"
+          : savedData.downloadState === "downloading"
+            ? "idle"
+            : savedData.downloadState ?? "idle";
+
+      setDownloadState(restoredDownloadState);
+
+      /*
+       * Đối tượng File của trình duyệt không thể lưu trong JSON.
+       * Nội dung file thật được lấy lại qua ProcedureDraftDocument.
+       */
+      setEvidenceFile(null);
+      setDocFile(null);
+
+      setCurrentStep(normalizedStep);
+
+      if (
+        normalizedStep >= 4 ||
+        savedData.scanState === "success"
+      ) {
+        setScanState("success");
+        setScanErrorType(null);
+        setAiResult(
+          savedData.aiResult ?? null
+        );
+        return;
+      }
+
+      setScanState(
+        savedData.scanState === "scanning"
+          ? "idle"
+          : savedData.scanState ?? "idle"
+      );
+      setScanErrorType(
+        savedData.scanErrorType ?? null
+      );
+      setAiResult(
+        savedData.aiResult ?? null
+      );
+    },
+    []
+  );
+
+  const retentionDraftData = useMemo<RetentionDraftData>(
+    () => ({
+      formData,
+      downloadState,
+      scanState,
+      scanErrorType,
+      aiResult,
+      trackingCode,
+      requestId,
+      evidenceFileName:
+        evidenceFile?.name ??
+        evidenceDocument?.original_name ??
+        null,
+      signedApplicationFileName:
+        docFile?.name ??
+        signedApplicationDocument?.original_name ??
+        null,
+      evidenceDocumentId:
+        evidenceDocument?.id ?? null,
+      signedApplicationDocumentId:
+        signedApplicationDocument?.id ??
+        null,
+    }),
+    [
+      formData,
+      downloadState,
+      scanState,
+      scanErrorType,
+      aiResult,
+      trackingCode,
+      requestId,
+      evidenceFile,
+      evidenceDocument,
+      docFile,
+      signedApplicationDocument,
+    ]
+  );
+
+  const { isDraftLoaded } =
+    usePersistentProcedureDraft<RetentionDraftData>({
+      requestType: "ACADEMIC_LEAVE",
+      isStarted,
+      currentStep,
+      draftData: retentionDraftData,
+      restore: restoreRetentionDraft,
+    });
+
+  useEffect(() => {
+    if (!isDraftLoaded || !isStarted) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadDraftDocuments = async () => {
+      try {
+        const documents =
+          await listProcedureDraftDocuments(
+            "ACADEMIC_LEAVE"
+          );
+
+        if (cancelled) {
+          return;
+        }
+
+        const savedEvidence =
+          documents.find(
+            (document) =>
+              document.document_key ===
+              "ACADEMIC_LEAVE_EVIDENCE"
+          ) ?? null;
+
+        const savedSignedApplication =
+          documents.find(
+            (document) =>
+              document.document_key ===
+              "ACADEMIC_LEAVE_SIGNED_APPLICATION"
+          ) ?? null;
+
+        setEvidenceDocument(
+          savedEvidence
+        );
+
+        setSignedApplicationDocument(
+          savedSignedApplication
+        );
+      } catch (error) {
+        console.error(
+          "Không thể tải tài liệu bảo lưu:",
+          error
+        );
+      }
+    };
+
+    void loadDraftDocuments();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    isDraftLoaded,
+    isStarted,
+  ]);
 
   // Khóa đồng bộ để ngăn hai request được gửi gần như cùng lúc.
   // State React cập nhật bất đồng bộ nên chỉ dùng isSubmitting là chưa đủ.
@@ -577,10 +1060,20 @@ const handleRetryScan = () => {
   // --- Handlers Bước 4 ---
   const handleFinalSubmit = async () => {
     if (
-      !docFile ||
       isSubmitting ||
       submitLockRef.current
     ) {
+      return;
+    }
+
+    if (
+      !docFile &&
+      !signedApplicationDocument
+    ) {
+      alert(
+        "Không tìm thấy Đơn xin nghỉ học tạm thời đã ký. " +
+        "Vui lòng quay lại bước tải file."
+      );
       return;
     }
 
@@ -616,9 +1109,38 @@ const handleRetryScan = () => {
         "http://localhost:8000/api"
       ).replace(/\/$/, "");
 
+      const signedFileToSubmit =
+        docFile ??
+        (
+          signedApplicationDocument
+            ? await fetchProcedureDraftDocumentAsFile(
+                signedApplicationDocument
+              )
+            : null
+        );
+
+      if (!signedFileToSubmit) {
+        throw new Error(
+          "Không thể tải lại đơn bảo lưu đã ký."
+        );
+      }
+
+      const evidenceFileToSubmit =
+        evidenceFile ??
+        (
+          evidenceDocument
+            ? await fetchProcedureDraftDocumentAsFile(
+                evidenceDocument
+              )
+            : null
+        );
+
       const formDataToSend = new FormData();
 
-      formDataToSend.append("file", docFile);
+      formDataToSend.append(
+        "file",
+        signedFileToSubmit
+      );
       formDataToSend.append(
         "reason",
         formData.reason.trim()
@@ -632,10 +1154,10 @@ const handleRetryScan = () => {
         formData.attachmentNote.trim()
       );
 
-      if (evidenceFile) {
+      if (evidenceFileToSubmit) {
         formDataToSend.append(
           "evidence_file",
-          evidenceFile
+          evidenceFileToSubmit
         );
       }
 
@@ -651,19 +1173,61 @@ const handleRetryScan = () => {
       );
 
       if (response.data?.success === true) {
-        setTrackingCode(
-          response.data.trackingCode ||
-          response.data.requestId ||
-          ""
-        );
+        const returnedRequestId = response.data.requestId
+          ? String(response.data.requestId)
+          : "";
 
-        if (response.data.requestId) {
-          setRequestId(
-            String(response.data.requestId)
+        const returnedTrackingCode =
+          response.data.trackingCode ||
+          response.data.requestCode ||
+          response.data.request_code ||
+          returnedRequestId;
+
+        setTrackingCode(returnedTrackingCode);
+        setRequestId(returnedRequestId);
+        setCurrentStep(5);
+
+        /*
+         * Ghi ngay trạng thái hoàn tất xuống backend để khi
+         * đổi tab, tải lại trang hoặc đăng nhập lại vẫn hiện bước 5.
+         */
+        try {
+          await saveProcedureDraft<RetentionDraftData>(
+            "ACADEMIC_LEAVE",
+            {
+              isStarted: true,
+              currentStep: 5,
+              draftData: {
+                ...retentionDraftData,
+                trackingCode: returnedTrackingCode,
+                requestId: returnedRequestId,
+                downloadState: "downloaded",
+                scanState: "success",
+                scanErrorType: null,
+                aiResult,
+                evidenceFileName:
+                  evidenceFile?.name ??
+                  evidenceDocument?.original_name ??
+                  null,
+                signedApplicationFileName:
+                  docFile?.name ??
+                  signedApplicationDocument?.original_name ??
+                  null,
+                evidenceDocumentId:
+                  evidenceDocument?.id ?? null,
+                signedApplicationDocumentId:
+                  signedApplicationDocument?.id ??
+                  null,
+              },
+            }
+          );
+        } catch (draftError) {
+          console.error(
+            "Không thể lưu trạng thái hoàn tất bảo lưu:",
+            draftError
           );
         }
 
-        setCurrentStep(5);
         return;
       }
 
@@ -758,6 +1322,20 @@ const handleRetryScan = () => {
   },
 
 ] as const;
+
+  if (!isDraftLoaded) {
+    return (
+      <div className="h-full w-full flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3 text-gray-500">
+          <span className="w-9 h-9 rounded-full border-4 border-blue-500 border-t-transparent animate-spin" />
+          <p className="text-sm font-medium">
+            Đang khôi phục thủ tục bảo lưu...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-full w-full flex flex-col">
       <ChatInterface
@@ -852,21 +1430,50 @@ const handleRetryScan = () => {
                                 <label className="text-xs font-semibold text-gray-400 mb-2 uppercase block">Tài liệu đính kèm (nếu có)</label>
                                 <div className="flex flex-col gap-3">
                                   <input disabled={currentStep > 1} type="text" placeholder="Ghi chú thêm (VD: Giấy xác nhận bệnh viện...)" value={formData.attachmentNote} onChange={(e) => handleInputChange('attachmentNote', e.target.value)} className="w-full border border-gray-300 rounded-lg p-2.5 text-sm text-gray-700 outline-none focus:border-blue-500 bg-white disabled:bg-gray-50" />
-                                  {!evidenceFile ? (
+                                  {!evidenceFile && !evidenceDocument ? (
                                     <div onClick={() => currentStep === 1 && evidenceFileRef.current?.click()} className={`border-2 border-dashed border-gray-300 rounded-lg p-5 flex flex-col items-center justify-center transition bg-white ${currentStep === 1 ? 'cursor-pointer hover:bg-gray-50' : 'opacity-60 cursor-not-allowed'}`}>
                                       <UploadCloud size={28} className="text-blue-500 mb-2" />
                                       <p className="text-sm text-gray-700 font-medium mb-1">Nhấn để tải lên file minh chứng</p>
                                       <p className="text-xs text-gray-400">Bệnh án, giấy gọi NVQS...</p>
-                                      <input type="file" className="hidden" ref={evidenceFileRef} onChange={handleEvidenceChange} accept=".pdf,.docx,.jpg,.png" />
+                                      <input type="file" className="hidden" ref={evidenceFileRef} onChange={handleEvidenceChange} accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" />
                                     </div>
                                   ) : (
-                                    <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg p-3">
+                                    <div
+                                      role="button"
+                                      tabIndex={0}
+                                      onClick={() => {
+                                        void handleOpenEvidence();
+                                      }}
+                                      onKeyDown={(event) => {
+                                        if (
+                                          event.key === "Enter" ||
+                                          event.key === " "
+                                        ) {
+                                          void handleOpenEvidence();
+                                        }
+                                      }}
+                                      className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg p-3 cursor-pointer hover:bg-blue-100/70 transition"
+                                      title="Nhấn để mở file minh chứng"
+                                    >
                                       <div className="flex items-center gap-3 overflow-hidden">
                                         <FileText size={20} className="text-blue-500 shrink-0" />
-                                        <span className="text-sm font-medium text-blue-700 truncate">{evidenceFile.name}</span>
+                                        <span className="text-sm font-medium text-blue-700 truncate">
+                                          {evidenceFile?.name ||
+                                            evidenceDocument?.original_name ||
+                                            "File minh chứng"}
+                                        </span>
                                       </div>
                                       {currentStep === 1 && (
-                                        <button onClick={removeEvidence} className="text-blue-400 hover:text-red-500 p-1"><X size={18} /></button>
+                                        <button
+                                          type="button"
+                                          onClick={(event) => {
+                                            void removeEvidence(event);
+                                          }}
+                                          className="text-blue-400 hover:text-red-500 p-1"
+                                          aria-label="Xóa file minh chứng"
+                                        >
+                                          <X size={18} />
+                                        </button>
                                       )}
                                     </div>
                                   )}
@@ -1271,15 +1878,26 @@ const handleRetryScan = () => {
                 </div>
 
                 <div className="p-5 flex flex-col gap-4">
-                  <div className="flex items-center justify-between bg-green-50/50 border border-green-200 p-4 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <FileText size={20} className="text-green-600" />
-                      <span className="text-sm font-medium text-gray-800">Đơn xin nghỉ học tạm thời (Bản scan đã ký đủ 2 bên)</span>
+                  <button
+                    type="button"
+                    onClick={handleOpenSignedApplication}
+                    className="w-full flex items-center justify-between gap-4 bg-green-50/50 border border-green-200 p-4 rounded-lg text-left cursor-pointer hover:bg-green-50 hover:border-green-300 transition"
+                    title="Nhấn để mở file đã ký trong tab mới"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <FileText size={20} className="text-green-600 shrink-0" />
+
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-800">
+                          Đơn xin nghỉ học tạm thời (Bản scan đã ký đủ 2 bên)
+                        </p>
+                      </div>
                     </div>
-                    <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded flex items-center gap-1 font-bold">
+
+                    <span className="shrink-0 text-xs bg-green-100 text-green-700 px-2 py-1 rounded flex items-center gap-1 font-bold">
                       AI xác nhận <Check size={14} strokeWidth={3} />
                     </span>
-                  </div>
+                  </button>
 
                   {currentStep === 4 && (
                     <button

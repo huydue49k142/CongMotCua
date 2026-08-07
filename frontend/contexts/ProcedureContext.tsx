@@ -5,7 +5,7 @@ import React, { createContext, useContext, useState, ReactNode } from 'react';
 type Step = 1 | 2 | 3 | 4 | 5 | 6;
 
 interface ProcedureState {
-  dropdown: {
+  dropout: {
     isStarted: boolean;
     currentStep: Step;
     isAgreed: boolean;
@@ -37,15 +37,15 @@ interface ProcedureContextType {
   setDropoutAgreed: (agreed: boolean) => void;
   setDropoutDownloaded: (downloaded: boolean) => void;
   setDropoutUploadState: (uploadState: 'idle' | 'analyzing' | 'success') => void;
-  setDropoutFormData: (data: Partial<ProcedureState['dropdown']['formData']>) => void;
-  setDropoutStudentProfile: (profile: ProcedureState['dropdown']['studentProfile']) => void;
+  setDropoutFormData: (data: Partial<ProcedureState['dropout']['formData']>) => void;
+  setDropoutStudentProfile: (profile: ProcedureState['dropout']['studentProfile']) => void;
   resetDropout: () => void;
 }
 
 const ProcedureContext = createContext<ProcedureContextType | undefined>(undefined);
 
 const initialState: ProcedureState = {
-  dropdown: {
+  dropout: {
     isStarted: false,
     currentStep: 1,
     isAgreed: false,
@@ -67,59 +67,59 @@ export function ProcedureProvider({ children }: { children: ReactNode }) {
   const setDropoutStarted = (started: boolean) => {
     setState(prev => ({
       ...prev,
-      dropdown: { ...prev.dropdown, isStarted: started }
+      dropout: { ...prev.dropout, isStarted: started }
     }));
   };
 
   const setDropoutStep = (step: Step) => {
     setState(prev => ({
       ...prev,
-      dropdown: { ...prev.dropdown, currentStep: step }
+      dropout: { ...prev.dropout, currentStep: step }
     }));
   };
 
   const setDropoutAgreed = (agreed: boolean) => {
     setState(prev => ({
       ...prev,
-      dropdown: { ...prev.dropdown, isAgreed: agreed }
+      dropout: { ...prev.dropout, isAgreed: agreed }
     }));
   };
 
   const setDropoutDownloaded = (downloaded: boolean) => {
     setState(prev => ({
       ...prev,
-      dropdown: { ...prev.dropdown, isDownloaded: downloaded }
+      dropout: { ...prev.dropout, isDownloaded: downloaded }
     }));
   };
 
   const setDropoutUploadState = (uploadState: 'idle' | 'analyzing' | 'success') => {
     setState(prev => ({
       ...prev,
-      dropdown: { ...prev.dropdown, uploadState }
+      dropout: { ...prev.dropout, uploadState }
     }));
   };
 
-  const setDropoutFormData = (data: Partial<ProcedureState['dropdown']['formData']>) => {
+  const setDropoutFormData = (data: Partial<ProcedureState['dropout']['formData']>) => {
     setState(prev => ({
       ...prev,
-      dropdown: {
-        ...prev.dropdown,
-        formData: { ...prev.dropdown.formData, ...data }
+      dropout: {
+        ...prev.dropout,
+        formData: { ...prev.dropout.formData, ...data }
       }
     }));
   };
 
-  const setDropoutStudentProfile = (studentProfile: ProcedureState['dropdown']['studentProfile']) => {
+  const setDropoutStudentProfile = (studentProfile: ProcedureState['dropout']['studentProfile']) => {
     setState(prev => ({
       ...prev,
-      dropdown: { ...prev.dropdown, studentProfile }
+      dropout: { ...prev.dropout, studentProfile }
     }));
   };
 
   const resetDropout = () => {
     setState(prev => ({
       ...prev,
-      dropdown: initialState.dropdown
+      dropout: initialState.dropout
     }));
   };
 

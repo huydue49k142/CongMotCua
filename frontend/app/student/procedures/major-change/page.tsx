@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import ChatInterface from '@/components/student/ChatInterface';
 import {
   ArrowLeftRight,
@@ -18,6 +24,15 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { getMajorChangeProfile, MajorChangeProfile } from '@/services/major-change.service';
+import { usePersistentProcedureDraft } from '@/hooks/usePersistentProcedureDraft';
+import {
+  fetchProcedureDraftDocumentAsFile,
+  listProcedureDraftDocuments,
+  openProcedureDraftDocument,
+  ProcedureDraftDocument,
+  saveProcedureDraft,
+  uploadProcedureDraftDocument,
+} from '@/services/procedure-draft.service';
 import axios from 'axios';
 
 type SignatureCheck = {
@@ -72,6 +87,58 @@ type RequestHistoryItem = {
   status?: string;
   notes?: string;
   timestamp?: string;
+};
+
+type MajorChangeDraftData = {
+  formData: MajorChangeProfile | null;
+  studentName: string;
+
+  file1Status: 'idle' | 'uploading' | 'done' | 'error';
+  file2Status: 'idle' | 'uploading' | 'done' | 'error';
+  file1Result: OCRVerifyResult | null;
+  file2Result: OCRVerifyResult | null;
+  file1Error: string;
+  file2Error: string;
+
+  academicChecked: boolean;
+  targetMajor: string;
+  hasDownloadedExcel: boolean;
+  isQualified: boolean | null;
+  admissionMethod: string;
+  admissionScores: {
+    combo: string;
+    score: string;
+    priority: string;
+    threshold: string;
+  };
+  additionalInfo: {
+    dob: string;
+    pob: string;
+    phone: string;
+    cccd: string;
+    issueDate: string;
+    issuePlace: string;
+  };
+  reason: string;
+
+  signedScanState: SignedScanState;
+  signedScanErrorType: SignedScanErrorType;
+  signedApplicationResult: OCRVerifyResult | null;
+  downloadState: 'idle' | 'downloading' | 'downloaded';
+
+  admissionLetterDocumentId: string | null;
+  admissionLetterFileName: string | null;
+  graduationCertificateDocumentId: string | null;
+  graduationCertificateFileName: string | null;
+  signedApplicationDocumentId: string | null;
+  signedApplicationFileName: string | null;
+
+  trackingCode: string;
+  requestId: string;
+  submittedAt: string;
+  submissionStatus: SubmissionStatus;
+  supplementNote: string;
+  activeTab: 'details' | 'tracking';
 };
 
 const getSubmissionStatusMeta = (status: SubmissionStatus) => {
@@ -178,6 +245,21 @@ export default function MajorChangePage() {
   const [signedApplicationFile, setSignedApplicationFile] =
     useState<File | null>(null);
 
+  const [
+    admissionLetterDocument,
+    setAdmissionLetterDocument,
+  ] = useState<ProcedureDraftDocument | null>(null);
+
+  const [
+    graduationCertificateDocument,
+    setGraduationCertificateDocument,
+  ] = useState<ProcedureDraftDocument | null>(null);
+
+  const [
+    signedApplicationDocument,
+    setSignedApplicationDocument,
+  ] = useState<ProcedureDraftDocument | null>(null);
+
   const [trackingCode, setTrackingCode] = useState("");
   const [requestId, setRequestId] = useState("");
   const [submittedAt, setSubmittedAt] = useState("");
@@ -211,6 +293,348 @@ export default function MajorChangePage() {
   const [activeTab, setActiveTab] = useState<'details' | 'tracking'>('details');
 
   const chatEndRef = useRef<HTMLDivElement>(null);
+
+  const restoreMajorChangeDraft = useCallback(
+    (draft: {
+      is_started: boolean;
+      current_step: number;
+      draft_data?: Partial<MajorChangeDraftData>;
+    }) => {
+      const savedData = draft.draft_data ?? {};
+
+      setIsStarted(draft.is_started === true);
+      setFormData(savedData.formData ?? null);
+      setStudentName(
+        savedData.studentName ||
+          savedData.formData?.fullName ||
+          'bạn'
+      );
+
+      setAcademicChecked(
+        savedData.academicChecked ?? false
+      );
+      setTargetMajor(savedData.targetMajor ?? '');
+      setHasDownloadedExcel(
+        savedData.hasDownloadedExcel ?? false
+      );
+      setIsQualified(savedData.isQualified ?? null);
+      setAdmissionMethod(
+        savedData.admissionMethod ??
+          'Xét điểm THPT'
+      );
+      setAdmissionScores(
+        savedData.admissionScores ?? {
+          combo: '',
+          score: '',
+          priority: '',
+          threshold: '',
+        }
+      );
+      setAdditionalInfo(
+        savedData.additionalInfo ?? {
+          dob: '',
+          pob: '',
+          phone: '',
+          cccd: '',
+          issueDate: '',
+          issuePlace: '',
+        }
+      );
+      setReason(savedData.reason ?? '');
+
+      setTrackingCode(savedData.trackingCode ?? '');
+      setRequestId(savedData.requestId ?? '');
+      setSubmittedAt(savedData.submittedAt ?? '');
+      setSubmissionStatus(
+        savedData.submissionStatus ??
+          'PENDING_REVIEW'
+      );
+      setSupplementNote(
+        savedData.supplementNote ?? ''
+      );
+      setActiveTab(
+        savedData.activeTab ?? 'details'
+      );
+
+      const normalizedStep = Math.min(
+        Math.max(
+          Number(draft.current_step) || 1,
+          1
+        ),
+        7
+      ) as 1 | 2 | 3 | 4 | 5 | 6 | 7;
+
+      /*
+       * File của trình duyệt không thể lưu trong JSONField.
+       * Metadata và nội dung file thật sẽ được tải lại từ
+       * ProcedureDraftDocument sau khi bản nháp khôi phục.
+       */
+      setAdmissionLetterFile(null);
+      setGraduationCertificateFile(null);
+      setSignedApplicationFile(null);
+      setSupplementFile(null);
+      setPreviewUrl(null);
+
+      setCurrentStep(normalizedStep);
+
+      setFile1Result(
+        savedData.file1Result ?? null
+      );
+      setFile2Result(
+        savedData.file2Result ?? null
+      );
+      setFile1Error(
+        savedData.file1Error ?? ''
+      );
+      setFile2Error(
+        savedData.file2Error ?? ''
+      );
+
+      setFile1Status(
+        savedData.file1Status === 'uploading'
+          ? 'idle'
+          : savedData.file1Status ??
+              (normalizedStep >= 2
+                ? 'done'
+                : 'idle')
+      );
+
+      setFile2Status(
+        savedData.file2Status === 'uploading'
+          ? 'idle'
+          : savedData.file2Status ??
+              (normalizedStep >= 2
+                ? 'done'
+                : 'idle')
+      );
+
+      const restoredSignedState =
+        savedData.signedScanState ===
+        'scanning'
+          ? 'idle'
+          : savedData.signedScanState ??
+            (normalizedStep >= 7
+              ? 'success'
+              : 'idle');
+
+      setSignedScanState(restoredSignedState);
+      setSignedScanErrorType(
+        restoredSignedState === 'success'
+          ? null
+          : savedData.signedScanErrorType ??
+              null
+      );
+      setSignedApplicationResult(
+        savedData.signedApplicationResult ??
+          null
+      );
+
+      setDownloadState(
+        normalizedStep >= 7
+          ? 'downloaded'
+          : savedData.downloadState ===
+              'downloading'
+            ? 'idle'
+            : savedData.downloadState ??
+              'idle'
+      );
+    },
+    []
+  );
+
+  const majorChangeDraftData = useMemo<MajorChangeDraftData>(
+    () => ({
+      formData,
+      studentName,
+
+      file1Status,
+      file2Status,
+      file1Result,
+      file2Result,
+      file1Error,
+      file2Error,
+
+      academicChecked,
+      targetMajor,
+      hasDownloadedExcel,
+      isQualified,
+      admissionMethod,
+      admissionScores,
+      additionalInfo,
+      reason,
+
+      signedScanState,
+      signedScanErrorType,
+      signedApplicationResult,
+      downloadState,
+
+      admissionLetterDocumentId:
+        admissionLetterDocument?.id ?? null,
+      admissionLetterFileName:
+        admissionLetterFile?.name ??
+        admissionLetterDocument?.original_name ??
+        null,
+      graduationCertificateDocumentId:
+        graduationCertificateDocument?.id ?? null,
+      graduationCertificateFileName:
+        graduationCertificateFile?.name ??
+        graduationCertificateDocument?.original_name ??
+        null,
+      signedApplicationDocumentId:
+        signedApplicationDocument?.id ?? null,
+      signedApplicationFileName:
+        signedApplicationFile?.name ??
+        signedApplicationDocument?.original_name ??
+        null,
+
+      trackingCode,
+      requestId,
+      submittedAt,
+      submissionStatus,
+      supplementNote,
+      activeTab,
+    }),
+    [
+      formData,
+      studentName,
+      file1Status,
+      file2Status,
+      file1Result,
+      file2Result,
+      file1Error,
+      file2Error,
+      academicChecked,
+      targetMajor,
+      hasDownloadedExcel,
+      isQualified,
+      admissionMethod,
+      admissionScores,
+      additionalInfo,
+      reason,
+      signedScanState,
+      signedScanErrorType,
+      signedApplicationResult,
+      downloadState,
+      admissionLetterFile,
+      admissionLetterDocument,
+      graduationCertificateFile,
+      graduationCertificateDocument,
+      signedApplicationFile,
+      signedApplicationDocument,
+      trackingCode,
+      requestId,
+      submittedAt,
+      submissionStatus,
+      supplementNote,
+      activeTab,
+    ]
+  );
+
+  const { isDraftLoaded } =
+    usePersistentProcedureDraft<MajorChangeDraftData>({
+      requestType: 'MAJOR_CHANGE',
+      isStarted,
+      currentStep,
+      draftData: majorChangeDraftData,
+      restore: restoreMajorChangeDraft,
+    });
+
+  useEffect(() => {
+    if (!isDraftLoaded || !isStarted) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadDraftDocuments = async () => {
+      try {
+        const documents =
+          await listProcedureDraftDocuments(
+            'MAJOR_CHANGE'
+          );
+
+        if (cancelled) {
+          return;
+        }
+
+        const admissionDocument =
+          documents.find(
+            (document) =>
+              document.document_key ===
+              'MAJOR_CHANGE_ADMISSION_LETTER'
+          ) ?? null;
+
+        const graduationDocument =
+          documents.find(
+            (document) =>
+              document.document_key ===
+              'MAJOR_CHANGE_GRADUATION_CERTIFICATE'
+          ) ?? null;
+
+        const signedDocument =
+          documents.find(
+            (document) =>
+              document.document_key ===
+              'MAJOR_CHANGE_SIGNED_APPLICATION'
+          ) ?? null;
+
+        setAdmissionLetterDocument(
+          admissionDocument
+        );
+        setGraduationCertificateDocument(
+          graduationDocument
+        );
+        setSignedApplicationDocument(
+          signedDocument
+        );
+
+        if (admissionDocument) {
+          setFile1Status('done');
+          setFile1Error('');
+        }
+
+        if (graduationDocument) {
+          setFile2Status('done');
+          setFile2Error('');
+        }
+
+        if (signedDocument) {
+          setSignedScanState('success');
+          setSignedScanErrorType(null);
+
+          setSignedApplicationResult(
+            (previous) =>
+              previous ?? {
+                format_valid: true,
+                is_match: true,
+                accepted: true,
+                detected_document_type:
+                  'MAJOR_CHANGE_SIGNED_APPLICATION',
+                signature_checks: {
+                  applicant: {
+                    present: true,
+                  },
+                },
+              }
+          );
+        }
+      } catch (error) {
+        console.error(
+          'Không thể tải tài liệu chuyển ngành:',
+          error
+        );
+      }
+    };
+
+    void loadDraftDocuments();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    isDraftLoaded,
+    isStarted,
+  ]);
 
   useEffect(() => {
     setTimeout(() => {
@@ -400,9 +824,44 @@ export default function MajorChangePage() {
         return;
       }
 
+      const savedDocument =
+        await uploadProcedureDraftDocument(
+          'MAJOR_CHANGE',
+          'MAJOR_CHANGE_ADMISSION_LETTER',
+          file
+        );
+
       setFile1Result(result);
       setAdmissionLetterFile(file);
+      setAdmissionLetterDocument(
+        savedDocument
+      );
       setFile1Status("done");
+
+      try {
+        await saveProcedureDraft<MajorChangeDraftData>(
+          'MAJOR_CHANGE',
+          {
+            isStarted: true,
+            currentStep,
+            draftData: {
+              ...majorChangeDraftData,
+              file1Status: 'done',
+              file1Result: result,
+              file1Error: '',
+              admissionLetterDocumentId:
+                savedDocument.id,
+              admissionLetterFileName:
+                savedDocument.original_name,
+            },
+          }
+        );
+      } catch (draftError) {
+        console.error(
+          'Không thể lưu Giấy báo trúng tuyển:',
+          draftError
+        );
+      }
     } catch (error) {
       console.error(
         "Lỗi kiểm tra Giấy báo trúng tuyển:",
@@ -471,9 +930,44 @@ export default function MajorChangePage() {
         return;
       }
 
+      const savedDocument =
+        await uploadProcedureDraftDocument(
+          'MAJOR_CHANGE',
+          'MAJOR_CHANGE_GRADUATION_CERTIFICATE',
+          file
+        );
+
       setFile2Result(result);
       setGraduationCertificateFile(file);
+      setGraduationCertificateDocument(
+        savedDocument
+      );
       setFile2Status("done");
+
+      try {
+        await saveProcedureDraft<MajorChangeDraftData>(
+          'MAJOR_CHANGE',
+          {
+            isStarted: true,
+            currentStep,
+            draftData: {
+              ...majorChangeDraftData,
+              file2Status: 'done',
+              file2Result: result,
+              file2Error: '',
+              graduationCertificateDocumentId:
+                savedDocument.id,
+              graduationCertificateFileName:
+                savedDocument.original_name,
+            },
+          }
+        );
+      } catch (draftError) {
+        console.error(
+          'Không thể lưu Giấy chứng nhận tốt nghiệp:',
+          draftError
+        );
+      }
     } catch (error) {
       console.error(
         "Lỗi kiểm tra Giấy chứng nhận tốt nghiệp:",
@@ -684,10 +1178,46 @@ export default function MajorChangePage() {
         return;
       }
 
+      const savedDocument =
+        await uploadProcedureDraftDocument(
+          'MAJOR_CHANGE',
+          'MAJOR_CHANGE_SIGNED_APPLICATION',
+          file
+        );
+
       setSignedApplicationResult(result);
       setSignedApplicationFile(file);
+      setSignedApplicationDocument(
+        savedDocument
+      );
       setSignedScanErrorType(null);
       setSignedScanState("success");
+
+      try {
+        await saveProcedureDraft<MajorChangeDraftData>(
+          'MAJOR_CHANGE',
+          {
+            isStarted: true,
+            currentStep: 6,
+            draftData: {
+              ...majorChangeDraftData,
+              signedScanState: 'success',
+              signedScanErrorType: null,
+              signedApplicationResult: result,
+              signedApplicationDocumentId:
+                savedDocument.id,
+              signedApplicationFileName:
+                savedDocument.original_name,
+              downloadState: 'downloaded',
+            },
+          }
+        );
+      } catch (draftError) {
+        console.error(
+          'Không thể lưu Đơn chuyển ngành đã ký:',
+          draftError
+        );
+      }
     } catch (error) {
       console.error(
         "Lỗi kiểm tra Đơn xin chuyển ngành:",
@@ -707,6 +1237,66 @@ export default function MajorChangePage() {
   };
 
 
+  const handleOpenMajorChangeDocument = async (
+    document: ProcedureDraftDocument | null,
+    localFile: File | null,
+    label: string
+  ) => {
+    if (localFile) {
+      const previewUrl =
+        window.URL.createObjectURL(
+          localFile
+        );
+
+      const previewWindow = window.open(
+        previewUrl,
+        '_blank',
+        'noopener,noreferrer'
+      );
+
+      if (!previewWindow) {
+        window.URL.revokeObjectURL(
+          previewUrl
+        );
+
+        alert(
+          'Trình duyệt đang chặn tab mới. ' +
+          'Vui lòng cho phép pop-up cho localhost.'
+        );
+
+        return;
+      }
+
+      window.setTimeout(() => {
+        window.URL.revokeObjectURL(
+          previewUrl
+        );
+      }, 60_000);
+
+      return;
+    }
+
+    if (!document) {
+      alert(
+        `Không tìm thấy ${label} trên hệ thống.`
+      );
+      return;
+    }
+
+    try {
+      await openProcedureDraftDocument(
+        document
+      );
+    } catch (error) {
+      alert(
+        error instanceof Error
+          ? error.message
+          : `Không thể mở ${label}.`
+      );
+    }
+  };
+
+
   const handleRetrySignedApplication = () => {
     setSignedApplicationResult(null);
     setSignedApplicationFile(null);
@@ -719,46 +1309,29 @@ export default function MajorChangePage() {
   };
 
   const handleFinalSubmit = async () => {
-    const applicantSigned =
-      signedApplicationResult
-        ?.signature_checks
-        ?.applicant
-        ?.present === true;
+    if (!formData || !isForm5Valid) {
+      alert(
+        'Vui lòng kiểm tra và nhập đầy đủ thông tin hồ sơ.'
+      );
+      return;
+    }
 
     if (
-      signedScanState !== "success" ||
-      !applicantSigned ||
-      !signedApplicationFile
+      isSubmitting ||
+      submitLockRef.current
     ) {
-      alert(
-        "Vui lòng tải lên Đơn xin chuyển ngành có chữ ký của Người làm đơn."
-      );
-      return;
-    }
-
-    if (!admissionLetterFile || !graduationCertificateFile) {
-      alert(
-        "Không tìm thấy đầy đủ Giấy báo trúng tuyển và Giấy chứng nhận tốt nghiệp THPT. Vui lòng tải lại hồ sơ."
-      );
-      return;
-    }
-
-    if (!formData || !isForm5Valid) {
-      alert("Vui lòng kiểm tra và nhập đầy đủ thông tin hồ sơ.");
-      return;
-    }
-
-    if (isSubmitting || submitLockRef.current) {
       return;
     }
 
     const accessToken =
-      localStorage.getItem("access_token") ||
-      localStorage.getItem("access");
+      localStorage.getItem('access_token') ||
+      localStorage.getItem('access');
 
     if (!accessToken) {
-      alert("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
-      router.push("/login");
+      alert(
+        'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'
+      );
+      router.push('/login');
       return;
     }
 
@@ -766,51 +1339,177 @@ export default function MajorChangePage() {
     setIsSubmitting(true);
 
     try {
+      let admissionDocument =
+        admissionLetterDocument;
+      let graduationDocument =
+        graduationCertificateDocument;
+      let signedDocument =
+        signedApplicationDocument;
+
+      if (
+        (!admissionLetterFile &&
+          !admissionDocument) ||
+        (!graduationCertificateFile &&
+          !graduationDocument) ||
+        (!signedApplicationFile &&
+          !signedDocument)
+      ) {
+        const documents =
+          await listProcedureDraftDocuments(
+            'MAJOR_CHANGE'
+          );
+
+        admissionDocument =
+          admissionDocument ??
+          documents.find(
+            (document) =>
+              document.document_key ===
+              'MAJOR_CHANGE_ADMISSION_LETTER'
+          ) ??
+          null;
+
+        graduationDocument =
+          graduationDocument ??
+          documents.find(
+            (document) =>
+              document.document_key ===
+              'MAJOR_CHANGE_GRADUATION_CERTIFICATE'
+          ) ??
+          null;
+
+        signedDocument =
+          signedDocument ??
+          documents.find(
+            (document) =>
+              document.document_key ===
+              'MAJOR_CHANGE_SIGNED_APPLICATION'
+          ) ??
+          null;
+
+        setAdmissionLetterDocument(
+          admissionDocument
+        );
+        setGraduationCertificateDocument(
+          graduationDocument
+        );
+        setSignedApplicationDocument(
+          signedDocument
+        );
+      }
+
+      const applicantSigned =
+        signedApplicationResult
+          ?.signature_checks
+          ?.applicant
+          ?.present === true ||
+        Boolean(signedDocument);
+
+      if (
+        !applicantSigned ||
+        (!signedApplicationFile &&
+          !signedDocument)
+      ) {
+        alert(
+          'Vui lòng tải lên Đơn xin chuyển ngành ' +
+          'có chữ ký của Người làm đơn.'
+        );
+        return;
+      }
+
+      if (
+        (!admissionLetterFile &&
+          !admissionDocument) ||
+        (!graduationCertificateFile &&
+          !graduationDocument)
+      ) {
+        alert(
+          'Không tìm thấy đầy đủ Giấy báo trúng tuyển ' +
+          'và Giấy chứng nhận tốt nghiệp THPT.'
+        );
+        return;
+      }
+
+      const signedFileToSubmit =
+        signedApplicationFile ??
+        await fetchProcedureDraftDocumentAsFile(
+          signedDocument as ProcedureDraftDocument
+        );
+
+      const admissionFileToSubmit =
+        admissionLetterFile ??
+        await fetchProcedureDraftDocumentAsFile(
+          admissionDocument as ProcedureDraftDocument
+        );
+
+      const graduationFileToSubmit =
+        graduationCertificateFile ??
+        await fetchProcedureDraftDocumentAsFile(
+          graduationDocument as ProcedureDraftDocument
+        );
+
       const apiBase = (
         process.env.NEXT_PUBLIC_API_URL ||
-        "http://127.0.0.1:8000/api"
-      ).replace(/\/$/, "");
+        'http://127.0.0.1:8000/api'
+      ).replace(/\/$/, '');
 
       const submitData = new FormData();
 
-      submitData.append("file", signedApplicationFile);
-      submitData.append("admission_letter", admissionLetterFile);
       submitData.append(
-        "graduation_certificate",
-        graduationCertificateFile
+        'file',
+        signedFileToSubmit
+      );
+      submitData.append(
+        'admission_letter',
+        admissionFileToSubmit
+      );
+      submitData.append(
+        'graduation_certificate',
+        graduationFileToSubmit
       );
 
-      const payload = buildMajorChangePayload();
+      const payload =
+        buildMajorChangePayload();
 
-      Object.entries(payload).forEach(([key, value]) => {
-        if (value !== null && value !== undefined) {
-          submitData.append(key, String(value));
+      Object.entries(payload).forEach(
+        ([key, value]) => {
+          if (
+            value !== null &&
+            value !== undefined
+          ) {
+            submitData.append(
+              key,
+              String(value)
+            );
+          }
         }
-      });
+      );
 
       const response = await axios.post(
         `${apiBase}/thoi-hoc/submit-major-change/`,
         submitData,
         {
           headers: {
-            Authorization: `Bearer ${accessToken}`,
+            Authorization:
+              `Bearer ${accessToken}`,
           },
         }
       );
 
-      if (response.data?.success !== true) {
+      if (
+        response.data?.success !== true
+      ) {
         throw new Error(
           response.data?.error ||
           response.data?.detail ||
           response.data?.message ||
-          "Backend không thể tạo hồ sơ chuyển ngành."
+          'Backend không thể tạo hồ sơ chuyển ngành.'
         );
       }
 
       const newRequestId = String(
         response.data?.requestId ||
         response.data?.request_id ||
-        ""
+        ''
       );
 
       const newTrackingCode = String(
@@ -818,33 +1517,103 @@ export default function MajorChangePage() {
         response.data?.tracking_code ||
         response.data?.requestCode ||
         newRequestId ||
-        ""
+        ''
       );
+
+      const newSubmissionStatus = (
+        response.data?.status ||
+        'PENDING_REVIEW'
+      ) as SubmissionStatus;
+
+      const newSubmittedAt =
+        new Date().toISOString();
 
       setRequestId(newRequestId);
-      setTrackingCode(newTrackingCode);
+      setTrackingCode(
+        newTrackingCode
+      );
       setSubmissionStatus(
         (response.data?.status ||
-          "PENDING") as SubmissionStatus
+          "PENDING_REVIEW") as SubmissionStatus
       );
-      setSubmittedAt(new Date().toISOString());
-      setActiveTab("details");
+      setSubmittedAt(newSubmittedAt);
+      setActiveTab('details');
       setCurrentStep(7);
+
+      try {
+        await saveProcedureDraft<MajorChangeDraftData>(
+          'MAJOR_CHANGE',
+          {
+            isStarted: true,
+            currentStep: 7,
+            draftData: {
+              ...majorChangeDraftData,
+              requestId: newRequestId,
+              trackingCode:
+                newTrackingCode,
+              submittedAt:
+                newSubmittedAt,
+              submissionStatus:
+                newSubmissionStatus,
+              activeTab: 'details',
+              downloadState:
+                'downloaded',
+              signedScanState:
+                'success',
+              signedScanErrorType:
+                null,
+              admissionLetterDocumentId:
+                admissionDocument?.id ??
+                null,
+              admissionLetterFileName:
+                admissionFileToSubmit.name,
+              graduationCertificateDocumentId:
+                graduationDocument?.id ??
+                null,
+              graduationCertificateFileName:
+                graduationFileToSubmit.name,
+              signedApplicationDocumentId:
+                signedDocument?.id ??
+                null,
+              signedApplicationFileName:
+                signedFileToSubmit.name,
+            },
+          }
+        );
+      } catch (draftError) {
+        console.error(
+          'Không thể lưu trạng thái hoàn tất chuyển ngành:',
+          draftError
+        );
+      }
     } catch (error: unknown) {
-      console.error("Lỗi nộp hồ sơ chuyển ngành:", error);
+      console.error(
+        'Lỗi nộp hồ sơ chuyển ngành:',
+        error
+      );
 
       let message =
-        "Có lỗi xảy ra khi nộp hồ sơ chuyển ngành. Vui lòng thử lại.";
+        'Có lỗi xảy ra khi nộp hồ sơ chuyển ngành. ' +
+        'Vui lòng thử lại.';
 
       if (axios.isAxiosError(error)) {
-        const statusCode = error.response?.status;
-        const errorData = error.response?.data;
+        const statusCode =
+          error.response?.status;
+        const errorData =
+          error.response?.data;
 
         if (statusCode === 401) {
-          localStorage.removeItem("access");
-          localStorage.removeItem("access_token");
-          alert("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
-          router.push("/login");
+          localStorage.removeItem(
+            'access'
+          );
+          localStorage.removeItem(
+            'access_token'
+          );
+          alert(
+            'Phiên đăng nhập đã hết hạn. ' +
+            'Vui lòng đăng nhập lại.'
+          );
+          router.push('/login');
           return;
         }
 
@@ -852,11 +1621,14 @@ export default function MajorChangePage() {
           errorData?.error ||
           errorData?.detail ||
           errorData?.message ||
-          errorData?.non_field_errors?.[0] ||
+          errorData
+            ?.non_field_errors?.[0] ||
           (statusCode === 409
-            ? "Bạn đang có một hồ sơ học vụ đang được xử lý."
+            ? 'Bạn đang có một hồ sơ học vụ đang được xử lý.'
             : message);
-      } else if (error instanceof Error) {
+      } else if (
+        error instanceof Error
+      ) {
         message = error.message;
       }
 
@@ -1020,6 +1792,28 @@ export default function MajorChangePage() {
       });
 
       setCurrentStep(6);
+
+      try {
+        await saveProcedureDraft<MajorChangeDraftData>(
+          'MAJOR_CHANGE',
+          {
+            isStarted: true,
+            currentStep: 6,
+            draftData: {
+              ...majorChangeDraftData,
+              downloadState:
+                downloadState === 'downloading'
+                  ? 'idle'
+                  : downloadState,
+            },
+          }
+        );
+      } catch (draftError) {
+        console.error(
+          'Không thể lưu bước xem trước chuyển ngành:',
+          draftError
+        );
+      }
     } catch (error) {
       console.error(
         "Lỗi xem trước đơn chuyển ngành:",
@@ -1408,6 +2202,19 @@ export default function MajorChangePage() {
     });
   };
 
+  if (!isDraftLoaded) {
+    return (
+      <div className="h-full w-full flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3 text-gray-500">
+          <span className="w-9 h-9 rounded-full border-4 border-blue-500 border-t-transparent animate-spin" />
+          <p className="text-sm font-medium">
+            Đang khôi phục thủ tục chuyển ngành...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-full w-full flex flex-col">
       <ChatInterface
@@ -1450,7 +2257,11 @@ export default function MajorChangePage() {
                         {file1Status === 'done' ? <div className="bg-green-500 text-white p-1.5 rounded-full"><Check size={16} strokeWidth={3} /></div> : <div className="bg-gray-200 text-gray-500 p-1.5 rounded-full"><Upload size={16} /></div>}
                         <div>
                           <p className={`font-semibold text-sm ${file1Status === 'done' ? 'text-green-700' : 'text-gray-700'}`}>Tải lên Giấy báo trúng tuyển (PDF)</p>
-                          <p className={`text-xs ${file1Status === 'done' ? 'text-green-600' : 'text-gray-400'}`}>{file1Status === 'done' ? 'Đã tải lên thành công ✓' : 'Giay_Bao_Trung_Tuyen.pdf'}</p>
+                          <p className={`text-xs ${file1Status === 'done' ? 'text-green-600' : 'text-gray-400'}`}>{file1Status === 'done'
+                              ? admissionLetterFile?.name ||
+                                admissionLetterDocument?.original_name ||
+                                'Đã tải lên thành công ✓'
+                              : 'Giay_Bao_Trung_Tuyen.pdf'}</p>
                         </div>
                       </div>
                       {(file1Status === 'idle' || file1Status === 'error') && (
@@ -1474,7 +2285,11 @@ export default function MajorChangePage() {
                         {file2Status === 'done' ? <div className="bg-green-500 text-white p-1.5 rounded-full"><Check size={16} strokeWidth={3} /></div> : <div className="bg-gray-200 text-gray-500 p-1.5 rounded-full"><Upload size={16} /></div>}
                         <div>
                           <p className={`font-semibold text-sm ${file2Status === 'done' ? 'text-green-700' : 'text-gray-700'}`}>Tải lên Bản scan Giấy CN Tốt nghiệp THPT</p>
-                          <p className={`text-xs ${file2Status === 'done' ? 'text-green-600' : 'text-gray-400'}`}>{file2Status === 'done' ? 'Đã tải lên thành công ✓' : 'Giay_Chung_Nhan_TN_THPT.pdf'}</p>
+                          <p className={`text-xs ${file2Status === 'done' ? 'text-green-600' : 'text-gray-400'}`}>{file2Status === 'done'
+                              ? graduationCertificateFile?.name ||
+                                graduationCertificateDocument?.original_name ||
+                                'Đã tải lên thành công ✓'
+                              : 'Giay_Chung_Nhan_TN_THPT.pdf'}</p>
                         </div>
                       </div>
                       {(file2Status === 'idle' || file2Status === 'error') && (
@@ -1637,15 +2452,9 @@ export default function MajorChangePage() {
             {currentStep >= 3 && (
               <div className="ml-12 flex flex-col gap-4 animate-in fade-in mt-2">
                 <div className="bg-green-50 border border-green-200 text-green-700 rounded-xl p-3 flex items-center gap-3 text-sm font-medium">
-                  <div className="bg-green-500 text-white rounded-full p-0.5"><Check size={16} /></div> Thông tin đã xác nhận — Đang kiểm tra tình trạng học vụ...
+                  <div className="bg-green-500 text-white rounded-full p-0.5"><Check size={16} /></div> Thông tin đã xác nhận 
                 </div>
 
-                {academicChecked && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="bg-green-50/50 border border-green-200 rounded-xl p-5"><h4 className="font-bold text-green-700 text-sm mb-2"><Check size={14} className="inline mr-1 bg-green-500 text-white rounded-full p-0.5" /> Đạt điều kiện</h4><p className="text-gray-800 text-sm font-medium">Không thuộc diện bị buộc thôi học</p></div>
-                    <div className="bg-green-50/50 border border-green-200 rounded-xl p-5"><h4 className="font-bold text-green-700 text-sm mb-2"><Check size={14} className="inline mr-1 bg-green-500 text-white rounded-full p-0.5" /> Đạt điều kiện</h4><p className="text-gray-800 text-sm font-medium">Không vi phạm kỷ luật</p></div>
-                  </div>
-                )}
                 {academicChecked && currentStep === 3 && (
                   <button onClick={() => setCurrentStep(4)} className="w-full bg-[#0070F4] text-white py-3 rounded-lg font-medium hover:bg-blue-700 flex justify-center items-center gap-2 text-sm mt-2">
                     Tiếp tục <ChevronRight size={18} />
@@ -1840,8 +2649,61 @@ export default function MajorChangePage() {
                   <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                     <h4 className="text-sm font-semibold text-gray-700 mb-4">Tài liệu đính kèm</h4>
                     <div className="space-y-3">
-                      <div className="flex items-center justify-between p-3 border rounded-lg bg-gray-50"><div className="flex items-center gap-3 text-sm text-gray-700"><FileText size={18} className="text-gray-400" /> Giấy báo trúng tuyển</div><span className="bg-green-100 text-green-700 text-[10px] px-2 py-1 rounded font-semibold">Đã xác thực</span></div>
-                      <div className="flex items-center justify-between p-3 border rounded-lg bg-gray-50"><div className="flex items-center gap-3 text-sm text-gray-700"><FileText size={18} className="text-gray-400" /> Giấy chứng nhận Tốt nghiệp THPT</div><span className="bg-green-100 text-green-700 text-[10px] px-2 py-1 rounded font-semibold">Đã xác thực</span></div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void handleOpenMajorChangeDocument(
+                            admissionLetterDocument,
+                            admissionLetterFile,
+                            'Giấy báo trúng tuyển'
+                          )
+                        }
+                        className="w-full flex items-center justify-between p-3 border rounded-lg bg-gray-50 hover:bg-blue-50 hover:border-blue-200 transition text-left"
+                        title="Nhấn để mở tài liệu"
+                      >
+                        <div className="flex items-center gap-3 text-sm text-gray-700 min-w-0">
+                          <FileText size={18} className="text-gray-400 shrink-0" />
+                          <div className="min-w-0">
+                            <p>Giấy báo trúng tuyển</p>
+                            <p className="text-xs text-blue-600 truncate">
+                              {admissionLetterFile?.name ||
+                                admissionLetterDocument?.original_name ||
+                                'Nhấn để xem tài liệu'}
+                            </p>
+                          </div>
+                        </div>
+                        <span className="bg-green-100 text-green-700 text-[10px] px-2 py-1 rounded font-semibold shrink-0">
+                          Đã xác thực
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void handleOpenMajorChangeDocument(
+                            graduationCertificateDocument,
+                            graduationCertificateFile,
+                            'Giấy chứng nhận Tốt nghiệp THPT'
+                          )
+                        }
+                        className="w-full flex items-center justify-between p-3 border rounded-lg bg-gray-50 hover:bg-blue-50 hover:border-blue-200 transition text-left"
+                        title="Nhấn để mở tài liệu"
+                      >
+                        <div className="flex items-center gap-3 text-sm text-gray-700 min-w-0">
+                          <FileText size={18} className="text-gray-400 shrink-0" />
+                          <div className="min-w-0">
+                            <p>Giấy chứng nhận Tốt nghiệp THPT</p>
+                            <p className="text-xs text-blue-600 truncate">
+                              {graduationCertificateFile?.name ||
+                                graduationCertificateDocument?.original_name ||
+                                'Nhấn để xem tài liệu'}
+                            </p>
+                          </div>
+                        </div>
+                        <span className="bg-green-100 text-green-700 text-[10px] px-2 py-1 rounded font-semibold shrink-0">
+                          Đã xác thực
+                        </span>
+                      </button>
                       <div className="flex items-center justify-between p-3 border rounded-lg bg-gray-50"><div className="flex items-center gap-3 text-sm text-gray-700"><FileText size={18} className="text-gray-400" /> Giấy xác nhận không buộc thôi học</div><span className="bg-blue-100 text-blue-700 text-[10px] px-2 py-1 rounded font-semibold">Tạo tự động</span></div>
                       <div className="flex items-center justify-between p-3 border rounded-lg bg-gray-50"><div className="flex items-center gap-3 text-sm text-gray-700"><FileText size={18} className="text-gray-400" /> Giấy xác nhận không vi phạm kỷ luật</div><span className="bg-blue-100 text-blue-700 text-[10px] px-2 py-1 rounded font-semibold">Tạo tự động</span></div>
                     </div>
@@ -2045,22 +2907,35 @@ export default function MajorChangePage() {
                                 </div>
                               </div>
 
-                              <div className="mt-4 border border-green-200 bg-white rounded-lg p-4 flex items-center justify-between">
-                                <div>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  void handleOpenMajorChangeDocument(
+                                    signedApplicationDocument,
+                                    signedApplicationFile,
+                                    'Đơn xin chuyển ngành đã ký'
+                                  )
+                                }
+                                className="mt-4 w-full border border-green-200 bg-white rounded-lg p-4 flex items-center justify-between hover:bg-green-50 transition text-left"
+                                title="Nhấn để mở đơn đã ký"
+                              >
+                                <div className="min-w-0">
                                   <p className="text-sm font-semibold text-gray-800">
-                                    Chữ ký Người làm đơn
+                                    Đơn xin chuyển ngành đã ký
                                   </p>
 
-                                  <p className="text-xs text-gray-500 mt-1">
-                                    Đã phát hiện
+                                  <p className="text-xs text-blue-600 mt-1 truncate">
+                                    {signedApplicationFile?.name ||
+                                      signedApplicationDocument?.original_name ||
+                                      'Nhấn để xem file đã ký'}
                                   </p>
                                 </div>
 
                                 <CheckCircle2
                                   size={22}
-                                  className="text-green-600"
+                                  className="text-green-600 shrink-0"
                                 />
-                              </div>
+                              </button>
                             </div>
                           )}
 
@@ -2244,26 +3119,56 @@ export default function MajorChangePage() {
                             {[
                               {
                                 name: "Đơn xin chuyển ngành",
-                                desc: signedApplicationFile?.name || "Đơn đã ký",
+                                desc:
+                                  signedApplicationFile?.name ||
+                                  signedApplicationDocument?.original_name ||
+                                  "Đơn đã ký",
                                 icon: <FileText className="text-blue-500" />,
                                 bg: "bg-blue-50",
+                                document:
+                                  signedApplicationDocument,
+                                localFile:
+                                  signedApplicationFile,
                               },
                               {
                                 name: "Giấy báo trúng tuyển",
-                                desc: admissionLetterFile?.name || "Tài liệu đã xác thực",
+                                desc:
+                                  admissionLetterFile?.name ||
+                                  admissionLetterDocument?.original_name ||
+                                  "Tài liệu đã xác thực",
                                 icon: <FileText className="text-red-400" />,
                                 bg: "bg-red-50",
+                                document:
+                                  admissionLetterDocument,
+                                localFile:
+                                  admissionLetterFile,
                               },
                               {
                                 name: "Giấy chứng nhận Tốt nghiệp THPT",
-                                desc: graduationCertificateFile?.name || "Tài liệu đã xác thực",
+                                desc:
+                                  graduationCertificateFile?.name ||
+                                  graduationCertificateDocument?.original_name ||
+                                  "Tài liệu đã xác thực",
                                 icon: <FileText className="text-green-500" />,
                                 bg: "bg-green-50",
+                                document:
+                                  graduationCertificateDocument,
+                                localFile:
+                                  graduationCertificateFile,
                               },
                             ].map((file) => (
-                              <div
+                              <button
+                                type="button"
                                 key={file.name}
-                                className="flex items-center justify-between p-3 border border-gray-100 rounded-lg"
+                                onClick={() =>
+                                  void handleOpenMajorChangeDocument(
+                                    file.document,
+                                    file.localFile,
+                                    file.name
+                                  )
+                                }
+                                className="w-full flex items-center justify-between p-3 border border-gray-100 rounded-lg hover:bg-gray-50 hover:border-blue-200 transition text-left"
+                                title="Nhấn để mở tài liệu"
                               >
                                 <div className="flex items-center gap-4 min-w-0">
                                   <div className={`${file.bg} p-2 rounded-lg shrink-0`}>
@@ -2281,7 +3186,7 @@ export default function MajorChangePage() {
                                 <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-semibold">
                                   Đã nộp
                                 </span>
-                              </div>
+                              </button>
                             ))}
                           </div>
 

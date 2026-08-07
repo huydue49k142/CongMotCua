@@ -41,7 +41,6 @@ def _create_dropout_request(student, reason):
         status__in=[
             StudentRequest.Status.APPROVED,
             StudentRequest.Status.REJECTED,
-            StudentRequest.Status.CANCELLED,
         ]
     ).first()
     if existing:
@@ -811,7 +810,6 @@ class SubmitMajorChangeApplication(APIView):
             status__in=[
                 StudentRequest.Status.APPROVED,
                 StudentRequest.Status.REJECTED,
-                StudentRequest.Status.CANCELLED,
             ]
         ).first()
 
@@ -1050,7 +1048,6 @@ class SubmitResumeApplication(APIView):
             status__in=[
                 StudentRequest.Status.APPROVED,
                 StudentRequest.Status.REJECTED,
-                StudentRequest.Status.CANCELLED,
             ]
         ).first()
         
@@ -1133,7 +1130,6 @@ class SubmitRetentionApplication(APIView):
             status__in=[
                 StudentRequest.Status.APPROVED,
                 StudentRequest.Status.REJECTED,
-                StudentRequest.Status.CANCELLED,
             ]
         ).first()
         
@@ -1207,7 +1203,6 @@ class SaveRetentionDraftAPIView(APIView):
             status__in=[
                 StudentRequest.Status.APPROVED,
                 StudentRequest.Status.REJECTED,
-                StudentRequest.Status.CANCELLED,
             ]
         ).first()
 
@@ -1278,7 +1273,7 @@ class SaveDropoutDraftAPIView(APIView):
             student=student,
             request_type=StudentRequest.RequestType.DROPOUT
         ).exclude(
-            status__in=[StudentRequest.Status.REJECTED, StudentRequest.Status.CANCELLED, StudentRequest.Status.APPROVED]
+            status__in=[StudentRequest.Status.REJECTED, StudentRequest.Status.APPROVED]
         ).first()
 
         if existing and existing.status != StudentRequest.Status.DRAFT:
@@ -1333,75 +1328,367 @@ class GetDropoutDraftAPIView(APIView):
 
 class SubmitDropoutApplication(APIView):
     """
-    API endpoint để sinh viên nộp hồ sơ thôi học (chuyển từ DRAFT → PENDING).
+    API để sinh viên nộp hồ sơ thôi học.
+
+    Trước khi lưu hồ sơ, backend sẽ:
+    - Chạy lại OCR/Gemini trên file được nộp.
+    - Kiểm tra đúng loại Đơn xin thôi học.
+    - Đối chiếu họ tên và MSSV với tài khoản đăng nhập.
+    - Kiểm tra các chữ ký bắt buộc.
+    - Chỉ chuyển hồ sơ từ DRAFT sang PENDING khi hợp lệ.
     """
+
     permission_classes = [AllowAny]
 
+    parser_classes = [
+        MultiPartParser,
+        FormParser,
+    ]
+
+    @transaction.atomic
     def post(self, request):
         student = _get_authenticated_student(request)
+
         if not student:
-            return Response({'error': 'Bạn cần đăng nhập để thực hiện.'}, status=status.HTTP_401_UNAUTHORIZED)
+            return Response(
+                {
+                    "error":
+                    "Bạn cần đăng nhập để thực hiện."
+                },
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
 
-        from apps.requests.models import Request as StudentRequest, DropoutRequest, RequestHistory
+        uploaded_file = request.FILES.get("file")
 
-        # Tìm hồ sơ DRAFT của sinh viên
-        existing = StudentRequest.objects.filter(
-            student=student,
-            request_type=StudentRequest.RequestType.DROPOUT,
-            status=StudentRequest.Status.DRAFT
-        ).first()
+        if not uploaded_file:
+            return Response(
+                {
+                    "error":
+                    "Vui lòng đính kèm Đơn xin thôi học đã ký."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        reason = str(
+            request.data.get(
+                "reason",
+                "",
+            )
+        ).strip()
+
+        if not reason:
+            return Response(
+                {
+                    "error":
+                    "Vui lòng nhập lý do thôi học."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        from django.core.files.base import ContentFile
+
+        uploaded_file.seek(0)
+        file_content = uploaded_file.read()
+        uploaded_file.seek(0)
+
+        if not file_content:
+            return Response(
+                {
+                    "error":
+                    "File tải lên không có dữ liệu."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        ocr_file = ContentFile(
+            file_content,
+            name=uploaded_file.name,
+        )
+
+        request_document_file = ContentFile(
+            file_content,
+            name=uploaded_file.name,
+        )
+
+        from apps.ocr_integration.models import OCRJob
+        from apps.ocr_integration.serializers import (
+            OCRResultSerializer,
+        )
+        from apps.ocr_integration.services.main_service import (
+            verify_document,
+        )
+
+        ocr_result = verify_document(
+            uploaded_file=ocr_file,
+            document_type=(
+                "DROPOUT_SIGNED_APPLICATION"
+            ),
+        )
+
+        ocr_data = OCRResultSerializer(
+            ocr_result,
+            context={
+                "request": request,
+                "expected_student_name":
+                    student.full_name,
+                "expected_student_id":
+                    student.student_id,
+            },
+        ).data
+
+        if (
+            ocr_result.job.status
+            == OCRJob.Status.FAILED
+        ):
+            return Response(
+                {
+                    "error":
+                    "Không thể xác minh tài liệu. "
+                    "Vui lòng thử lại với file rõ nét hơn.",
+                    "ocr_result": ocr_data,
+                },
+                status=(
+                    status
+                    .HTTP_422_UNPROCESSABLE_ENTITY
+                ),
+            )
+
+        if ocr_data.get("accepted") is not True:
+            identity_checks = (
+                ocr_data.get("identity_checks")
+                or {}
+            )
+
+            signature_checks = (
+                ocr_data.get("signature_checks")
+                or {}
+            )
+
+            parent_signature = (
+                signature_checks.get(
+                    "parent_guardian",
+                    {},
+                )
+            )
+
+            applicant_signature = (
+                signature_checks.get(
+                    "applicant",
+                    {},
+                )
+            )
+
+            if (
+                identity_checks.get(
+                    "student_id_match"
+                )
+                is not True
+            ):
+                error_message = (
+                    "MSSV trên đơn không khớp "
+                    "với tài khoản đang đăng nhập."
+                )
+
+            elif (
+                identity_checks.get(
+                    "name_match"
+                )
+                is not True
+            ):
+                error_message = (
+                    "Họ tên sinh viên trên đơn "
+                    "không khớp với tài khoản "
+                    "đang đăng nhập."
+                )
+
+            elif (
+                parent_signature.get("present")
+                is not True
+            ):
+                error_message = (
+                    "Không tìm thấy chữ ký của "
+                    "Phụ huynh/Người giám hộ."
+                )
+
+            elif (
+                applicant_signature.get("present")
+                is not True
+            ):
+                error_message = (
+                    "Không tìm thấy chữ ký của "
+                    "Người làm đơn."
+                )
+
+            elif (
+                ocr_data.get("is_match")
+                is not True
+            ):
+                error_message = (
+                    "File tải lên không phải "
+                    "Đơn xin thôi học."
+                )
+
+            else:
+                error_message = (
+                    ocr_data.get(
+                        "validation_reason"
+                    )
+                    or
+                    "Đơn xin thôi học không hợp lệ."
+                )
+
+            return Response(
+                {
+                    "error": error_message,
+                    "ocr_result": ocr_data,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        from apps.requests.models import (
+            Request as StudentRequest,
+            DropoutRequest,
+            RequestDocument,
+            RequestHistory,
+        )
+
+        existing = (
+            StudentRequest.objects
+            .filter(
+                student=student,
+                request_type=(
+                    StudentRequest
+                    .RequestType
+                    .DROPOUT
+                ),
+                status=(
+                    StudentRequest
+                    .Status
+                    .DRAFT
+                ),
+            )
+            .first()
+        )
 
         if existing:
-            # Nâng cấp từ DRAFT → PENDING
-            existing.status = StudentRequest.Status.PENDING
-            existing.submitted_at = timezone.now()
-            existing.save()
-
-            RequestHistory.objects.create(
-                request=existing,
-                status=existing.status,
-                actor=request.user if request.user.is_authenticated else None,
-                notes='Sinh viên nộp hồ sơ thôi học.'
-            )
             req = existing
-        else:
-            # Tạo mới nếu chưa có DRAFT (trường hợp không dùng flow lưu nháp)
-            existing_active = StudentRequest.objects.filter(
-                student=student,
-                request_type=StudentRequest.RequestType.DROPOUT
-            ).exclude(
-                status__in=[
-                    StudentRequest.Status.APPROVED,
-                    StudentRequest.Status.REJECTED,
-                    StudentRequest.Status.CANCELLED,
+            req.status = (
+                StudentRequest.Status.PENDING
+            )
+            req.submitted_at = timezone.now()
+
+            req.save(
+                update_fields=[
+                    "status",
+                    "submitted_at",
+                    "updated_at",
                 ]
-            ).first()
+            )
+
+        else:
+            existing_active = (
+                StudentRequest.objects
+                .filter(
+                    student=student,
+                    request_type=(
+                        StudentRequest
+                        .RequestType
+                        .DROPOUT
+                    ),
+                )
+                .exclude(
+                    status__in=[
+                        StudentRequest.Status.APPROVED,
+                        StudentRequest.Status.REJECTED,
+                    ]
+                )
+                .first()
+            )
 
             if existing_active:
                 return Response(
-                    {'error': 'Bạn đang có một yêu cầu đang xử lý. Vui lòng hoàn tất hoặc hủy yêu cầu đó trước khi gửi mới.'},
-                    status=status.HTTP_409_CONFLICT
+                    {
+                        "error":
+                        "Bạn đang có một yêu cầu đang xử lý. "
+                        "Vui lòng hoàn tất hoặc hủy yêu cầu đó "
+                        "trước khi gửi mới."
+                    },
+                    status=status.HTTP_409_CONFLICT,
                 )
 
-            reason = request.data.get('reason', '')
             req = StudentRequest.objects.create(
                 student=student,
-                request_type=StudentRequest.RequestType.DROPOUT,
-                status=StudentRequest.Status.PENDING,
-                submitted_at=timezone.now()
-            )
-            DropoutRequest.objects.create(request=req, reason=reason)
-            RequestHistory.objects.create(
-                request=req,
-                status=req.status,
-                actor=request.user if request.user.is_authenticated else None,
-                notes='Sinh viên nộp hồ sơ thôi học.'
+                request_type=(
+                    StudentRequest
+                    .RequestType
+                    .DROPOUT
+                ),
+                status=(
+                    StudentRequest.Status.PENDING
+                ),
+                submitted_at=timezone.now(),
             )
 
-        tracking_code = f"TH-{str(req.id).split('-')[0].upper()}"
-        return Response({
-            'success': True,
-            'trackingCode': tracking_code,
-            'requestId': str(req.id)
-        })
+        DropoutRequest.objects.update_or_create(
+            request=req,
+            defaults={
+                "reason": reason,
+            },
+        )
 
+        old_documents = req.documents.filter(
+            document_type=(
+                RequestDocument
+                .DocumentType
+                .INITIAL
+            )
+        )
+
+        for old_document in old_documents:
+            if old_document.file:
+                old_document.file.delete(
+                    save=False
+                )
+
+        old_documents.delete()
+
+        RequestDocument.objects.create(
+            request=req,
+            file=request_document_file,
+            file_name=uploaded_file.name,
+            document_type=(
+                RequestDocument
+                .DocumentType
+                .INITIAL
+            ),
+        )
+
+        RequestHistory.objects.create(
+            request=req,
+            status=req.status,
+            actor=(
+                request.user
+                if request.user.is_authenticated
+                else None
+            ),
+            notes=(
+                "Sinh viên nộp hồ sơ thôi học. "
+                "Đơn đã được kiểm tra loại tài liệu, "
+                "danh tính và chữ ký."
+            ),
+        )
+
+        tracking_code = (
+            f"TH-{str(req.id).split('-')[0].upper()}"
+        )
+
+        return Response(
+            {
+                "success": True,
+                "trackingCode": tracking_code,
+                "requestId": str(req.id),
+                "status": req.status,
+                "ocr_result": ocr_data,
+            },
+            status=status.HTTP_201_CREATED,
+        )

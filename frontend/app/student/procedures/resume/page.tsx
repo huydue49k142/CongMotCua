@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ChatInterface from '@/components/student/ChatInterface';
 import {
   PlayCircle,
@@ -25,6 +25,15 @@ import {
   submitResumeApplication,
 } from '@/services/resume.service';
 import axios from 'axios';
+import { usePersistentProcedureDraft } from "@/hooks/usePersistentProcedureDraft";
+import {
+  fetchProcedureDraftDocumentAsFile,
+  listProcedureDraftDocuments,
+  openProcedureDraftDocument,
+  ProcedureDraftDocument,
+  saveProcedureDraft,
+  uploadProcedureDraftDocument,
+} from "@/services/procedure-draft.service";
 
 interface CourseForm {
   id: number;
@@ -51,6 +60,19 @@ type ResumeOCRResult = {
     applicant: SignatureCheck;
     faculty_leader: SignatureCheck;
   };
+};
+
+type ResumeDraftData = {
+  courses: CourseForm[];
+  downloadState: "idle" | "downloading" | "downloaded";
+  showUploadAI: boolean;
+  scanState: "idle" | "scanning" | "success" | "error";
+  scanErrorType: "document" | "signature" | null;
+  aiResult: ResumeOCRResult | null;
+  trackingCode: string;
+  requestId: string;
+  uploadedFileName: string | null;
+  uploadedDocumentId: string | null;
 };
 const MOCK_COURSES = [
   { code: "", name: "", credits: "" },
@@ -83,6 +105,10 @@ export default function ResumePage() {
   const [showUploadAI, setShowUploadAI] = useState(false);
 
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [uploadedFileName, setUploadedFileName] =
+    useState<string | null>(null);
+  const [uploadedDocument, setUploadedDocument] =
+    useState<ProcedureDraftDocument | null>(null);
   const [scanState, setScanState] = useState<'idle' | 'scanning' | 'success' | 'error'>('idle');
   const [scanErrorType, setScanErrorType] = useState<'document' | 'signature' | null>(null);
   const [aiResult, setAiResult] = useState<ResumeOCRResult | null>(null);
@@ -92,6 +118,189 @@ export default function ResumePage() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const submitLockRef = useRef(false);
+
+
+  const restoreResumeDraft = useCallback(
+    (draft: {
+      is_started: boolean;
+      current_step: number;
+      draft_data?: Partial<ResumeDraftData>;
+    }) => {
+      const savedData = draft.draft_data || {};
+
+      setIsStarted(draft.is_started === true);
+
+      if (
+        Array.isArray(savedData.courses) &&
+        savedData.courses.length > 0
+      ) {
+        setCourses(savedData.courses);
+      }
+
+      setTrackingCode(savedData.trackingCode ?? "");
+      setRequestId(savedData.requestId ?? "");
+      setUploadedFileName(
+        savedData.uploadedFileName ?? null
+      );
+
+      const normalizedStep = Math.min(
+        Math.max(Number(draft.current_step) || 1, 1),
+        5
+      ) as 1 | 2 | 3 | 4 | 5;
+
+      setCurrentStep(normalizedStep);
+
+      const restoredDownloadState =
+        normalizedStep >= 3
+          ? "downloaded"
+          : savedData.downloadState === "downloading"
+            ? "idle"
+            : savedData.downloadState ?? "idle";
+
+      setDownloadState(restoredDownloadState);
+      setShowUploadAI(
+        normalizedStep >= 3 ||
+          savedData.showUploadAI === true
+      );
+
+      /*
+       * Đối tượng File không thể lưu vào JSON.
+       * Nội dung file thật sẽ được khôi phục từ backend
+       * thông qua ProcedureDraftDocument.
+       */
+      setUploadedFile(null);
+
+      setScanState(
+        savedData.scanState === "scanning"
+          ? "idle"
+          : savedData.scanState ?? "idle"
+      );
+      setScanErrorType(
+        savedData.scanErrorType ?? null
+      );
+      setAiResult(savedData.aiResult ?? null);
+    },
+    []
+  );
+
+  const resumeDraftData = useMemo<ResumeDraftData>(
+    () => ({
+      courses,
+      downloadState,
+      showUploadAI,
+      scanState,
+      scanErrorType,
+      aiResult,
+      trackingCode,
+      requestId,
+      uploadedFileName:
+        uploadedFile?.name ??
+        uploadedFileName,
+      uploadedDocumentId:
+        uploadedDocument?.id ?? null,
+    }),
+    [
+      courses,
+      downloadState,
+      showUploadAI,
+      scanState,
+      scanErrorType,
+      aiResult,
+      trackingCode,
+      requestId,
+      uploadedFile,
+      uploadedFileName,
+      uploadedDocument,
+    ]
+  );
+
+  const { isDraftLoaded } =
+    usePersistentProcedureDraft<ResumeDraftData>({
+      requestType: "RESUME_STUDIES",
+      isStarted,
+      currentStep,
+      draftData: resumeDraftData,
+      restore: restoreResumeDraft,
+    });
+
+  /*
+   * Sau khi khôi phục bản nháp, tải lại tài liệu thật từ backend.
+   * Nhờ vậy người dùng có thể mở file và tiếp tục nộp hồ sơ
+   * sau khi F5, đổi thủ tục hoặc đăng nhập lại.
+   */
+  useEffect(() => {
+    if (
+      !isDraftLoaded ||
+      !isStarted ||
+      currentStep < 3
+    ) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadSignedDocument = async () => {
+      try {
+        const documents =
+          await listProcedureDraftDocuments(
+            "RESUME_STUDIES"
+          );
+
+        if (cancelled) {
+          return;
+        }
+
+        const signedDocument =
+          documents.find(
+            (document) =>
+              document.document_key ===
+              "RESUME_SIGNED_APPLICATION"
+          ) ?? null;
+
+        setUploadedDocument(signedDocument);
+
+        if (signedDocument) {
+          setUploadedFileName(
+            signedDocument.original_name
+          );
+
+          /*
+           * Nếu bản nháp đang ở bước xem trước thì giữ nguyên
+           * bước 4 và khôi phục trạng thái OCR hợp lệ.
+           */
+          if (currentStep >= 4) {
+            setScanState("success");
+            setScanErrorType(null);
+          }
+        } else if (currentStep === 4) {
+          /*
+           * Không còn file thật thì không thể nộp ở bước 4.
+           * Quay lại bước 3 để người dùng tải lại.
+           */
+          setCurrentStep(3);
+          setScanState("idle");
+          setScanErrorType(null);
+          setAiResult(null);
+        }
+      } catch (error) {
+        console.error(
+          "Không thể tải tài liệu Học tiếp:",
+          error
+        );
+      }
+    };
+
+    void loadSignedDocument();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    isDraftLoaded,
+    isStarted,
+    currentStep,
+  ]);
 
 
   useEffect(() => {
@@ -493,8 +702,56 @@ export default function ResumePage() {
         return;
       }
 
+      /*
+       * OCR hợp lệ thì lưu file thật vào backend.
+       * Cùng document_key sẽ được backend cập nhật/thay thế.
+       */
+      const savedDocument =
+        await uploadProcedureDraftDocument(
+          "RESUME_STUDIES",
+          "RESUME_SIGNED_APPLICATION",
+          file
+        );
+
+      setUploadedDocument(savedDocument);
+      setUploadedFileName(
+        savedDocument.original_name
+      );
       setScanErrorType(null);
       setScanState("success");
+
+      /*
+       * Ghi ngay trạng thái bước 3 để không mất tiến trình
+       * khi người dùng chuyển sang thủ tục khác ngay sau upload.
+       */
+      try {
+        await saveProcedureDraft<ResumeDraftData>(
+          "RESUME_STUDIES",
+          {
+            isStarted: true,
+            currentStep: 3,
+            draftData: {
+              courses,
+              downloadState: "downloaded",
+              showUploadAI: true,
+              scanState: "success",
+              scanErrorType: null,
+              aiResult: normalizedResult,
+              trackingCode,
+              requestId,
+              uploadedFileName:
+                savedDocument.original_name,
+              uploadedDocumentId:
+                savedDocument.id,
+            },
+          }
+        );
+      } catch (draftError) {
+        console.error(
+          "Không thể lưu bước upload Học tiếp:",
+          draftError
+        );
+      }
     } catch (error) {
       console.error(
         "Lỗi kiểm tra OCR học tiếp:",
@@ -526,12 +783,15 @@ export default function ResumePage() {
         }
 
         message =
+          errorData?.error ||
           errorData?.error_message ||
           errorData?.detail ||
           errorData?.validation_reason ||
           errorData?.uploaded_file?.[0] ||
           errorData?.document_type?.[0] ||
           message;
+      } else if (error instanceof Error) {
+        message = error.message;
       }
 
       setAiResult({
@@ -553,6 +813,8 @@ export default function ResumePage() {
 
   const handleRetryUpload = () => {
     setUploadedFile(null);
+    setUploadedFileName(null);
+    setUploadedDocument(null);
     setAiResult(null);
     setScanErrorType(null);
     setScanState("idle");
@@ -562,30 +824,217 @@ export default function ResumePage() {
     }, 0);
   };
 
-  const handleContinueToPreview = () => {
+  const handleOpenUploadedApplication = async () => {
+    if (uploadedFile) {
+      const previewUrl =
+        window.URL.createObjectURL(
+          uploadedFile
+        );
+
+      const previewWindow = window.open(
+        previewUrl,
+        "_blank",
+        "noopener,noreferrer"
+      );
+
+      if (!previewWindow) {
+        window.URL.revokeObjectURL(
+          previewUrl
+        );
+
+        alert(
+          "Trình duyệt đang chặn tab mới. " +
+          "Vui lòng cho phép pop-up cho localhost."
+        );
+        return;
+      }
+
+      window.setTimeout(() => {
+        window.URL.revokeObjectURL(
+          previewUrl
+        );
+      }, 60_000);
+
+      return;
+    }
+
+    if (uploadedDocument) {
+      try {
+        await openProcedureDraftDocument(
+          uploadedDocument
+        );
+      } catch (error) {
+        alert(
+          error instanceof Error
+            ? error.message
+            : "Không thể mở file đơn đã ký."
+        );
+      }
+      return;
+    }
+
+    alert(
+      "Không tìm thấy file đơn đã ký trên hệ thống. " +
+      "Vui lòng quay lại bước tải file và chọn lại tài liệu."
+    );
+  };
+
+  const handleContinueToPreview = async () => {
+    if (!uploadedFile && !uploadedDocument) {
+      alert(
+        "Không tìm thấy Đơn xin trở lại học tập đã ký."
+      );
+      return;
+    }
+
     setCurrentStep(4);
+
+    try {
+      await saveProcedureDraft<ResumeDraftData>(
+        "RESUME_STUDIES",
+        {
+          isStarted: true,
+          currentStep: 4,
+          draftData: {
+            ...resumeDraftData,
+            downloadState: "downloaded",
+            showUploadAI: true,
+            scanState: "success",
+            scanErrorType: null,
+            uploadedFileName:
+              uploadedFile?.name ||
+              uploadedDocument?.original_name ||
+              uploadedFileName,
+            uploadedDocumentId:
+              uploadedDocument?.id ?? null,
+          },
+        }
+      );
+    } catch (draftError) {
+      console.error(
+        "Không thể lưu bước xem trước Học tiếp:",
+        draftError
+      );
+    }
   };
 
   const handleSubmitFinal = async () => {
-    if (!uploadedFile) {
-      alert("Vui lòng tải lên Đơn xin trở lại học tập đã ký.");
+    if (
+      isSubmitting ||
+      submitLockRef.current
+    ) {
       return;
     }
+
+    if (!uploadedFile && !uploadedDocument) {
+      alert(
+        "Vui lòng tải lên Đơn xin trở lại học tập đã ký."
+      );
+      return;
+    }
+
+    submitLockRef.current = true;
     setIsSubmitting(true);
+
     try {
-      const result = await submitResumeApplication(courses, uploadedFile);
-      if (result.success) {
-        setTrackingCode(result.trackingCode || result.requestId || "");
-        if (result.requestId) setRequestId(result.requestId);
-        setCurrentStep(5);
-      } else {
-        alert(result.error || "Không thể nộp hồ sơ.");
+      /*
+       * Sau F5/đổi thủ tục, File trong React không còn.
+       * Tải lại file đã lưu trên backend để tiếp tục nộp.
+       */
+      const fileToSubmit =
+        uploadedFile ??
+        (uploadedDocument
+          ? await fetchProcedureDraftDocumentAsFile(
+              uploadedDocument
+            )
+          : null);
+
+      if (!fileToSubmit) {
+        throw new Error(
+          "Không thể khôi phục Đơn xin trở lại học tập đã ký."
+        );
       }
-    } catch (error: any) {
-      console.error(error);
-      alert(error?.error || "Có lỗi xảy ra khi nộp hồ sơ.");
+
+      const result =
+        await submitResumeApplication(
+          courses,
+          fileToSubmit
+        );
+
+      if (!result.success) {
+        alert(
+          result.error ||
+          "Không thể nộp hồ sơ."
+        );
+        return;
+      }
+
+      const returnedRequestId =
+        result.requestId
+          ? String(result.requestId)
+          : "";
+
+      const returnedTrackingCode =
+        result.trackingCode ||
+        returnedRequestId;
+
+      setTrackingCode(
+        returnedTrackingCode
+      );
+      setRequestId(
+        returnedRequestId
+      );
+      setCurrentStep(5);
+
+      /*
+       * Ghi ngay bước cuối xuống backend,
+       * giống cách trang Bảo lưu đang thực hiện.
+       */
+      try {
+        await saveProcedureDraft<ResumeDraftData>(
+          "RESUME_STUDIES",
+          {
+            isStarted: true,
+            currentStep: 5,
+            draftData: {
+              ...resumeDraftData,
+              trackingCode:
+                returnedTrackingCode,
+              requestId:
+                returnedRequestId,
+              downloadState: "downloaded",
+              showUploadAI: true,
+              scanState: "success",
+              scanErrorType: null,
+              aiResult,
+              uploadedFileName:
+                fileToSubmit.name,
+              uploadedDocumentId:
+                uploadedDocument?.id ??
+                null,
+            },
+          }
+        );
+      } catch (draftError) {
+        console.error(
+          "Không thể lưu trạng thái hoàn tất Học tiếp:",
+          draftError
+        );
+      }
+    } catch (error: unknown) {
+      console.error(
+        "Lỗi nộp hồ sơ Học tiếp:",
+        error
+      );
+
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Có lỗi xảy ra khi nộp hồ sơ."
+      );
     } finally {
       setIsSubmitting(false);
+      submitLockRef.current = false;
     }
   };
 
@@ -611,6 +1060,19 @@ export default function ResumePage() {
       label: "Người làm đơn",
     },
   ] as const;
+
+  if (!isDraftLoaded) {
+    return (
+      <div className="h-full w-full flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3 text-gray-500">
+          <span className="w-9 h-9 rounded-full border-4 border-blue-500 border-t-transparent animate-spin" />
+          <p className="text-sm font-medium">
+            Đang khôi phục thủ tục học tiếp...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-full w-full">
@@ -1085,15 +1547,26 @@ export default function ResumePage() {
                 </div>
                 
                 <div className="p-5 flex flex-col gap-4">
-                  <div className="flex items-center justify-between bg-green-50/50 border border-green-200 p-4 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <FileText size={20} className="text-green-600" />
-                      <span className="text-sm font-medium text-gray-800">Đơn xin trở lại học tập (File sinh viên vừa tải lên)</span>
+                  <button
+                    type="button"
+                    onClick={handleOpenUploadedApplication}
+                    className="w-full flex items-center justify-between gap-4 bg-green-50/50 border border-green-200 p-4 rounded-lg text-left cursor-pointer hover:bg-green-50 hover:border-green-300 transition"
+                    title="Nhấn để mở file đã ký trong tab mới"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <FileText size={20} className="text-green-600 shrink-0" />
+
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-800">
+                          Đơn xin trở lại học tập (File sinh viên vừa tải lên)
+                        </p>
+                      </div>
                     </div>
-                    <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full flex items-center gap-1 font-medium">
+
+                    <span className="shrink-0 text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full flex items-center gap-1 font-medium">
                       AI xác nhận đủ 2 chữ ký <Check size={14} />
                     </span>
-                  </div>
+                  </button>
 
                   <div className="border border-blue-100 rounded-lg overflow-hidden">
                     <div className="flex items-center justify-between bg-blue-50/50 p-4 border-b border-blue-100">

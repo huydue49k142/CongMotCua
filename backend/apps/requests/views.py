@@ -1,9 +1,22 @@
+import mimetypes
+import os
+
+from django.http import FileResponse
+
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.parsers import FormParser, MultiPartParser
 
-from .models import Request, RequestHistory
-from .serializers import DraftRequestSerializer, RequestSerializer, StaffRequestSerializer, DetailedRequestSerializer
+from .models import Request, RequestHistory, ProcedureDraft, ProcedureDraftDocument
+from .serializers import (
+    DraftRequestSerializer,
+    RequestSerializer,
+    StaffRequestSerializer,
+    DetailedRequestSerializer,
+    ProcedureDraftSerializer,
+    ProcedureDraftDocumentSerializer,
+)
 
 from rest_framework import generics, permissions
 
@@ -187,3 +200,656 @@ class StudentResubmitAPIView(APIView):
         )
 
         return Response({'success': True, 'status': new_status})
+
+class ProcedureDraftAPIView(APIView):
+    permission_classes = [
+        permissions.IsAuthenticated
+    ]
+
+    def get_student(self, request):
+        user = request.user
+
+        if not hasattr(user, "student_profile"):
+            return None
+
+        return user.student_profile
+
+    def is_valid_request_type(
+        self,
+        request_type,
+    ):
+        valid_types = {
+            value
+            for value, _label
+            in Request.RequestType.choices
+        }
+
+        return request_type in valid_types
+
+    def get(
+        self,
+        request,
+        request_type,
+        format=None,
+    ):
+        student = self.get_student(request)
+
+        if not student:
+            return Response(
+                {
+                    "error":
+                    "Không tìm thấy thông tin sinh viên."
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if not self.is_valid_request_type(
+            request_type
+        ):
+            return Response(
+                {
+                    "error":
+                    "Loại thủ tục không hợp lệ."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        draft = ProcedureDraft.objects.filter(
+            student=student,
+            request_type=request_type,
+        ).first()
+
+        if not draft:
+            return Response({
+                "exists": False,
+                "draft": None,
+            })
+
+        serializer = ProcedureDraftSerializer(
+            draft
+        )
+
+        return Response({
+            "exists": True,
+            "draft": serializer.data,
+        })
+
+    def put(
+        self,
+        request,
+        request_type,
+        format=None,
+    ):
+        student = self.get_student(request)
+
+        if not student:
+            return Response(
+                {
+                    "error":
+                    "Không tìm thấy thông tin sinh viên."
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if not self.is_valid_request_type(
+            request_type
+        ):
+            return Response(
+                {
+                    "error":
+                    "Loại thủ tục không hợp lệ."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        is_started = request.data.get(
+            "is_started",
+            False,
+        )
+
+        current_step = request.data.get(
+            "current_step",
+            1,
+        )
+
+        draft_data = request.data.get(
+            "draft_data",
+            {},
+        )
+
+        try:
+            current_step = int(current_step)
+        except (TypeError, ValueError):
+            return Response(
+                {
+                    "error":
+                    "Bước hiện tại không hợp lệ."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not isinstance(draft_data, dict):
+            return Response(
+                {
+                    "error":
+                    "Dữ liệu bản nháp không hợp lệ."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        draft, created = (
+            ProcedureDraft.objects.update_or_create(
+                student=student,
+                request_type=request_type,
+                defaults={
+                    "is_started": bool(is_started),
+                    "current_step": current_step,
+                    "draft_data": draft_data,
+                },
+            )
+        )
+
+        serializer = ProcedureDraftSerializer(
+            draft
+        )
+
+        return Response(
+            {
+                "success": True,
+                "created": created,
+                "draft": serializer.data,
+            },
+            status=(
+                status.HTTP_201_CREATED
+                if created
+                else status.HTTP_200_OK
+            ),
+        )
+
+    def delete(
+        self,
+        request,
+        request_type,
+        format=None,
+    ):
+        student = self.get_student(request)
+
+        if not student:
+            return Response(
+                {
+                    "error":
+                    "Không tìm thấy thông tin sinh viên."
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        ProcedureDraft.objects.filter(
+            student=student,
+            request_type=request_type,
+        ).delete()
+
+        return Response({
+            "success": True
+        })
+
+
+class ProcedureDraftDocumentAPIView(APIView):
+    """
+    GET:
+        Lấy danh sách file đã lưu của một bản nháp thủ tục.
+
+    POST:
+        Lưu hoặc thay thế một file theo document_key.
+
+    API này được bổ sung riêng cho file bản nháp, không thay đổi
+    ProcedureDraftAPIView và các API thủ tục đang hoạt động.
+    """
+
+    permission_classes = [
+        permissions.IsAuthenticated
+    ]
+    parser_classes = [
+        MultiPartParser,
+        FormParser,
+    ]
+
+    MAX_FILE_SIZE = 20 * 1024 * 1024
+
+    ALLOWED_EXTENSIONS = {
+        ".pdf",
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".doc",
+        ".docx",
+    }
+
+    ALLOWED_DOCUMENT_KEYS = {
+        Request.RequestType.DROPOUT: {
+            ProcedureDraftDocument.DocumentKey
+            .DROPOUT_SIGNED_APPLICATION,
+        },
+        Request.RequestType.ACADEMIC_LEAVE: {
+            ProcedureDraftDocument.DocumentKey
+            .ACADEMIC_LEAVE_EVIDENCE,
+            ProcedureDraftDocument.DocumentKey
+            .ACADEMIC_LEAVE_SIGNED_APPLICATION,
+        },
+        Request.RequestType.RESUME_STUDIES: {
+            ProcedureDraftDocument.DocumentKey
+            .RESUME_SIGNED_APPLICATION,
+        },
+        Request.RequestType.MAJOR_CHANGE: {
+            ProcedureDraftDocument.DocumentKey
+            .MAJOR_CHANGE_ADMISSION_LETTER,
+            ProcedureDraftDocument.DocumentKey
+            .MAJOR_CHANGE_GRADUATION_CERTIFICATE,
+            ProcedureDraftDocument.DocumentKey
+            .MAJOR_CHANGE_SIGNED_APPLICATION,
+        },
+    }
+
+    def get_student(self, request):
+        return getattr(
+            request.user,
+            "student_profile",
+            None,
+        )
+
+    def validate_request_type(
+        self,
+        request_type,
+    ):
+        valid_types = {
+            value
+            for value, _label
+            in Request.RequestType.choices
+        }
+
+        return request_type in valid_types
+
+    def get_draft(
+        self,
+        student,
+        request_type,
+        create=False,
+    ):
+        queryset = ProcedureDraft.objects.filter(
+            student=student,
+            request_type=request_type,
+        )
+
+        if not create:
+            return queryset.first()
+
+        draft, _created = (
+            ProcedureDraft.objects.get_or_create(
+                student=student,
+                request_type=request_type,
+                defaults={
+                    "is_started": True,
+                    "current_step": 1,
+                    "draft_data": {},
+                },
+            )
+        )
+
+        return draft
+
+    def get(
+        self,
+        request,
+        request_type,
+        format=None,
+    ):
+        student = self.get_student(request)
+
+        if not student:
+            return Response(
+                {
+                    "error":
+                    "Không tìm thấy thông tin sinh viên."
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if not self.validate_request_type(
+            request_type
+        ):
+            return Response(
+                {
+                    "error":
+                    "Loại thủ tục không hợp lệ."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        draft = self.get_draft(
+            student,
+            request_type,
+        )
+
+        if not draft:
+            return Response({
+                "documents": [],
+            })
+
+        documents = draft.documents.all()
+
+        serializer = (
+            ProcedureDraftDocumentSerializer(
+                documents,
+                many=True,
+                context={
+                    "request": request,
+                },
+            )
+        )
+
+        return Response({
+            "documents": serializer.data,
+        })
+
+    def post(
+        self,
+        request,
+        request_type,
+        format=None,
+    ):
+        student = self.get_student(request)
+
+        if not student:
+            return Response(
+                {
+                    "error":
+                    "Không tìm thấy thông tin sinh viên."
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if not self.validate_request_type(
+            request_type
+        ):
+            return Response(
+                {
+                    "error":
+                    "Loại thủ tục không hợp lệ."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        uploaded_file = request.FILES.get(
+            "file"
+        )
+
+        document_key = str(
+            request.data.get(
+                "document_key",
+                "",
+            )
+        ).strip()
+
+        if not uploaded_file:
+            return Response(
+                {
+                    "error":
+                    "Vui lòng chọn file tài liệu."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        allowed_keys = self.ALLOWED_DOCUMENT_KEYS.get(
+            request_type,
+            set(),
+        )
+
+        if document_key not in allowed_keys:
+            return Response(
+                {
+                    "error":
+                    "Loại tài liệu không phù hợp với thủ tục."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        extension = os.path.splitext(
+            uploaded_file.name
+        )[1].lower()
+
+        if extension not in self.ALLOWED_EXTENSIONS:
+            return Response(
+                {
+                    "error":
+                    "Chỉ chấp nhận PDF, PNG, JPG, JPEG, DOC hoặc DOCX."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if uploaded_file.size > self.MAX_FILE_SIZE:
+            return Response(
+                {
+                    "error":
+                    "File không được vượt quá 20 MB."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        draft = self.get_draft(
+            student,
+            request_type,
+            create=True,
+        )
+
+        document = (
+            ProcedureDraftDocument.objects
+            .filter(
+                draft=draft,
+                document_key=document_key,
+            )
+            .first()
+        )
+
+        created = document is None
+        old_file_name = None
+
+        if document is None:
+            document = ProcedureDraftDocument(
+                draft=draft,
+                document_key=document_key,
+            )
+        elif document.file:
+            old_file_name = document.file.name
+
+        document.file = uploaded_file
+        document.original_name = (
+            uploaded_file.name
+        )
+        document.content_type = (
+            uploaded_file.content_type
+            or ""
+        )
+        document.file_size = (
+            uploaded_file.size
+        )
+        document.save()
+
+        if (
+            old_file_name
+            and old_file_name
+            != document.file.name
+        ):
+            document.file.storage.delete(
+                old_file_name
+            )
+
+        serializer = (
+            ProcedureDraftDocumentSerializer(
+                document,
+                context={
+                    "request": request,
+                },
+            )
+        )
+
+        return Response(
+            {
+                "success": True,
+                "created": created,
+                "document": serializer.data,
+            },
+            status=(
+                status.HTTP_201_CREATED
+                if created
+                else status.HTTP_200_OK
+            ),
+        )
+
+
+class ProcedureDraftDocumentDetailAPIView(
+    APIView
+):
+    """
+    Xóa một file bản nháp thuộc đúng sinh viên đang đăng nhập.
+    """
+
+    permission_classes = [
+        permissions.IsAuthenticated
+    ]
+
+    def delete(
+        self,
+        request,
+        request_type,
+        document_id,
+        format=None,
+    ):
+        student = getattr(
+            request.user,
+            "student_profile",
+            None,
+        )
+
+        if not student:
+            return Response(
+                {
+                    "error":
+                    "Không tìm thấy thông tin sinh viên."
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        document = (
+            ProcedureDraftDocument.objects
+            .filter(
+                id=document_id,
+                draft__student=student,
+                draft__request_type=request_type,
+            )
+            .first()
+        )
+
+        if not document:
+            return Response(
+                {
+                    "error":
+                    "Không tìm thấy tài liệu."
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if document.file:
+            document.file.delete(
+                save=False
+            )
+
+        document.delete()
+
+        return Response({
+            "success": True,
+        })
+
+
+class ProcedureDraftDocumentFileAPIView(
+    APIView
+):
+    """
+    Mở file trong tab mới thông qua API có xác thực.
+    """
+
+    permission_classes = [
+        permissions.IsAuthenticated
+    ]
+
+    def get(
+        self,
+        request,
+        request_type,
+        document_id,
+        format=None,
+    ):
+        student = getattr(
+            request.user,
+            "student_profile",
+            None,
+        )
+
+        if not student:
+            return Response(
+                {
+                    "error":
+                    "Không tìm thấy thông tin sinh viên."
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        document = (
+            ProcedureDraftDocument.objects
+            .filter(
+                id=document_id,
+                draft__student=student,
+                draft__request_type=request_type,
+            )
+            .first()
+        )
+
+        if not document:
+            return Response(
+                {
+                    "error":
+                    "Không tìm thấy tài liệu."
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if not document.file:
+            return Response(
+                {
+                    "error":
+                    "File tài liệu không còn tồn tại."
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        guessed_type, _encoding = (
+            mimetypes.guess_type(
+                document.original_name
+            )
+        )
+
+        response = FileResponse(
+            document.file.open("rb"),
+            as_attachment=False,
+            filename=document.original_name,
+            content_type=(
+                guessed_type
+                or document.content_type
+                or "application/octet-stream"
+            ),
+        )
+
+        response["Content-Disposition"] = (
+            'inline; filename="'
+            f'{document.original_name}"'
+        )
+
+        return response

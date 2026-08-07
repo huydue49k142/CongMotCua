@@ -47,6 +47,46 @@ def build_analysis_prompt(
         rule["extract_fields"]
     )
 
+    identity_required = (
+        "full_name" in rule["extract_fields"]
+        and "student_id" in rule["extract_fields"]
+    )
+
+    if identity_required:
+        identity_instruction = """
+YÊU CẦU NHẬN DẠNG DANH TÍNH SINH VIÊN:
+
+- Bắt buộc tìm và trích xuất full_name và student_id.
+- full_name phải lấy từ khu vực thông tin sinh viên,
+  ví dụ: "Họ và tên", "Họ tên", "Tôi tên là",
+  "Sinh viên", hoặc nội dung tương đương.
+- Không lấy tên phụ huynh, người giám hộ,
+  cán bộ, giảng viên hoặc tên tại phần xác nhận
+  làm full_name.
+- Không lấy tên chỉ xuất hiện trong vùng chữ ký
+  làm full_name nếu không có căn cứ đó là họ tên
+  của sinh viên trong phần thông tin hồ sơ.
+- student_id phải lấy đúng từ trường:
+  "MSSV", "Mã số sinh viên", "Mã sinh viên",
+  "Student ID", hoặc nội dung tương đương.
+- Không lấy CCCD, số điện thoại, ngày sinh,
+  mã hồ sơ, số quyết định hoặc số văn bản
+  làm student_id.
+- Giữ nguyên nội dung đọc được từ tài liệu.
+- Nếu không đọc rõ họ tên thì trả full_name = null.
+- Nếu không đọc rõ MSSV thì trả student_id = null.
+- Không suy đoán, không tự điền và không sửa
+  họ tên hoặc MSSV theo kiến thức bên ngoài.
+- Nếu tài liệu có nhiều người, chỉ lấy thông tin
+  của sinh viên/người làm đơn.
+""".strip()
+    else:
+        identity_instruction = """
+Tài liệu này không bắt buộc đối chiếu đồng thời
+họ tên và MSSV sinh viên. Chỉ trích xuất các trường
+được yêu cầu nếu thật sự nhìn thấy.
+""".strip()
+
     require_signature = rule.get(
         "require_signature",
         False,
@@ -354,6 +394,8 @@ NHIỆM VỤ:
 7. Ngày tháng chuẩn hóa thành DD/MM/YYYY nếu có thể.
 8. Giữ nguyên nội dung tiếng Việt.
 9. Ghi lý do ngắn gọn trong validation_reason.
+
+{identity_instruction}
 
 YÊU CẦU VỀ CHỮ KÝ:
 
