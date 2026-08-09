@@ -44,6 +44,7 @@ const conditions = [
     details:
       "Sinh viên đã học ít nhất 01 học kỳ tại trường và không thuộc diện bị buộc thôi học.",
   },
+  
 ];
 
 const requiredFiles = [

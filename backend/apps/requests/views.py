@@ -20,6 +20,60 @@ from .serializers import (
 
 from rest_framework import generics, permissions
 
+# Danh mục tài liệu có thể được Phòng Đào tạo yêu cầu sinh viên nộp lại.
+# Backend giữ vai trò nguồn dữ liệu chuẩn để tránh frontend tự gửi document_key tùy ý.
+SUPPLEMENT_DOCUMENT_CATALOG = {
+    Request.RequestType.MAJOR_CHANGE: {
+        "MAJOR_CHANGE_SIGNED_APPLICATION": "Đơn xin chuyển ngành đã ký",
+        "MAJOR_CHANGE_ADMISSION_LETTER": "Giấy báo trúng tuyển",
+        "MAJOR_CHANGE_GRADUATION_CERTIFICATE": "Giấy chứng nhận tốt nghiệp THPT",
+        "MAJOR_CHANGE_OTHER_EVIDENCE": "Minh chứng khác",
+    },
+    Request.RequestType.ACADEMIC_LEAVE: {
+        "ACADEMIC_LEAVE_SIGNED_APPLICATION": "Đơn bảo lưu đã ký",
+        "ACADEMIC_LEAVE_EVIDENCE": "Minh chứng bảo lưu",
+    },
+    Request.RequestType.RESUME_STUDIES: {
+        "RESUME_SIGNED_APPLICATION": "Đơn học tiếp đã ký",
+    },
+    Request.RequestType.DROPOUT: {
+        "DROPOUT_SIGNED_APPLICATION": "Đơn thôi học đã ký",
+    },
+}
+
+
+def normalize_supplement_requirements(req, raw_requirements):
+    """Chuẩn hóa + kiểm tra danh sách tài liệu staff yêu cầu bổ sung."""
+    if not isinstance(raw_requirements, list):
+        return None, "Danh sách tài liệu yêu cầu bổ sung không hợp lệ."
+
+    allowed_documents = SUPPLEMENT_DOCUMENT_CATALOG.get(req.request_type, {})
+    normalized = []
+    seen_keys = set()
+
+    for item in raw_requirements:
+        if isinstance(item, dict):
+            document_key = str(item.get("document_key", "")).strip()
+        else:
+            document_key = str(item).strip()
+
+        if not document_key:
+            continue
+
+        if document_key not in allowed_documents:
+            return None, f"Loại tài liệu bổ sung không hợp lệ: {document_key}"
+
+        if document_key in seen_keys:
+            continue
+
+        seen_keys.add(document_key)
+        normalized.append({
+            "document_key": document_key,
+            "document_name": allowed_documents[document_key],
+        })
+
+    return normalized, None
+
 class StaffPermission(permissions.BasePermission):
     def has_permission(self, request, view):
         return request.user and request.user.is_authenticated and hasattr(request.user, 'role') and request.user.role == 'STAFF'
@@ -91,7 +145,7 @@ class RequestDetailAPIView(generics.RetrieveDestroyAPIView):
     def perform_destroy(self, instance):
         if instance.status != Request.Status.PENDING:
             from rest_framework.exceptions import ValidationError
-            raise ValidationError("Chỉ có thể xóa hồ sơ ở trạng thái Chờ xử lý.")
+            raise ValidationError("Chỉ có thể xóa hồ sơ ở trạng thái Chờ tiếp nhận.")
         instance.status = Request.Status.DELETED
         instance.save()
 
@@ -110,16 +164,50 @@ class StaffRequestActionAPIView(APIView):
         try:
             req = Request.objects.get(pk=pk)
         except Request.DoesNotExist:
-            return Response({'error': 'Không tìm thấy hồ sơ.'}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {'error': 'Không tìm thấy hồ sơ.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
         action = request.data.get('action')
-        notes = request.data.get('notes', '')
+        notes = str(request.data.get('notes', '') or '').strip()
+        raw_requirements = request.data.get('supplement_requirements', [])
 
         if action not in ['APPROVE', 'REJECT', 'REQUEST_INFO']:
-            return Response({'error': 'Hành động không hợp lệ.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {'error': 'Hành động không hợp lệ.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-        if action in ['REJECT', 'REQUEST_INFO'] and not notes:
-            return Response({'error': 'Vui lòng cung cấp lý do.'}, status=status.HTTP_400_BAD_REQUEST)
+        if action == 'REJECT' and not notes:
+            return Response(
+                {'error': 'Vui lòng cung cấp lý do từ chối.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        supplement_requirements = []
+        if action == 'REQUEST_INFO':
+            supplement_requirements, requirement_error = (
+                normalize_supplement_requirements(
+                    req,
+                    raw_requirements,
+                )
+            )
+
+            if requirement_error:
+                return Response(
+                    {'error': requirement_error},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            if not supplement_requirements:
+                return Response(
+                    {
+                        'error':
+                        'Vui lòng chọn ít nhất một tài liệu cần sinh viên bổ sung.'
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
         status_mapping = {
             'APPROVE': Request.Status.APPROVED,
@@ -129,77 +217,240 @@ class StaffRequestActionAPIView(APIView):
 
         new_status = status_mapping[action]
         req.status = new_status
-        req.save()
 
-        # Save history
+        if action == 'REQUEST_INFO':
+            req.supplement_requirements = supplement_requirements
+        else:
+            # Không để yêu cầu bổ sung cũ còn treo sau khi hồ sơ đã duyệt/từ chối.
+            req.supplement_requirements = []
+
+        req.save(
+            update_fields=[
+                'status',
+                'supplement_requirements',
+                'updated_at',
+            ]
+        )
+
+        history_notes = notes
+        if action == 'REQUEST_INFO':
+            document_names = [
+                item['document_name']
+                for item in supplement_requirements
+            ]
+            history_parts = [
+                'Tài liệu yêu cầu bổ sung: '
+                + '; '.join(document_names)
+            ]
+            if notes:
+                history_parts.append(
+                    f'Nội dung chi tiết: {notes}'
+                )
+            history_notes = '\n'.join(history_parts)
+
         RequestHistory.objects.create(
             request=req,
             status=new_status,
             actor=request.user,
-            notes=notes
+            notes=history_notes,
         )
 
-        # Create notification for student
         from apps.notifications.models import Notification
-        message = ""
+
         type_str = req.get_request_type_display()
         if action == 'APPROVE':
             message = f"Hồ sơ {type_str} của bạn đã được phê duyệt."
         elif action == 'REJECT':
             message = f"Hồ sơ {type_str} của bạn đã bị từ chối."
-        elif action == 'REQUEST_INFO':
-            message = f"Hồ sơ {type_str} của bạn yêu cầu bổ sung thêm thông tin."
+        else:
+            document_names = ', '.join(
+                item['document_name']
+                for item in supplement_requirements
+            )
+            message = (
+                f"Hồ sơ {type_str} của bạn yêu cầu bổ sung: "
+                f"{document_names}."
+            )
 
         Notification.objects.create(
             user=req.student.user,
             request=req,
-            message=message
+            message=message,
         )
 
-        return Response({'success': True, 'status': new_status})
+        return Response({
+            'success': True,
+            'status': new_status,
+            'supplement_requirements': req.supplement_requirements,
+        })
+
 
 class StudentResubmitAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
 
     def post(self, request, pk, format=None):
         try:
             user = request.user
             if hasattr(user, 'student_profile'):
-                req = Request.objects.get(pk=pk, student=user.student_profile)
+                req = Request.objects.get(
+                    pk=pk,
+                    student=user.student_profile,
+                )
             else:
-                return Response({'error': 'Bạn không có quyền thực hiện.'}, status=status.HTTP_403_FORBIDDEN)
+                return Response(
+                    {'error': 'Bạn không có quyền thực hiện.'},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
         except Request.DoesNotExist:
-            return Response({'error': 'Không tìm thấy hồ sơ.'}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {'error': 'Không tìm thấy hồ sơ.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
         if req.status != Request.Status.ADDITIONAL_INFO_REQUIRED:
-            return Response({'error': 'Hồ sơ không ở trạng thái yêu cầu bổ sung.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {'error': 'Hồ sơ không ở trạng thái yêu cầu bổ sung.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-        file_obj = request.FILES.get('file')
-        if not file_obj:
-            return Response({'error': 'Vui lòng đính kèm tài liệu bổ sung.'}, status=status.HTTP_400_BAD_REQUEST)
+        requirements = req.supplement_requirements or []
+        if not requirements:
+            return Response(
+                {
+                    'error':
+                    'Yêu cầu bổ sung này chưa xác định tài liệu cụ thể. '
+                    'Vui lòng liên hệ Phòng Đào tạo để được tạo lại yêu cầu.'
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        required_map = {
+            str(item.get('document_key', '')).strip():
+            str(item.get('document_name', '')).strip()
+            for item in requirements
+            if item.get('document_key')
+        }
+
+        uploaded_files = request.FILES.getlist('files')
+        document_keys = [
+            str(value).strip()
+            for value in request.data.getlist('document_keys')
+        ]
+
+        if not uploaded_files:
+            return Response(
+                {'error': 'Vui lòng đính kèm tài liệu bổ sung.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if len(uploaded_files) != len(document_keys):
+            return Response(
+                {
+                    'error':
+                    'Số lượng file và loại tài liệu bổ sung không khớp.'
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        upload_map = {}
+        for document_key, file_obj in zip(
+            document_keys,
+            uploaded_files,
+        ):
+            if document_key not in required_map:
+                return Response(
+                    {
+                        'error':
+                        f'Tài liệu {document_key} không nằm trong yêu cầu bổ sung.'
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            if document_key in upload_map:
+                return Response(
+                    {
+                        'error':
+                        f'Tài liệu {required_map[document_key]} được tải lên nhiều lần.'
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            upload_map[document_key] = file_obj
+
+        missing_keys = [
+            key
+            for key in required_map
+            if key not in upload_map
+        ]
+        if missing_keys:
+            missing_names = [
+                required_map[key]
+                for key in missing_keys
+            ]
+            return Response(
+                {
+                    'error':
+                    'Bạn chưa tải đủ tài liệu được yêu cầu: '
+                    + '; '.join(missing_names)
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         from .models import RequestDocument
-        RequestDocument.objects.create(
-            request=req,
-            file=file_obj,
-            document_type=RequestDocument.DocumentType.SUPPLEMENTARY
-        )
 
-        # Trạng thái chuyển về PENDING
+        saved_documents = []
+        for document_key, file_obj in upload_map.items():
+            document = RequestDocument.objects.create(
+                request=req,
+                file=file_obj,
+                document_type=(
+                    RequestDocument.DocumentType.SUPPLEMENTARY
+                ),
+                document_key=document_key,
+            )
+            saved_documents.append(document)
+
+        submitted_names = [
+            required_map[key]
+            for key in required_map
+        ]
+
         new_status = Request.Status.PENDING
         req.status = new_status
-        req.save()
+        # Sau khi sinh viên đã nộp đủ, yêu cầu đang chờ được xem xét lại.
+        req.supplement_requirements = []
+        req.save(
+            update_fields=[
+                'status',
+                'supplement_requirements',
+                'updated_at',
+            ]
+        )
 
-        # Save history
-        from .models import RequestHistory
         RequestHistory.objects.create(
             request=req,
             status=new_status,
             actor=user,
-            notes="Sinh viên đã nộp bổ sung hồ sơ."
+            notes=(
+                'Sinh viên đã nộp bổ sung: '
+                + '; '.join(submitted_names)
+            ),
         )
 
-        return Response({'success': True, 'status': new_status})
+        return Response({
+            'success': True,
+            'status': new_status,
+            'documents': [
+                {
+                    'id': str(document.id),
+                    'file_name': document.file_name,
+                    'document_key': document.document_key,
+                }
+                for document in saved_documents
+            ],
+        })
+
 
 class ProcedureDraftAPIView(APIView):
     permission_classes = [

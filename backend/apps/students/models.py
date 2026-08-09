@@ -8,6 +8,8 @@ class Major(BaseModel):
     name = models.CharField(max_length=255, verbose_name="Tên ngành")
     major_id = models.CharField(max_length=100, unique=True, verbose_name="Mã ngành")
     faculty_name = models.CharField(max_length=255, blank=True, default="", verbose_name="Tên khoa")
+    admission_threshold = models.FloatField(default=0.0, verbose_name="Điểm chuẩn chuyển ngành")
+    
     def __str__(self):
         return self.name
     
@@ -36,6 +38,9 @@ class Student(BaseModel):
     date_of_birth = models.DateField(verbose_name="Ngày sinh")
     student_class = models.ForeignKey(Class, on_delete=models.PROTECT, related_name="students", verbose_name="Lớp")
     phone = models.CharField(max_length=20, blank=True, default="", verbose_name="Số điện thoại")
+    admission_score = models.FloatField(default=0.0, verbose_name="Điểm nhập học")
+    admission_combo = models.CharField(max_length=10, blank=True, default="", verbose_name="Tổ hợp xét tuyển")
+    
     def __str__(self):
         return self.full_name
 

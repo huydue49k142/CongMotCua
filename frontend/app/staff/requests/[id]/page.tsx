@@ -2,10 +2,10 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { 
-  ArrowLeft, CheckCircle2, XCircle, AlertCircle, Clock, 
+import {
+  ArrowLeft, CheckCircle2, XCircle, AlertCircle, Clock,
   FileText, Paperclip, Ban, Edit3, Loader2, Download,
-  Info, Send, History
+  Info, AlertTriangle, X, Send
 } from 'lucide-react';
 import { requestService, DetailedRequest } from '@/services/request.service';
 
@@ -59,7 +59,7 @@ const getStatusConfig = (status: string) => {
     case 'DRAFT':
     default:
       return {
-        label: 'Đang chờ xử lý',
+        label: 'Đang chờ tiếp nhận',
         topBar: 'bg-[#0070F4]',
         iconBg: 'bg-blue-50',
         iconColor: 'text-[#0070F4]',
@@ -83,17 +83,66 @@ const getStatusBadgeDesign = (status: string) => {
       return { label: 'TRẠNG THÁI: YÊU CẦU BỔ SUNG', color: 'bg-orange-500 text-white' };
     case 'PENDING':
     default:
-      return { label: 'TRẠNG THÁI: CHỜ XỬ LÝ', color: 'bg-[#0070F4] text-white' };
+      return { label: 'TRẠNG THÁI: CHỜ TIẾP NHẬN', color: 'bg-[#0070F4] text-white' };
   }
 };
 
-const COMMON_ADDITIONAL_INFO_REASONS = [
-  'Thiếu bảng điểm gốc',
-  'Minh chứng không hợp lệ',
-  'Cần chữ ký xác nhận',
-  'Ảnh chân dung mờ/sai quy chuẩn',
-  'CCCD hết hạn/mờ số',
-  'Khác...',
+
+type SupplementDocumentOption = {
+  document_key: string;
+  document_name: string;
+};
+
+const SUPPLEMENT_DOCUMENTS_BY_REQUEST_TYPE: Record<string, SupplementDocumentOption[]> = {
+  MAJOR_CHANGE: [
+    {
+      document_key: 'MAJOR_CHANGE_SIGNED_APPLICATION',
+      document_name: 'Đơn xin chuyển ngành đã ký',
+    },
+    {
+      document_key: 'MAJOR_CHANGE_ADMISSION_LETTER',
+      document_name: 'Giấy báo trúng tuyển',
+    },
+    {
+      document_key: 'MAJOR_CHANGE_GRADUATION_CERTIFICATE',
+      document_name: 'Giấy chứng nhận tốt nghiệp THPT',
+    },
+    {
+      document_key: 'MAJOR_CHANGE_OTHER_EVIDENCE',
+      document_name: 'Minh chứng khác',
+    },
+  ],
+  ACADEMIC_LEAVE: [
+    {
+      document_key: 'ACADEMIC_LEAVE_SIGNED_APPLICATION',
+      document_name: 'Đơn bảo lưu đã ký',
+    },
+    {
+      document_key: 'ACADEMIC_LEAVE_EVIDENCE',
+      document_name: 'Minh chứng bảo lưu',
+    },
+  ],
+  RESUME_STUDIES: [
+    {
+      document_key: 'RESUME_SIGNED_APPLICATION',
+      document_name: 'Đơn học tiếp đã ký',
+    },
+  ],
+  DROPOUT: [
+    {
+      document_key: 'DROPOUT_SIGNED_APPLICATION',
+      document_name: 'Đơn thôi học đã ký',
+    },
+  ],
+};
+
+const getSupplementDocumentOptions = (requestType: string) =>
+  SUPPLEMENT_DOCUMENTS_BY_REQUEST_TYPE[requestType] || [];
+
+const REJECT_REASON_SUGGESTIONS = [
+  'Thiếu minh chứng gốc',
+  'Không đủ điều kiện điểm số',
+  'Hồ sơ quá hạn',
 ];
 
 export default function StaffRequestDetailPage() {
@@ -104,9 +153,9 @@ export default function StaffRequestDetailPage() {
   const [request, setRequest] = useState<DetailedRequest | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const [actionModal, setActionModal] = useState<{isOpen: boolean; action: 'REJECT' | 'REQUEST_INFO' | null}>({isOpen: false, action: null});
+  const [actionModal, setActionModal] = useState<{ isOpen: boolean; action: 'REJECT' | 'REQUEST_INFO' | null }>({ isOpen: false, action: null });
   const [notes, setNotes] = useState('');
-  const [selectedReasons, setSelectedReasons] = useState<string[]>([]);
+  const [selectedDocumentKeys, setSelectedDocumentKeys] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -127,100 +176,87 @@ export default function StaffRequestDetailPage() {
     }
   };
 
+  const openActionModal = (action: 'REJECT' | 'REQUEST_INFO') => {
+    if (action === 'REQUEST_INFO') {
+      // Với hồ sơ cũ đã ở trạng thái yêu cầu bổ sung, cho phép cán bộ
+      // mở lại modal để chọn tài liệu cụ thể mà không phải đổi trạng thái thủ công.
+      const existingRequirements =
+        (
+          request as (DetailedRequest & {
+            supplement_requirements?: SupplementDocumentOption[];
+          }) | null
+        )?.supplement_requirements ?? [];
+
+      setSelectedDocumentKeys(
+        existingRequirements.map((item) => item.document_key)
+      );
+
+      // Giữ lại ghi chú yêu cầu bổ sung gần nhất để cán bộ có thể chỉnh sửa.
+      const latestSupplementHistory = request?.history?.find(
+        (item) => item.status === 'ADDITIONAL_INFO_REQUIRED'
+      );
+      setNotes(latestSupplementHistory?.notes ?? '');
+    } else {
+      setNotes('');
+      setSelectedDocumentKeys([]);
+    }
+
+    setActionModal({ isOpen: true, action });
+  };
+
+  const closeActionModal = () => {
+    if (submitting) return;
+    setActionModal({ isOpen: false, action: null });
+    setNotes('');
+    setSelectedDocumentKeys([]);
+  };
+
+  const toggleDocument = (documentKey: string) => {
+    setSelectedDocumentKeys((current) =>
+      current.includes(documentKey)
+        ? current.filter((item) => item !== documentKey)
+        : [...current, documentKey]
+    );
+  };
+
   const handleApprove = async () => {
     if (!confirm('Bạn có chắc chắn muốn phê duyệt hồ sơ này? Hành động này không thể hoàn tác.')) return;
     submitAction('APPROVE');
   };
 
-  const openActionModal = (
-    action: 'REJECT' | 'REQUEST_INFO'
-  ) => {
-    setNotes('');
-    setSelectedReasons([]);
-    setActionModal({
-      isOpen: true,
-      action,
-    });
-  };
+  const submitAction = async (action: 'APPROVE' | 'REJECT' | 'REQUEST_INFO') => {
+    const detail = notes.trim();
 
-  const closeActionModal = () => {
-    if (submitting) return;
+    if (!request) return;
+    if (action === 'REJECT' && !detail) return;
+    if (action === 'REQUEST_INFO' && selectedDocumentKeys.length === 0) return;
 
-    setActionModal({
-      isOpen: false,
-      action: null,
-    });
-    setNotes('');
-    setSelectedReasons([]);
-  };
-
-  const toggleAdditionalReason = (
-    reason: string
-  ) => {
-    setSelectedReasons((current) =>
-      current.includes(reason)
-        ? current.filter((item) => item !== reason)
-        : [...current, reason]
-    );
-  };
-
-  const submitAction = async (
-    action: 'APPROVE' | 'REJECT' | 'REQUEST_INFO'
-  ) => {
-    const trimmedNotes = notes.trim();
-
-    if (
-      action === 'REJECT' &&
-      !trimmedNotes
-    ) {
-      return;
-    }
-
-    if (
-      action === 'REQUEST_INFO' &&
-      selectedReasons.length === 0 &&
-      !trimmedNotes
-    ) {
-      return;
-    }
-
-    const requestInfoNotes =
+    const supplementRequirements =
       action === 'REQUEST_INFO'
-        ? [
-            selectedReasons.length > 0
-              ? `Lý do bổ sung: ${selectedReasons.join('; ')}`
-              : '',
-            trimmedNotes
-              ? `Nội dung yêu cầu chi tiết: ${trimmedNotes}`
-              : '',
-          ]
-            .filter(Boolean)
-            .join('\n')
-        : trimmedNotes;
+        ? getSupplementDocumentOptions(request.request_type).filter((item) =>
+            selectedDocumentKeys.includes(item.document_key)
+          )
+        : [];
 
     setSubmitting(true);
-
     try {
       await requestService.updateRequestStatus(
         id,
         action,
-        requestInfoNotes
+        detail,
+        supplementRequirements
       );
-
-      setActionModal({
-        isOpen: false,
-        action: null,
-      });
+      setActionModal({ isOpen: false, action: null });
       setNotes('');
-      setSelectedReasons([]);
-
+      setSelectedDocumentKeys([]);
       await fetchData();
-    } catch (error) {
-      console.error(
-        'Lỗi khi xử lý hồ sơ:',
-        error
+    } catch (error: any) {
+      console.error('Lỗi khi xử lý hồ sơ:', error);
+      alert(
+        error?.response?.data?.error ||
+        error?.response?.data?.detail ||
+        'Có lỗi xảy ra khi xử lý.'
       );
-      alert('Có lỗi xảy ra khi xử lý.');
     } finally {
       setSubmitting(false);
     }
@@ -236,8 +272,12 @@ export default function StaffRequestDetailPage() {
 
   const typeLabel = getRequestTypeLabel(request.request_type);
   const shortId = `HS${request.id.split('-')[0].toUpperCase()}`;
-  
-  const canAction = ['PENDING'].includes(request.status);
+
+  const canFinalAction = request.status === 'PENDING';
+  const canRequestSupplement = [
+    'PENDING',
+    'ADDITIONAL_INFO_REQUIRED',
+  ].includes(request.status);
 
   return (
     <div className="bg-slate-50 min-h-screen">
@@ -247,36 +287,43 @@ export default function StaffRequestDetailPage() {
           <span className="text-xs text-slate-500 font-bold tracking-wider mr-2 uppercase">MÃ HỒ SƠ {shortId}</span>
           <span className="font-bold text-slate-900 text-2xl">Chi tiết hồ sơ {typeLabel}</span>
         </h1>
-        
+
         <div className="flex items-center gap-3">
-          {canAction && (
-            <>
-              <button 
-                onClick={() => openActionModal('REJECT')}
-                className="bg-[#C5221F] text-white hover:bg-red-800 px-5 py-2.5 rounded-md text-sm font-medium flex items-center gap-2 transition"
-              >
-                <Ban size={16} /> Từ chối
-              </button>
-              <button 
-                onClick={() => openActionModal('REQUEST_INFO')}
-                className="bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 px-5 py-2.5 rounded-md text-sm font-medium flex items-center gap-2 transition shadow-sm"
-              >
-                <Edit3 size={16} /> Yêu cầu bổ sung
-              </button>
-              <button 
-                onClick={handleApprove}
-                disabled={submitting}
-                className="bg-[#22C55E] text-white hover:bg-green-600 px-5 py-2.5 rounded-md text-sm font-medium flex items-center gap-2 transition"
-              >
-                {submitting ? <Loader2 className="animate-spin" size={16} /> : 'Phê duyệt'}
-              </button>
-            </>
+          {canFinalAction && (
+            <button
+              onClick={() => openActionModal('REJECT')}
+              className="bg-[#C5221F] text-white hover:bg-red-800 px-5 py-2.5 rounded-md text-sm font-medium flex items-center gap-2 transition"
+            >
+              <Ban size={16} /> Từ chối
+            </button>
           )}
-          <button 
-            onClick={() => router.push('/staff')} 
+
+          {canRequestSupplement && (
+            <button
+              onClick={() => openActionModal('REQUEST_INFO')}
+              className="bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 px-5 py-2.5 rounded-md text-sm font-medium flex items-center gap-2 transition shadow-sm"
+            >
+              <Edit3 size={16} />
+              {request.status === 'ADDITIONAL_INFO_REQUIRED'
+                ? 'Cập nhật yêu cầu bổ sung'
+                : 'Yêu cầu bổ sung'}
+            </button>
+          )}
+
+          {canFinalAction && (
+            <button
+              onClick={handleApprove}
+              disabled={submitting}
+              className="bg-[#22C55E] text-white hover:bg-green-600 px-5 py-2.5 rounded-md text-sm font-medium flex items-center gap-2 transition"
+            >
+              {submitting ? <Loader2 className="animate-spin" size={16} /> : 'Phê duyệt'}
+            </button>
+          )}
+          <button
+            onClick={() => router.push('/staff')}
             className="px-5 py-2.5 bg-white border border-slate-300 rounded-md text-sm font-medium hover:bg-slate-50 flex items-center gap-2 shadow-sm text-black"
           >
-             Quay lại danh sách
+            Quay lại danh sách
           </button>
         </div>
       </div>
@@ -322,15 +369,15 @@ export default function StaffRequestDetailPage() {
                 <div className="flex flex-col gap-2">
                   {request.documents && request.documents.length > 0 ? (
                     request.documents.map((doc, i) => (
-                      <a 
-                        key={i} 
-                        href={doc.file} 
+                      <a
+                        key={i}
+                        href={doc.file}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#F4F9FE] hover:bg-[#EBF1F9] border border-[#EBF1F9] rounded-md text-xs font-semibold text-[#18538E] w-fit transition-colors"
                       >
-                        <Paperclip size={14} /> 
-                        {doc.file_name} 
+                        <Paperclip size={14} />
+                        {doc.file_name}
                         {doc.document_type === 'SUPPLEMENTARY' && <span className="text-orange-500 ml-1 font-normal">(Hồ sơ bổ sung)</span>}
                       </a>
                     ))
@@ -339,7 +386,7 @@ export default function StaffRequestDetailPage() {
                   )}
                 </div>
               </div>
-              
+
               {['REJECTED', 'DELETED', 'ADDITIONAL_INFO_REQUIRED'].includes(request.status) && request.history.length > 0 && (
                 <div>
                   <p className="text-xs font-bold text-slate-500 mb-1.5 tracking-wide uppercase">
@@ -356,277 +403,241 @@ export default function StaffRequestDetailPage() {
       </div>
 
       {/* Action Modal */}
-      {actionModal.isOpen &&
-        actionModal.action === 'REQUEST_INFO' && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/55 px-4 py-6 backdrop-blur-[2px]">
-            <div className="flex max-h-[94vh] w-full max-w-[560px] flex-col overflow-hidden rounded-xl bg-[#F5F7FA] shadow-2xl">
-              {/* Header */}
-              <div className="flex items-start justify-between border-b border-slate-200 bg-white px-5 py-4">
-                <div className="flex items-start gap-3">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded bg-blue-50 text-[#0878BE]">
-                    <Info size={21} />
-                  </div>
-
-                  <div>
-                    <h3 className="text-xl font-bold leading-tight text-slate-900">
-                      Yêu cầu bổ sung hồ sơ
-                    </h3>
-
-                    <p className="mt-1 text-xs text-slate-500">
-                      Mã hồ sơ: #{shortId} • Sinh viên: {request.student_name}
-                    </p>
-                  </div>
+      {actionModal.isOpen && actionModal.action === 'REJECT' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 px-4 backdrop-blur-[1px]">
+          <div className="w-[460px] max-w-[calc(100vw-32px)] overflow-hidden rounded-lg bg-white shadow-2xl animate-in zoom-in-95 duration-200">
+            {/* Header - theo mẫu popup mong muốn */}
+            <div className="flex items-start justify-between border-b border-slate-200 bg-white px-5 py-4">
+              <div className="flex min-w-0 items-start gap-3">
+                <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-red-100 text-red-600">
+                  <AlertCircle size={20} strokeWidth={2.4} />
                 </div>
-
-                <button
-                  type="button"
-                  onClick={closeActionModal}
-                  disabled={submitting}
-                  aria-label="Đóng"
-                  className="rounded p-1 text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <XCircle size={21} />
-                </button>
-              </div>
-
-              {/* Nội dung có thể cuộn */}
-              <div className="overflow-y-auto px-5 py-5">
-                <div className="flex items-start gap-3 rounded border border-blue-200 bg-blue-50 px-4 py-4 text-sm leading-6 text-slate-700">
-                  <Info
-                    size={18}
-                    className="mt-0.5 shrink-0 text-[#0878BE]"
-                  />
-
-                  <p>
-                    Vui lòng chỉ rõ các thành phần hoặc thông tin cần sinh viên
-                    cập nhật thêm. Hệ thống sẽ tạm dừng quy trình xét duyệt cho
-                    đến khi nhận được phản hồi.
+                <div className="min-w-0">
+                  <h3 className="text-xl font-bold leading-7 text-slate-800">
+                    Xác nhận từ chối hồ sơ
+                  </h3>
+                  <p className="mt-1 text-sm leading-5 text-slate-500">
+                    Vui lòng nhập lý do từ chối để thông báo cho sinh viên biết.
                   </p>
-                </div>
-
-                <div className="mt-5">
-                  <p className="mb-3 text-[11px] font-bold uppercase tracking-wide text-slate-500">
-                    Lý do bổ sung phổ biến
-                  </p>
-
-                  <div className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
-                    {COMMON_ADDITIONAL_INFO_REASONS.map(
-                      (reason) => {
-                        const checked =
-                          selectedReasons.includes(
-                            reason
-                          );
-
-                        return (
-                          <label
-                            key={reason}
-                            className="flex cursor-pointer items-start gap-3 text-sm leading-5 text-slate-800"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              onChange={() =>
-                                toggleAdditionalReason(
-                                  reason
-                                )
-                              }
-                              className="mt-0.5 h-4 w-4 rounded border-slate-400 accent-[#0878BE]"
-                            />
-
-                            <span>{reason}</span>
-                          </label>
-                        );
-                      }
-                    )}
-                  </div>
-                </div>
-
-                <div className="mt-6 flex items-center gap-3 rounded border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">
-                  <AlertCircle
-                    size={17}
-                    className="shrink-0 text-red-600"
-                  />
-
-                  <p>
-                    <strong>Lưu ý:</strong> Trạng thái hồ sơ sẽ chuyển sang{' '}
-                    <span className="rounded-full bg-red-100 px-2 py-0.5 font-bold text-red-700">
-                      Yêu cầu bổ sung
-                    </span>
-                  </p>
-                </div>
-
-                <div className="mt-5">
-                  <label
-                    htmlFor="additional-info-notes"
-                    className="mb-2 block text-[11px] font-bold uppercase tracking-wide text-slate-500"
-                  >
-                    Nội dung yêu cầu chi tiết
-                  </label>
-
-                  <textarea
-                    id="additional-info-notes"
-                    rows={5}
-                    value={notes}
-                    onChange={(event) =>
-                      setNotes(event.target.value)
-                    }
-                    placeholder="Ví dụ: Vui lòng tải bảng điểm học kì 1 (2023–2024)"
-                    className="w-full resize-none rounded border border-slate-300 bg-white px-3 py-3 text-sm leading-6 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#0878BE] focus:ring-2 focus:ring-blue-100"
-                  />
                 </div>
               </div>
 
-              {/* Footer */}
-              <div className="flex items-center justify-between gap-3 border-t border-slate-200 bg-white px-5 py-3">
-                <div className="ml-auto flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={closeActionModal}
-                    disabled={submitting}
-                    className="rounded px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    Hủy bỏ
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      submitAction(
-                        'REQUEST_INFO'
-                      )
-                    }
-                    disabled={
-                      submitting ||
-                      (
-                        selectedReasons.length ===
-                          0 &&
-                        !notes.trim()
-                      )
-                    }
-                    className="inline-flex items-center gap-2 rounded bg-[#0878BE] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#06689F] disabled:cursor-not-allowed disabled:bg-slate-400"
-                  >
-                    {submitting ? (
-                      <Loader2
-                        size={17}
-                        className="animate-spin"
-                      />
-                    ) : (
-                      <Send size={17} />
-                    )}
-
-                    Gửi yêu cầu
-                  </button>
-                </div>
-              </div>
+              <button
+                type="button"
+                onClick={closeActionModal}
+                className="ml-3 rounded p-1 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
+                aria-label="Đóng"
+              >
+                <X size={20} />
+              </button>
             </div>
-          </div>
-        )}
 
-      {actionModal.isOpen &&
-        actionModal.action === 'REJECT' && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 backdrop-blur-sm">
-            <div className="w-full max-w-[500px] overflow-hidden rounded-xl bg-white shadow-2xl">
-              <div className="relative flex items-center justify-between border-b border-gray-100 p-6">
-                <div className="flex items-center gap-4">
-                  <div className="rounded-lg bg-red-50 p-2 text-red-500">
-                    <AlertCircle size={24} />
-                  </div>
-
-                  <div>
-                    <h3 className="text-lg font-bold text-slate-800">
-                      Xác nhận từ chối hồ sơ
-                    </h3>
-
-                    <p className="text-sm text-slate-500">
-                      Vui lòng nhập lý do từ chối để thông báo cho sinh viên.
-                    </p>
-                  </div>
+            {/* Body */}
+            <div className="bg-[#F6F8FB] px-5 py-4">
+              <div>
+                <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-600">
+                  Gợi ý lý do phổ biến
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {REJECT_REASON_SUGGESTIONS.map((reason) => (
+                    <button
+                      key={reason}
+                      type="button"
+                      onClick={() => setNotes(reason)}
+                      className={`rounded-full border px-3.5 py-2 text-sm font-medium transition ${
+                        notes.trim() === reason
+                          ? 'border-slate-500 bg-slate-200 text-slate-800'
+                          : 'border-slate-300 bg-slate-50 text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      {reason}
+                    </button>
+                  ))}
                 </div>
-
-                <button
-                  type="button"
-                  onClick={closeActionModal}
-                  disabled={submitting}
-                  className="absolute right-6 top-6 text-slate-400 hover:text-slate-600 disabled:opacity-50"
-                >
-                  <XCircle size={20} />
-                </button>
               </div>
 
-              <div className="bg-slate-50/50 p-6">
-                <label
-                  htmlFor="reject-notes"
-                  className="mb-2 block text-xs font-bold text-slate-700"
-                >
-                  LÝ DO TỪ CHỐI{' '}
-                  <span className="text-red-500">
-                    *
-                  </span>
+              <div className="mt-4">
+                <label className="mb-2 block text-xs font-bold uppercase tracking-wide text-slate-700">
+                  Lý do từ chối <span className="text-red-600">*</span>
                 </label>
-
                 <textarea
-                  id="reject-notes"
                   rows={5}
                   value={notes}
-                  onChange={(event) =>
-                    setNotes(event.target.value)
-                  }
-                  placeholder="Nhập lý do chi tiết..."
-                  className="w-full resize-none rounded-lg border border-gray-300 bg-white p-3 text-sm text-gray-900 outline-none shadow-sm focus:border-red-500 focus:ring-2 focus:ring-red-100"
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Vui lòng nhập lý do từ chối..."
+                  className="h-[135px] w-full resize-none rounded-lg border border-slate-300 bg-white px-4 py-3.5 text-sm leading-6 text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-red-400 focus:ring-2 focus:ring-red-100"
                 />
+              </div>
 
-                <div className="mt-4 flex items-start gap-3 rounded-r-md border-l-4 border-red-500 bg-red-50 p-4">
-                  <AlertCircle
-                    size={16}
-                    className="mt-0.5 shrink-0 text-red-500"
-                  />
+              <div className="mt-4 flex items-start gap-3 rounded-sm border-l-[3px] border-red-500 bg-red-100/80 px-3 py-3 text-red-700">
+                <AlertTriangle size={20} className="mt-0.5 shrink-0" />
+                <p className="text-sm leading-6">
+                  <span className="font-bold">Hành động này không thể hoàn tác.</span>{' '}
+                  Hồ sơ sẽ được chuyển sang trạng thái Từ chối và sinh viên sẽ nhận được thông báo ngay lập tức.
+                </p>
+              </div>
+            </div>
 
-                  <p className="text-xs leading-relaxed text-red-700">
-                    <strong>
-                      Hành động này không thể hoàn tác.
-                    </strong>{' '}
-                    Hồ sơ sẽ chuyển sang trạng thái Từ chối và sinh viên sẽ nhận
-                    được thông báo ngay lập tức.
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-3 border-t border-slate-200 bg-[#EEF4FF] px-5 py-3">
+              <button
+                type="button"
+                onClick={closeActionModal}
+                className="px-4 py-2.5 text-sm font-semibold text-[#0066B3] transition hover:text-blue-800"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                disabled={submitting || !notes.trim()}
+                onClick={() => submitAction('REJECT')}
+                className={`flex min-w-[160px] items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-semibold text-white transition ${
+                  submitting || !notes.trim()
+                    ? 'cursor-not-allowed bg-red-300'
+                    : 'bg-[#C5221F] hover:bg-red-800'
+                }`}
+              >
+                {submitting ? (
+                  <Loader2 className="animate-spin" size={18} />
+                ) : (
+                  <Ban size={18} />
+                )}
+                Xác nhận từ chối
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {actionModal.isOpen && actionModal.action === 'REQUEST_INFO' && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex justify-center items-center backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-2xl w-[600px] max-w-[calc(100vw-32px)] overflow-hidden animate-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="p-5 border-b border-gray-100 flex justify-between items-start relative">
+              <div className="flex items-center gap-4">
+                <div className="p-2.5 rounded-lg bg-[#EBF1F9] text-[#18538E]">
+                  <FileText size={24} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-lg text-slate-800">
+                    {request.status === 'ADDITIONAL_INFO_REQUIRED'
+                      ? 'Cập nhật yêu cầu bổ sung'
+                      : 'Yêu cầu bổ sung hồ sơ'}
+                  </h3>
+                  <p className="text-sm text-slate-500 mt-0.5">
+                    Mã hồ sơ: {shortId} • Sinh viên: {request.student_name}
                   </p>
                 </div>
               </div>
+              <button
+                onClick={closeActionModal}
+                className="text-slate-400 hover:text-slate-600 p-1"
+              >
+                <X size={20} />
+              </button>
+            </div>
 
-              <div className="flex justify-end gap-3 border-t border-gray-100 bg-gray-50 p-4">
+            {/* Body */}
+            <div className="p-6 bg-[#F8FAFC] flex flex-col gap-5">
+              <div className="bg-[#F0F7FF] border border-[#D9EAFD] p-4 rounded-lg flex items-start gap-3">
+                <div className="bg-[#18538E] rounded-full p-0.5 mt-0.5 shrink-0">
+                  <Info className="text-white" size={14} />
+                </div>
+                <p className="text-sm text-[#334155] leading-relaxed">
+                  Vui lòng chỉ rõ các thành phần hoặc thông tin cần sinh viên cập nhật thêm. Hệ thống sẽ tạm dừng quy trình xét duyệt cho đến khi nhận được phản hồi.
+                </p>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">
+                    Tài liệu yêu cầu sinh viên bổ sung
+                  </p>
+                  <span className="text-xs text-slate-400">
+                    Chọn ít nhất 1 tài liệu
+                  </span>
+                </div>
+
+                {getSupplementDocumentOptions(request.request_type).length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
+                    {getSupplementDocumentOptions(request.request_type).map((document) => (
+                      <label
+                        key={document.document_key}
+                        className={`flex items-start gap-3 rounded-lg border p-3 text-sm cursor-pointer select-none transition ${
+                          selectedDocumentKeys.includes(document.document_key)
+                            ? 'border-[#18538E] bg-[#F0F7FF] text-slate-800'
+                            : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedDocumentKeys.includes(document.document_key)}
+                          onChange={() => toggleDocument(document.document_key)}
+                          className="mt-0.5 h-4 w-4 rounded border-slate-300 accent-[#18538E] cursor-pointer"
+                        />
+                        <span className="leading-5 font-medium">
+                          {document.document_name}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">
+                    Chưa cấu hình danh mục tài liệu bổ sung cho loại thủ tục này.
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-[#FEF2F2] border border-[#FEE2E2] p-3 rounded-lg flex items-center gap-2">
+                <AlertTriangle className="text-red-500 shrink-0" size={16} fill="currentColor" stroke="white" />
+                <p className="text-sm text-red-600">
+                  <span className="font-semibold">Lưu ý:</span> Trạng thái hồ sơ sẽ chuyển sang <span className="font-semibold bg-red-100 px-1.5 py-0.5 rounded text-red-700">Yêu cầu bổ sung</span>.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wide">
+                  Nội dung yêu cầu chi tiết
+                </label>
+                <textarea
+                  rows={4}
+                  className="w-full border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none shadow-sm text-gray-900 bg-white"
+                  placeholder="Ví dụ: Tài liệu chưa rõ nội dung, vui lòng tải lại bản đầy đủ và rõ nét."
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                ></textarea>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 border-t border-gray-100 bg-white flex justify-between items-center">
+              <div className="flex items-center gap-2 text-slate-400">
+                <Clock size={14} />
+                <span className="text-xs font-medium">Lần cập nhật cuối: {new Date(request.updated_at || request.created_at).toLocaleDateString('vi-VN')}</span>
+              </div>
+              <div className="flex gap-3">
                 <button
-                  type="button"
                   onClick={closeActionModal}
-                  disabled={submitting}
-                  className="rounded-md px-5 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-200 disabled:opacity-50"
+                  className="px-4 py-2 rounded-lg font-semibold text-slate-600 hover:bg-slate-100 transition text-sm"
                 >
                   Hủy bỏ
                 </button>
-
                 <button
-                  type="button"
-                  disabled={
-                    !notes.trim() ||
-                    submitting
-                  }
-                  onClick={() =>
-                    submitAction('REJECT')
-                  }
-                  className="flex items-center gap-2 rounded-md bg-[#C5221F] px-5 py-2 text-sm font-medium text-white transition hover:bg-red-800 disabled:cursor-not-allowed disabled:bg-gray-400"
+                  disabled={submitting || selectedDocumentKeys.length === 0}
+                  onClick={() => submitAction('REQUEST_INFO')}
+                  className={`px-4 py-2 rounded-lg font-semibold text-white transition text-sm flex items-center gap-2 ${
+                    submitting || selectedDocumentKeys.length === 0
+                      ? 'bg-blue-300 cursor-not-allowed'
+                      : 'bg-[#0066B3] hover:bg-blue-700'
+                  }`}
                 >
-                  {submitting ? (
-                    <Loader2
-                      className="animate-spin"
-                      size={16}
-                    />
-                  ) : (
-                    <Ban size={16} />
-                  )}
-
-                  Xác nhận từ chối
+                  {submitting ? <Loader2 className="animate-spin" size={16} /> : <><Send size={16} /> Gửi yêu cầu</>}
                 </button>
               </div>
             </div>
           </div>
-        )}
+        </div>
+      )}
     </div>
   );
 }

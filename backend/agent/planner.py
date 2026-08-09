@@ -622,7 +622,7 @@ class Planner:
                     '✅ Hồ sơ chuyển ngành của bạn đã được tiếp nhận.\n\n'
                     f'Mã hồ sơ: {submit_data.get("requestId", "N/A")}\n'
                     f'Ngày nộp: {submit_data.get("createdTime", "N/A")}\n'
-                    f'Trạng thái: Đang chờ xử lý\n\n'
+                    f'Trạng thái: Đang chờ tiếp nhận\n\n'
                     'Vui lòng theo dõi thông báo từ Phòng Đào tạo.'
                 ),
                 'memory_updates': {

@@ -1756,7 +1756,7 @@ export default function DropoutPage() {
                 <div className="flex justify-between items-center mb-4 border-b border-gray-100 pb-3">
                   <h4 className="font-semibold text-gray-800">Bộ hồ sơ chuẩn bị nộp</h4>
                   <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${currentStep === 6 ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                    {currentStep === 6 ? 'Đã nộp' : 'Chờ xác nhận'}
+                    {currentStep === 6 ? 'Đã nộp' : 'Chờ tiếp nhận'}
                   </span>
                 </div>
                 
@@ -1858,7 +1858,7 @@ export default function DropoutPage() {
                         </p>
                       </div>
                       <span className="bg-[#0070F4] text-white px-3 py-1 rounded-full text-xs font-bold shadow-sm">
-                        Chờ xử lý
+                        Chờ tiếp nhận
                       </span>
                     </div>
 

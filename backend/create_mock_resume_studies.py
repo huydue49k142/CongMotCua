@@ -21,7 +21,7 @@ def create_mock_data():
     staff = User.objects.filter(role=User.Role.STAFF).first()
 
     statuses_to_create = [
-        (Request.Status.PENDING, "Chờ xử lý", None),
+        (Request.Status.PENDING, "Chờ tiếp nhận", None),
         (Request.Status.REJECTED, "Từ chối", "Không đủ điều kiện học tiếp theo quy chế đào tạo điều 15 khoản 2."),
         (Request.Status.APPROVED, "Đã duyệt", "Quyết định số 123/QĐ-ĐH cho phép học tiếp."),
         (Request.Status.DELETED, "Đã xóa", None),

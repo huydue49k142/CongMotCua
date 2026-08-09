@@ -18,12 +18,12 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='request',
             name='status',
-            field=models.CharField(choices=[('DRAFT', 'Bản nháp'), ('PENDING', 'Chờ xử lý'), ('ADDITIONAL_INFO_REQUIRED', 'Yêu cầu bổ sung'), ('APPROVED', 'Đã duyệt'), ('REJECTED', 'Từ chối'), ('DELETED', 'Đã xóa')], db_index=True, default='DRAFT', max_length=50),
+            field=models.CharField(choices=[('DRAFT', 'Bản nháp'), ('PENDING', 'Chờ tiếp nhận'), ('ADDITIONAL_INFO_REQUIRED', 'Yêu cầu bổ sung'), ('APPROVED', 'Đã duyệt'), ('REJECTED', 'Từ chối'), ('DELETED', 'Đã xóa')], db_index=True, default='DRAFT', max_length=50),
         ),
         migrations.AlterField(
             model_name='requesthistory',
             name='status',
-            field=models.CharField(choices=[('DRAFT', 'Bản nháp'), ('PENDING', 'Chờ xử lý'), ('ADDITIONAL_INFO_REQUIRED', 'Yêu cầu bổ sung'), ('APPROVED', 'Đã duyệt'), ('REJECTED', 'Từ chối'), ('DELETED', 'Đã xóa')], max_length=50, verbose_name='Trạng thái'),
+            field=models.CharField(choices=[('DRAFT', 'Bản nháp'), ('PENDING', 'Chờ tiếp nhận'), ('ADDITIONAL_INFO_REQUIRED', 'Yêu cầu bổ sung'), ('APPROVED', 'Đã duyệt'), ('REJECTED', 'Từ chối'), ('DELETED', 'Đã xóa')], max_length=50, verbose_name='Trạng thái'),
         ),
         migrations.AddConstraint(
             model_name='request',

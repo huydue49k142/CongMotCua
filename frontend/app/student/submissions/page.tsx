@@ -27,7 +27,7 @@ const getStatusConfig = (status: string) => {
       return { label: 'Yêu cầu bổ sung', icon: <AlertCircle className="h-3.5 w-3.5 mr-1.5" />, color: 'bg-orange-100 text-orange-700' };
     case 'PENDING':
     default:
-      return { label: 'Chờ xử lý', icon: <Clock className="h-3.5 w-3.5 mr-1.5" />, color: 'bg-[#91D5FF] text-[#003A8C]' };
+      return { label: 'Chờ tiếp nhận', icon: <Clock className="h-3.5 w-3.5 mr-1.5" />, color: 'bg-[#91D5FF] text-[#003A8C]' };
   }
 };
 

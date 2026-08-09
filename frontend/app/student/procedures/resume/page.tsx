@@ -1657,7 +1657,7 @@ export default function ResumePage() {
                         </p>
                       </div>
                       <span className="bg-[#0070F4] text-white px-3 py-1 rounded-full text-xs font-bold shadow-sm">
-                        Chờ xử lý
+                        Chờ tiếp nhận
                       </span>
                     </div>
 

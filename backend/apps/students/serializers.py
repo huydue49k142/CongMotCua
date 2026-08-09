@@ -5,7 +5,7 @@ from ..users.serializers import UserSerializer
 class MajorSerializer(serializers.ModelSerializer):
     class Meta:
         model = Major
-        fields = ['name', 'major_id']
+        fields = ['name', 'major_id', 'admission_threshold']
 
 class ClassSerializer(serializers.ModelSerializer):
     major = MajorSerializer()
@@ -35,6 +35,8 @@ class StudentProfileSerializer(serializers.ModelSerializer):
             'total_credits',
             'discipline_status',
             'study_duration_in_semesters',
+            'admission_score',
+            'admission_combo',
             'created_at',
             'updated_at'
         ]

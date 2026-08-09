@@ -14,7 +14,7 @@ class Request(BaseModel):
 
     class Status(models.TextChoices):
         DRAFT = "DRAFT", "Bản nháp"
-        PENDING = "PENDING", "Chờ xử lý"
+        PENDING = "PENDING", "Chờ tiếp nhận"
         ADDITIONAL_INFO_REQUIRED = "ADDITIONAL_INFO_REQUIRED", "Yêu cầu bổ sung"
         APPROVED = "APPROVED", "Đã duyệt"
         REJECTED = "REJECTED", "Từ chối"
@@ -26,6 +26,11 @@ class Request(BaseModel):
     status = models.CharField(max_length=50, choices=Status.choices, default=Status.DRAFT, db_index=True)
     submitted_at = models.DateTimeField(null=True, blank=True, verbose_name="Ngày gửi")
     completed_at = models.DateTimeField(null=True, blank=True, verbose_name="Ngày hoàn thành")
+    supplement_requirements = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name="Danh sách tài liệu yêu cầu bổ sung",
+    )
 
     def __str__(self):
         return f"{self.get_request_type_display()} - {self.student.full_name}"
@@ -102,6 +107,13 @@ class RequestDocument(models.Model):
     request = models.ForeignKey(Request, on_delete=models.CASCADE, related_name="documents")
     file = models.FileField(upload_to="request_documents/", max_length=255)
     document_type = models.CharField(max_length=50, choices=DocumentType.choices, default=DocumentType.INITIAL)
+    document_key = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+        db_index=True,
+        verbose_name="Mã loại tài liệu",
+    )
     uploaded_at = models.DateTimeField(auto_now_add=True)
     file_name = models.CharField(max_length=255, blank=True)
 

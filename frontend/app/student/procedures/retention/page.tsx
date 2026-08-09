@@ -1398,7 +1398,9 @@ const handleRetryScan = () => {
                                 <select disabled={currentStep > 1} value={formData.reason} onChange={(e) => handleInputChange('reason', e.target.value)} className="w-full border border-gray-300 rounded-lg p-2.5 text-sm text-gray-700 outline-none focus:border-blue-500 bg-white disabled:bg-gray-50">
                                   <option value="">-- Chọn lý do --</option>
                                   <option value="Cá nhân">Lý do cá nhân</option>
-                                  <option value="Sức khỏe/Khác">Lý do sức khỏe / Khác</option>
+                                  <option value="Sức khỏe">Lý do sức khỏe</option>
+                                  <option value="Kỳ thi quốc tế"> Tham dự kỳ thi quốc tế</option>
+                                  <option value="Lực lượng vũ trang"> Điều động vào lực lượng vũ trang</option>
                                 </select>
                               </div>
                               <div>
@@ -1874,7 +1876,7 @@ const handleRetryScan = () => {
               <div className="ml-12 border border-gray-200 rounded-xl bg-white shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4 mt-2">
                 <div className="p-5 flex justify-between items-center border-b border-gray-100">
                   <h4 className="font-semibold text-gray-800">Bản xem trước tổng hợp hồ sơ</h4>
-                  <span className="bg-orange-100 text-orange-700 text-xs font-bold px-3 py-1 rounded-full">Chờ xác nhận</span>
+                  <span className="bg-orange-100 text-orange-700 text-xs font-bold px-3 py-1 rounded-full">Chờ tiếp nhận</span>
                 </div>
 
                 <div className="p-5 flex flex-col gap-4">
@@ -1965,7 +1967,7 @@ const handleRetryScan = () => {
                         </p>
                       </div>
                       <span className="bg-[#0070F4] text-white px-3 py-1 rounded-full text-xs font-bold shadow-sm">
-                        Chờ xử lý
+                        Chờ tiếp nhận
                       </span>
                     </div>
 

@@ -29,7 +29,7 @@ class RequestHistorySerializer(serializers.ModelSerializer):
 class RequestDocumentSerializer(serializers.ModelSerializer):
     class Meta:
         model = RequestDocument
-        fields = ['id', 'file', 'file_name', 'document_type', 'uploaded_at']
+        fields = ['id', 'file', 'file_name', 'document_type', 'document_key', 'uploaded_at']
 
 class DetailedRequestSerializer(serializers.ModelSerializer):
     student_name = serializers.CharField(source='student.full_name', read_only=True)
@@ -42,7 +42,7 @@ class DetailedRequestSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'student_name', 'student_code', 'request_type', 
             'status', 'submitted_at', 'completed_at', 'created_at', 
-            'updated_at', 'history', 'documents'
+            'updated_at', 'history', 'documents', 'supplement_requirements'
         ]
 
 class DraftRequestSerializer(serializers.Serializer):

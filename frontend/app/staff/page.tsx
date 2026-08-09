@@ -40,7 +40,7 @@ export default function StaffDashboardPage() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'PENDING':
-        return <span className="inline-flex items-center px-3 py-1 rounded-md text-xs font-semibold bg-blue-50 text-blue-600 border border-blue-200">Chờ xử lý</span>;
+        return <span className="inline-flex items-center px-3 py-1 rounded-md text-xs font-semibold bg-blue-50 text-blue-600 border border-blue-200">Chờ tiếp nhận</span>;
       case 'ADDITIONAL_INFO_REQUIRED':
         return <span className="inline-flex items-center px-3 py-1 rounded-md text-xs font-semibold bg-red-50 text-red-600 border border-red-200 whitespace-nowrap">Yêu cầu bổ sung</span>;
       case 'APPROVED':
@@ -98,7 +98,7 @@ export default function StaffDashboardPage() {
           </div>
           <div>
             <div className="text-3xl font-bold text-[#0070F4] leading-none mb-1">{stats.pending}</div>
-            <div className="text-xs text-slate-500 font-medium">Chờ xử lý</div>
+            <div className="text-xs text-slate-500 font-medium">Chờ tiếp nhận</div>
           </div>
         </div>
 

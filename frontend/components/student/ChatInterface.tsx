@@ -7,7 +7,7 @@ interface ChatInterfaceProps {
   title: string;
   description: string;
   Icon: React.ElementType;
-  welcomeMessage?: string;
+  welcomeMessage?: React.ReactNode;
   welcomePrimaryLabel?: string;
   welcomeSecondaryLabel?: string;
   welcomeSecondaryHref?: string;
@@ -15,6 +15,7 @@ interface ChatInterfaceProps {
   onCancel?: () => void;
   children?: React.ReactNode;
   isStarted?: boolean;
+  headerBadge?: React.ReactNode;
 }
 
 const ChatInterface = ({
@@ -29,6 +30,7 @@ const ChatInterface = ({
   onCancel,
   children,
   isStarted = false,
+  headerBadge,
 }: ChatInterfaceProps) => {
   const [message, setMessage] = useState('');
   const finalWelcomeMessage =
@@ -83,6 +85,11 @@ const ChatInterface = ({
             <p className="text-xs text-slate-500">{description}</p>
           </div>
         </div>
+        {headerBadge && (
+          <div>
+            {headerBadge}
+          </div>
+        )}
       </div>
 
       {/* Chat Area */}

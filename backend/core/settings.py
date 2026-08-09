@@ -199,3 +199,16 @@ if platform.system() == "Windows":
 else:
     TESSERACT_CMD = "/usr/bin/tesseract"
     POPPLER_PATH = None
+
+
+import os
+
+SEMESTER_START_DATE = os.getenv(
+    "SEMESTER_START_DATE",
+    ""
+)
+
+DEMO_CURRENT_DATE = os.getenv(
+    "DEMO_CURRENT_DATE",
+    ""
+)

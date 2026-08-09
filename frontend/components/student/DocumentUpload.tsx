@@ -118,7 +118,7 @@ const DocumentUpload = ({
                   : 'border-gray-200 bg-gray-50/50 hover:bg-gray-50'
             }`}
             onDragOver={(e) => handleDragOver(doc.id, e)}
-            onDragLeave={handleDragLeave}
+            onDragLeave={() => handleDragLeave(doc.id)}
             onDrop={(e) => handleDrop(doc.id, e)}
           >
             <div className="flex items-center justify-between">
