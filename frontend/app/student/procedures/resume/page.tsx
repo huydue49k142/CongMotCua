@@ -55,6 +55,7 @@ type ResumeOCRResult = {
   detected_document_type?: string;
   validation_reason?: string;
   error_message?: string;
+  extracted_fields?: Record<string, unknown>;
   signature_checks: {
     parent_guardian: SignatureCheck;
     applicant: SignatureCheck;
@@ -324,28 +325,84 @@ export default function ResumePage() {
 
   const handleConfirmProfile = () => setCurrentStep(2);
 
-  const handleAddCourse = () => setCourses([...courses, { id: Date.now(), code: '', name: '', credits: '' }]);
-  const handleRemoveCourse = (id: number) => {
-    if (courses.length > 1) setCourses(courses.filter(course => course.id !== id));
+  // Chuẩn hóa MSSV trước khi đối chiếu OCR với dữ liệu tài khoản.
+  const normalizeStudentId = (value: unknown): string => {
+    return String(value ?? "")
+      .replace(/\s+/g, "")
+      .trim()
+      .toUpperCase();
   };
-  const handleChangeCourse = (id: number, field: keyof CourseForm, value: string) => {
-    setCourses(courses.map(course => {
-      if (course.id === id) {
-        let updatedCourse = { ...course, [field]: value };
-        if (field === 'code') {
-          const selectedMock = MOCK_COURSES.find(c => c.code === value);
-          if (selectedMock) {
-            updatedCourse.name = selectedMock.name;
-            updatedCourse.credits = selectedMock.credits;
-          } else {
-            updatedCourse.name = '';
-            updatedCourse.credits = '';
+
+  /*
+   * Nếu sinh viên sửa danh sách học phần sau khi đã tạo/tải đơn,
+   * đơn cũ và kết quả OCR không còn khớp với dữ liệu mới.
+   * Tự đưa quy trình về bước 2 để tạo/tải lại đơn, không cần nút Chỉnh sửa.
+   */
+  const invalidateGeneratedResumeAfterCourseEdit = () => {
+    if (currentStep >= 3 && currentStep < 5) {
+      setDownloadState("idle");
+      setShowUploadAI(false);
+      setUploadedFile(null);
+      setUploadedFileName(null);
+      setUploadedDocument(null);
+      setScanState("idle");
+      setScanErrorType(null);
+      setAiResult(null);
+      setCurrentStep(2);
+    }
+  };
+
+  const handleAddCourse = () => {
+    setCourses((previous) => [
+      ...previous,
+      { id: Date.now(), code: '', name: '', credits: '' },
+    ]);
+
+    invalidateGeneratedResumeAfterCourseEdit();
+  };
+
+  const handleRemoveCourse = (id: number) => {
+    if (courses.length <= 1) return;
+
+    setCourses((previous) =>
+      previous.filter((course) => course.id !== id)
+    );
+
+    invalidateGeneratedResumeAfterCourseEdit();
+  };
+
+  const handleChangeCourse = (
+    id: number,
+    field: keyof CourseForm,
+    value: string
+  ) => {
+    setCourses((previous) =>
+      previous.map((course) => {
+        if (course.id === id) {
+          const updatedCourse = { ...course, [field]: value };
+
+          if (field === 'code') {
+            const selectedMock = MOCK_COURSES.find(
+              (item) => item.code === value
+            );
+
+            if (selectedMock) {
+              updatedCourse.name = selectedMock.name;
+              updatedCourse.credits = selectedMock.credits;
+            } else {
+              updatedCourse.name = '';
+              updatedCourse.credits = '';
+            }
           }
+
+          return updatedCourse;
         }
-        return updatedCourse;
-      }
-      return course;
-    }));
+
+        return course;
+      })
+    );
+
+    invalidateGeneratedResumeAfterCourseEdit();
   };
 
   const handleSubmitCourses = () => {
@@ -630,11 +687,103 @@ export default function ResumePage() {
             "File tải lên không phải " +
               "Đơn xin trở lại học tập.",
           error_message: data.error_message,
+          extracted_fields: data.extracted_fields,
           signature_checks: emptySignatureChecks,
         });
 
         setScanErrorType("document");
         setScanState("error");
+        return;
+      }
+
+      /*
+       * Đối chiếu MSSV trên Đơn xin trở lại học tập đã ký
+       * với MSSV chính chủ lấy từ CSDL của tài khoản đang đăng nhập.
+       * Sai/không đọc được MSSV chỉ hiện popup riêng, không hiển thị
+       * khối "Tài liệu không hợp lệ" vì file vẫn có thể đúng loại đơn.
+       */
+      const extractedStudentId =
+        normalizeStudentId(
+          data.extracted_fields?.student_id
+        );
+
+      let expectedStudentId =
+        normalizeStudentId(
+          profile?.studentId
+        );
+
+      // Nếu state chưa kịp tải profile thì lấy lại trực tiếp từ backend.
+      if (!expectedStudentId) {
+        try {
+          const latestProfile =
+            await getResumeProfile();
+
+          setProfile(latestProfile);
+          expectedStudentId =
+            normalizeStudentId(
+              latestProfile.studentId
+            );
+        } catch (profileError) {
+          console.error(
+            "Không thể lấy MSSV sinh viên để đối chiếu:",
+            profileError
+          );
+        }
+      }
+
+      if (!expectedStudentId) {
+        setAiResult(null);
+        setScanErrorType(null);
+        setScanState("idle");
+        setUploadedFile(null);
+
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+
+        window.alert(
+          "Không xác định được mã số sinh viên của tài khoản đang đăng nhập. " +
+          "Vui lòng tải lại trang hoặc đăng nhập lại."
+        );
+
+        return;
+      }
+
+      if (!extractedStudentId) {
+        setAiResult(null);
+        setScanErrorType(null);
+        setScanState("idle");
+        setUploadedFile(null);
+
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+
+        window.alert(
+          "Không đọc được mã số sinh viên trên Đơn xin trở lại học tập. " +
+          "Vui lòng kiểm tra file rõ nét và tải lại."
+        );
+
+        return;
+      }
+
+      if (extractedStudentId !== expectedStudentId) {
+        setAiResult(null);
+        setScanErrorType(null);
+        setScanState("idle");
+        setUploadedFile(null);
+
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+
+        window.alert(
+          `Mã số sinh viên trên đơn (${extractedStudentId}) ` +
+          `không khớp với mã số sinh viên của tài khoản ` +
+          `đang đăng nhập (${expectedStudentId}).\n\n` +
+          "Vui lòng tải đúng đơn của bạn."
+        );
+
         return;
       }
 
@@ -691,6 +840,8 @@ export default function ResumePage() {
           data.validation_reason,
         error_message:
           data.error_message,
+        extracted_fields:
+          data.extracted_fields,
         signature_checks: signatureChecks,
       };
 
@@ -1179,7 +1330,7 @@ export default function ResumePage() {
                         <select 
                           value={course.code} 
                           onChange={(e) => handleChangeCourse(course.id, 'code', e.target.value)} 
-                          disabled={currentStep > 2} 
+                          disabled={currentStep === 5} 
                           className="w-full border border-gray-200 rounded-lg p-2.5 text-sm text-gray-900 focus:border-blue-500 outline-none bg-white disabled:bg-gray-50"
                         >
                           <option value="" disabled>Chọn mã học phần...</option>
@@ -1189,12 +1340,12 @@ export default function ResumePage() {
                         </select>
                         
                         <div className="md:hidden text-xs font-semibold text-gray-400 uppercase mt-2 mb-1">Tên học phần</div>
-                        <input type="text" placeholder="VD: Giải tích 1" value={course.name} onChange={(e) => handleChangeCourse(course.id, 'name', e.target.value)} disabled={currentStep > 2} className="w-full border border-gray-200 rounded-lg p-2.5 text-sm text-gray-900 focus:border-blue-500 outline-none bg-white disabled:bg-gray-50" />
+                        <input type="text" placeholder="VD: Giải tích 1" value={course.name} onChange={(e) => handleChangeCourse(course.id, 'name', e.target.value)} disabled={currentStep === 5} className="w-full border border-gray-200 rounded-lg p-2.5 text-sm text-gray-900 focus:border-blue-500 outline-none bg-white disabled:bg-gray-50" />
                         
                         <div className="md:hidden text-xs font-semibold text-gray-400 uppercase mt-2 mb-1">Số TC</div>
                         <div className="flex items-center gap-4">
-                          <input type="number" min="1" max="5" placeholder="3" value={course.credits} onChange={(e) => handleChangeCourse(course.id, 'credits', e.target.value)} disabled={currentStep > 2} className="w-full text-center border border-gray-200 rounded-lg p-2.5 text-sm text-gray-900 focus:border-blue-500 outline-none bg-white disabled:bg-gray-50" />
-                          {courses.length > 1 && currentStep === 2 && (
+                          <input type="number" min="1" max="5" placeholder="3" value={course.credits} onChange={(e) => handleChangeCourse(course.id, 'credits', e.target.value)} disabled={currentStep === 5} className="w-full text-center border border-gray-200 rounded-lg p-2.5 text-sm text-gray-900 focus:border-blue-500 outline-none bg-white disabled:bg-gray-50" />
+                          {courses.length > 1 && currentStep < 5 && (
                             <button onClick={() => handleRemoveCourse(course.id)} className="text-red-400 hover:text-red-600 transition-colors p-2"><Trash2 size={18} /></button>
                           )}
                         </div>
@@ -1202,12 +1353,15 @@ export default function ResumePage() {
                     ))}
                   </div>
 
-                  {currentStep === 2 && (
+                  {currentStep < 5 && (
                     <div className="flex flex-col md:flex-row justify-between items-center gap-4 mt-2">
                       <button onClick={handleAddCourse} className="w-full md:w-auto px-4 py-2 border border-gray-300 text-gray-600 rounded-lg font-medium text-sm flex items-center justify-center gap-2 hover:bg-gray-50 transition"><Plus size={16} /> Thêm học phần</button>
-                      <button onClick={handleSubmitCourses} className="w-full md:w-auto px-6 py-2.5 bg-[#0070F4] text-white rounded-lg font-medium text-sm flex items-center justify-center gap-2 hover:bg-blue-700 transition-colors">
-                        Lưu danh sách & Khởi tạo đơn <ChevronRight size={16} />
-                      </button>
+
+                      {currentStep === 2 && (
+                        <button onClick={handleSubmitCourses} className="w-full md:w-auto px-6 py-2.5 bg-[#0070F4] text-white rounded-lg font-medium text-sm flex items-center justify-center gap-2 hover:bg-blue-700 transition-colors">
+                          Lưu danh sách & Khởi tạo đơn <ChevronRight size={16} />
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>

@@ -203,11 +203,6 @@ else:
 
 import os
 
-SEMESTER_START_DATE = os.getenv(
-    "SEMESTER_START_DATE",
-    ""
-)
-
 DEMO_CURRENT_DATE = os.getenv(
     "DEMO_CURRENT_DATE",
     ""

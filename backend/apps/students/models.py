@@ -47,3 +47,23 @@ class Student(BaseModel):
     class Meta:
         verbose_name = "Sinh viên"
         verbose_name_plural = "Sinh viên"
+
+
+class Semester(models.Model):
+    name = models.CharField(
+        max_length=50
+    )
+
+    academic_year = models.CharField(
+        max_length=20
+    )
+
+    start_date = models.DateField()
+
+    end_date = models.DateField()
+
+    def __str__(self):
+        return (
+            f"{self.name} - "
+            f"{self.academic_year}"
+        )

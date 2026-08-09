@@ -47,6 +47,7 @@ type DropoutOCRResult = {
   detected_document_type?: string;
   validation_reason?: string;
   error_message?: string;
+  extracted_fields?: Record<string, unknown>;
   signature_checks: {
     parent_guardian: SignatureCheck;
     applicant: SignatureCheck;
@@ -84,7 +85,7 @@ const isUuid = (value: unknown): value is string =>
 
 export default function DropoutPage() {
   const router = useRouter();
-    
+
   const [isStarted, setIsStarted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4 | 5 | 6>(1);
@@ -110,7 +111,7 @@ export default function DropoutPage() {
   const [hasSavedDraft, setHasSavedDraft] = useState(false);
   const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [isOpeningDetail, setIsOpeningDetail] = useState(false);
-  
+
   const [studentProfile, setStudentProfile] = useState<StudentProfile | null>(null);
   const [formData, setFormData] = useState<DropoutFormData>({
     reason: '',
@@ -135,7 +136,7 @@ export default function DropoutPage() {
       setIsAgreed(savedData.isAgreed ?? false);
       setIsDownloaded(
         savedData.isDownloaded ??
-          Number(draft.current_step) >= 3
+        Number(draft.current_step) >= 3
       );
       setFormData(
         savedData.formData ?? {
@@ -298,13 +299,53 @@ export default function DropoutPage() {
   const handleStart = () => setIsStarted(true);
   const handleCancel = () => router.push('/student/dashboard');
 
-  const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
-  ) => {
-    const { name, value } = e.target;
-    setFormData((prev: DropoutFormData) => ({ ...prev, [name]: value }));
+  // Chuẩn hóa MSSV trước khi đối chiếu OCR với dữ liệu tài khoản.
+  const normalizeStudentId = (value: unknown): string => {
+    return String(value ?? "")
+      .replace(/\s+/g, "")
+      .trim()
+      .toUpperCase();
   };
 
+  const handleInputChange = (
+    e: React.ChangeEvent<
+      HTMLInputElement |
+      HTMLSelectElement |
+      HTMLTextAreaElement
+    >
+  ) => {
+    const { name, value } = e.target;
+
+    setFormData((prev: DropoutFormData) => ({
+      ...prev,
+      [name]: value,
+    }));
+
+    /*
+     * Nếu đơn đã được tạo/tải rồi mà sinh viên
+     * thay đổi dữ liệu thì đơn cũ không còn đúng.
+     *
+     * Tự reset các bước phía sau.
+     */
+    if (currentStep >= 3 && currentStep < 6) {
+      setIsDownloaded(false);
+
+      setSignedApplicationFile(null);
+      setSignedApplicationDocument(null);
+
+      setUploadState("idle");
+      setUploadErrorType(null);
+      setAiResult(null);
+
+      setHasSavedDraft(false);
+
+      // Yêu cầu xác nhận điều khoản lại sau khi thay đổi thông tin
+      setIsAgreed(false);
+
+      // Quay về bước xác nhận trước khi tạo lại đơn
+      setCurrentStep(2);
+    }
+  };
 
 
 
@@ -380,119 +421,119 @@ export default function DropoutPage() {
     setCurrentStep(3);
   };
 
- const handleDownloadDoc = async () => {
-  try {
-    setIsLoading(true);
-    setIsDownloaded(false);
+  const handleDownloadDoc = async () => {
+    try {
+      setIsLoading(true);
+      setIsDownloaded(false);
 
-    const accessToken =
-      localStorage.getItem("access_token") ||
-      localStorage.getItem("access");
+      const accessToken =
+        localStorage.getItem("access_token") ||
+        localStorage.getItem("access");
 
-    if (!accessToken) {
-      throw new Error(
-        "Phiên đăng nhập không tồn tại. Vui lòng đăng nhập lại."
-      );
-    }
-
-    // formData lưu mã như "kinh_te"; khi hiển thị và tạo đơn
-    // phải chuyển sang nhãn tiếng Việt.
-    const reasonCode = formData.reason.trim();
-
-    if (!reasonCode) {
-      throw new Error(
-        "Vui lòng nhập lý do thôi học trước khi tải đơn."
-      );
-    }
-
-    const reasonLabel = getDropoutReasonLabel(
-      reasonCode
-    );
-
-    const apiUrl =
-      process.env.NEXT_PUBLIC_API_URL ||
-      "http://127.0.0.1:8000";
-
-    const response = await fetch(
-      `${apiUrl}/api/documents/dropout/download/`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          reason: reasonLabel,
-        }),
-      }
-    );
-
-    if (!response.ok) {
-      const errorData = await response
-        .json()
-        .catch(() => null);
-
-      const missingFields: string[] =
-        errorData?.missing_fields ?? [];
-
-      if (
-        Array.isArray(missingFields) &&
-        missingFields.length > 0
-      ) {
+      if (!accessToken) {
         throw new Error(
-          `Thiếu thông tin: ${missingFields.join(", ")}`
+          "Phiên đăng nhập không tồn tại. Vui lòng đăng nhập lại."
         );
       }
 
-      let errorMessage =
-        errorData?.message ||
-        errorData?.detail ||
-        "Không thể tạo đơn xin thôi học.";
+      // formData lưu mã như "kinh_te"; khi hiển thị và tạo đơn
+      // phải chuyển sang nhãn tiếng Việt.
+      const reasonCode = formData.reason.trim();
 
-      if (errorData?.reason) {
-        errorMessage = Array.isArray(errorData.reason)
-          ? errorData.reason.join(", ")
-          : errorData.reason;
+      if (!reasonCode) {
+        throw new Error(
+          "Vui lòng nhập lý do thôi học trước khi tải đơn."
+        );
       }
 
-      throw new Error(errorMessage);
+      const reasonLabel = getDropoutReasonLabel(
+        reasonCode
+      );
+
+      const apiUrl =
+        process.env.NEXT_PUBLIC_API_URL ||
+        "http://127.0.0.1:8000";
+
+      const response = await fetch(
+        `${apiUrl}/api/documents/dropout/download/`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            reason: reasonLabel,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response
+          .json()
+          .catch(() => null);
+
+        const missingFields: string[] =
+          errorData?.missing_fields ?? [];
+
+        if (
+          Array.isArray(missingFields) &&
+          missingFields.length > 0
+        ) {
+          throw new Error(
+            `Thiếu thông tin: ${missingFields.join(", ")}`
+          );
+        }
+
+        let errorMessage =
+          errorData?.message ||
+          errorData?.detail ||
+          "Không thể tạo đơn xin thôi học.";
+
+        if (errorData?.reason) {
+          errorMessage = Array.isArray(errorData.reason)
+            ? errorData.reason.join(", ")
+            : errorData.reason;
+        }
+
+        throw new Error(errorMessage);
+      }
+
+      const fileBlob = await response.blob();
+      const downloadUrl =
+        window.URL.createObjectURL(fileBlob);
+
+      const link = document.createElement("a");
+
+      link.href = downloadUrl;
+      link.download = studentProfile?.studentId
+        ? `Don_xin_thoi_hoc_${studentProfile.studentId}.docx`
+        : "Don_xin_thoi_hoc.docx";
+
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      setTimeout(() => {
+        window.URL.revokeObjectURL(downloadUrl);
+      }, 1000);
+
+      setIsDownloaded(true);
+    } catch (error) {
+      console.error(
+        "Lỗi tải đơn xin thôi học:",
+        error
+      );
+
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Không thể tải đơn xin thôi học."
+      );
+    } finally {
+      setIsLoading(false);
     }
-
-    const fileBlob = await response.blob();
-    const downloadUrl =
-      window.URL.createObjectURL(fileBlob);
-
-    const link = document.createElement("a");
-
-    link.href = downloadUrl;
-    link.download = studentProfile?.studentId
-      ? `Don_xin_thoi_hoc_${studentProfile.studentId}.docx`
-      : "Don_xin_thoi_hoc.docx";
-
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-
-    setTimeout(() => {
-      window.URL.revokeObjectURL(downloadUrl);
-    }, 1000);
-
-    setIsDownloaded(true);
-  } catch (error) {
-    console.error(
-      "Lỗi tải đơn xin thôi học:",
-      error
-    );
-
-    alert(
-      error instanceof Error
-        ? error.message
-        : "Không thể tải đơn xin thôi học."
-    );
-  } finally {
-    setIsLoading(false);
-  }
-};
+  };
 
   const handleNextToUpload = () => {
     setCurrentStep(4);
@@ -589,7 +630,45 @@ export default function DropoutPage() {
         }
       );
 
-      const data = response.data;
+      const rawResult =
+        response.data?.result ??
+        response.data?.data ??
+        response.data;
+
+      const analysis =
+        rawResult?.gemini_analysis ??
+        rawResult?.analysis ??
+        rawResult;
+
+      const data = {
+        ...rawResult,
+        format_valid:
+          rawResult?.format_valid ??
+          analysis?.format_valid,
+        is_match:
+          rawResult?.is_match ??
+          analysis?.is_match,
+        accepted:
+          rawResult?.accepted ??
+          analysis?.accepted,
+        detected_document_type:
+          rawResult?.detected_document_type ??
+          analysis?.detected_document_type,
+        validation_reason:
+          rawResult?.validation_reason ??
+          analysis?.validation_reason,
+        error_message:
+          rawResult?.error_message ??
+          analysis?.error_message,
+        extracted_fields:
+          rawResult?.extracted_fields ??
+          analysis?.extracted_fields ??
+          {},
+        signature_checks:
+          rawResult?.signature_checks ??
+          analysis?.signature_checks ??
+          {},
+      };
 
       console.log("Kết quả OCR thôi học:", data);
 
@@ -597,7 +676,7 @@ export default function DropoutPage() {
       const correctDocument =
         data.is_match === true &&
         data.detected_document_type ===
-          "DROPOUT_SIGNED_APPLICATION";
+        "DROPOUT_SIGNED_APPLICATION";
 
       if (!correctDocument) {
         setAiResult({
@@ -610,6 +689,7 @@ export default function DropoutPage() {
             data.validation_reason ||
             "File tải lên không phải Đơn xin thôi học.",
           error_message: data.error_message,
+          extracted_fields: data.extracted_fields,
           signature_checks: emptySignatureChecks,
         });
         setUploadErrorType("document");
@@ -617,38 +697,129 @@ export default function DropoutPage() {
         return;
       }
 
+      /*
+       * Đối chiếu MSSV trên Đơn xin thôi học đã ký
+       * với MSSV chính chủ lấy từ CSDL của tài khoản đang đăng nhập.
+       * Sai/không đọc được MSSV chỉ hiện popup riêng, không hiển thị
+       * khối "Tài liệu không hợp lệ" vì file vẫn có thể đúng loại đơn.
+       */
+      const extractedStudentId =
+        normalizeStudentId(
+          data.extracted_fields?.student_id
+        );
+
+      let expectedStudentId =
+        normalizeStudentId(
+          studentProfile?.studentId
+        );
+
+      // Nếu state chưa kịp tải profile thì lấy lại trực tiếp từ backend.
+      if (!expectedStudentId) {
+        try {
+          const profile =
+            await getStudentProfile();
+
+          setStudentProfile(profile);
+          expectedStudentId =
+            normalizeStudentId(
+              profile.studentId
+            );
+        } catch (profileError) {
+          console.error(
+            "Không thể lấy MSSV sinh viên để đối chiếu:",
+            profileError
+          );
+        }
+      }
+
+      if (!expectedStudentId) {
+        setAiResult(null);
+        setUploadErrorType(null);
+        setUploadState("idle");
+        setSignedApplicationFile(null);
+
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+
+        window.alert(
+          "Không xác định được mã số sinh viên của tài khoản đang đăng nhập. " +
+          "Vui lòng tải lại trang hoặc đăng nhập lại."
+        );
+
+        return;
+      }
+
+      if (!extractedStudentId) {
+        setAiResult(null);
+        setUploadErrorType(null);
+        setUploadState("idle");
+        setSignedApplicationFile(null);
+
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+
+        window.alert(
+          "Không đọc được mã số sinh viên trên Đơn xin thôi học. " +
+          "Vui lòng kiểm tra file rõ nét và tải lại."
+        );
+
+        return;
+      }
+
+      if (extractedStudentId !== expectedStudentId) {
+        setAiResult(null);
+        setUploadErrorType(null);
+        setUploadState("idle");
+        setSignedApplicationFile(null);
+
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+
+        window.alert(
+          `Mã số sinh viên trên đơn (${extractedStudentId}) ` +
+          `không khớp với mã số sinh viên của tài khoản ` +
+          `đang đăng nhập (${expectedStudentId}). ` +
+          "Vui lòng tải đúng đơn của bạn."
+        );
+
+        return;
+      }
+
       const signatureChecks = {
-  parent_guardian: {
-    present:
-      data.signature_checks?.parent_guardian
-        ?.present === true,
-    confidence:
-      data.signature_checks?.parent_guardian
-        ?.confidence,
-    evidence:
-      data.signature_checks?.parent_guardian
-        ?.evidence,
-  },
+        parent_guardian: {
+          present:
+            data.signature_checks?.parent_guardian
+              ?.present === true,
+          confidence:
+            data.signature_checks?.parent_guardian
+              ?.confidence,
+          evidence:
+            data.signature_checks?.parent_guardian
+              ?.evidence,
+        },
 
-  applicant: {
-    present:
-      data.signature_checks?.applicant
-        ?.present === true,
-    confidence:
-      data.signature_checks?.applicant
-        ?.confidence,
-    evidence:
-      data.signature_checks?.applicant
-        ?.evidence,
-  },
+        applicant: {
+          present:
+            data.signature_checks?.applicant
+              ?.present === true,
+          confidence:
+            data.signature_checks?.applicant
+              ?.confidence,
+          evidence:
+            data.signature_checks?.applicant
+              ?.evidence,
+        },
 
-  faculty_leader: {
-    present: false,
-    confidence: 0,
-    evidence:
-      "Đơn thôi học không yêu cầu chữ ký Lãnh đạo Khoa.",
-  },
-};
+        faculty_leader: {
+          present: false,
+          confidence: 0,
+          evidence:
+            "Đơn thôi học không yêu cầu chữ ký Lãnh đạo Khoa.",
+        },
+      };
 
       const allSignaturesPresent =
         signatureChecks.parent_guardian.present &&
@@ -666,6 +837,8 @@ export default function DropoutPage() {
           data.validation_reason,
         error_message:
           data.error_message,
+        extracted_fields:
+          data.extracted_fields,
         signature_checks: signatureChecks,
       };
 
@@ -901,8 +1074,8 @@ export default function DropoutPage() {
 
       throw new Error(
         errorData?.detail ||
-          errorData?.error ||
-          "Không thể tìm hồ sơ Thôi học đã nộp."
+        errorData?.error ||
+        "Không thể tìm hồ sơ Thôi học đã nộp."
       );
     }
 
@@ -1108,8 +1281,8 @@ export default function DropoutPage() {
         (
           documentToSubmit
             ? await fetchProcedureDraftDocumentAsFile(
-                documentToSubmit
-              )
+              documentToSubmit
+            )
             : null
         );
 
@@ -1222,15 +1395,15 @@ export default function DropoutPage() {
   };
 
   const signatureItems = [
-  {
-    key: "parent_guardian",
-    label: "Phụ huynh / Người giám hộ",
-  },
-  {
-    key: "applicant",
-    label: "Người làm đơn",
-  },
-] as const;
+    {
+      key: "parent_guardian",
+      label: "Phụ huynh / Người giám hộ",
+    },
+    {
+      key: "applicant",
+      label: "Người làm đơn",
+    },
+  ] as const;
 
   if (!isDraftLoaded) {
     return (
@@ -1253,7 +1426,7 @@ export default function DropoutPage() {
         Icon={LogOut}
         welcomeMessage={
           <>Chào bạn, hệ thống Trường Đại học Kinh tế ghi nhận bạn đang chọn thủ tục <strong>Xin thôi học</strong>. Bạn có muốn bắt đầu tạo hồ sơ không?</>
-        } 
+        }
         welcomePrimaryLabel="Bắt đầu làm thủ tục"
         welcomeSecondaryLabel="Không, quay lại"
         onStart={handleStart}
@@ -1262,7 +1435,7 @@ export default function DropoutPage() {
       >
         {isStarted && (
           <div className="flex flex-col gap-8 mt-6 pb-20 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            
+
             {/* --- BƯỚC 1: NHẬP FORM --- */}
             {currentStep >= 1 && (
               <>
@@ -1309,42 +1482,89 @@ export default function DropoutPage() {
                             <div className="space-y-4">
                               <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Lý do xin thôi học <span className="text-red-500">*</span></label>
-                                {currentStep === 1 ? (
-                                  <select name="reason" required className="w-full border border-gray-300 rounded-md p-2.5 text-sm text-gray-800 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none bg-white" value={formData.reason} onChange={handleInputChange}>
-                                    <option value="">-- Chọn lý do --</option>
-                                    <option value="ca_nhan">Lý do cá nhân</option>
-                                    <option value="kinh_te">Lý do kinh tế / gia đình</option>
-                                    <option value="suc_khoe">Lý do sức khỏe</option>
-                                    <option value="chuyen_truong">Chuyển sang trường khác</option>
-                                    <option value="khac">Lý do khác</option>
-                                  </select>
-                                ) : (
-                                  <div className="w-full border border-gray-200 bg-gray-50 rounded-md p-2.5 text-sm text-gray-800">{dropoutReasonLabel}</div>
-                                )}
+                                <select
+                                  name="reason"
+                                  required
+                                  disabled={currentStep === 6}
+                                  className="
+    w-full
+    border border-gray-300
+    rounded-md
+    p-2.5
+    text-sm
+    text-gray-800
+    focus:border-blue-500
+    focus:ring-1
+    focus:ring-blue-500
+    outline-none
+    bg-white
+    disabled:bg-gray-50
+    disabled:text-gray-500
+  "
+                                  value={formData.reason}
+                                  onChange={handleInputChange}
+                                >
+                                  <option value="">
+                                    -- Chọn lý do --
+                                  </option>
+
+                                  <option value="ca_nhan">
+                                    Lý do cá nhân
+                                  </option>
+
+                                  <option value="kinh_te">
+                                    Lý do kinh tế / gia đình
+                                  </option>
+
+                                  <option value="suc_khoe">
+                                    Lý do sức khỏe
+                                  </option>
+
+                                  <option value="chuyen_truong">
+                                    Chuyển sang trường khác
+                                  </option>
+
+                                  <option value="khac">
+                                    Lý do khác
+                                  </option>
+                                </select>
                               </div>
                               <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Ngày dự kiến thôi học <span className="text-red-500">*</span></label>
-                                {currentStep === 1 ? (
-                                  <input type="date" name="expectedDate" required className="w-full border border-gray-300 rounded-md p-2.5 text-sm text-gray-800 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none bg-white" value={formData.expectedDate} onChange={handleInputChange} />
-                                ) : (
-                                  <div className="w-full border border-gray-200 bg-gray-50 rounded-md p-2.5 text-sm text-gray-800">{formData.expectedDate}</div>
-                                )}
+                                <input
+                                  type="date"
+                                  name="expectedDate"
+                                  required
+                                  disabled={currentStep === 6}
+                                  className="w-full border border-gray-300 rounded-md p-2.5 text-sm text-gray-800 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none bg-white disabled:bg-gray-50 disabled:text-gray-500"
+                                  value={formData.expectedDate}
+                                  onChange={handleInputChange}
+                                />
                               </div>
                               <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Địa chỉ liên hệ sau khi thôi học <span className="text-red-500">*</span></label>
-                                {currentStep === 1 ? (
-                                  <input type="text" name="contactAddress" required placeholder="VD: 123 Nguyễn Văn Linh, Đà Nẵng" className="w-full border border-gray-300 rounded-md p-2.5 text-sm text-gray-800 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none bg-white" value={formData.contactAddress} onChange={handleInputChange} />
-                                ) : (
-                                  <div className="w-full border border-gray-200 bg-gray-50 rounded-md p-2.5 text-sm text-gray-800">{formData.contactAddress}</div>
-                                )}
+                                <input
+                                  type="text"
+                                  name="contactAddress"
+                                  required
+                                  disabled={currentStep === 6}
+                                  placeholder="VD: 123 Nguyễn Văn Linh, Đà Nẵng"
+                                  className="w-full border border-gray-300 rounded-md p-2.5 text-sm text-gray-800 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none bg-white disabled:bg-gray-50 disabled:text-gray-500"
+                                  value={formData.contactAddress}
+                                  onChange={handleInputChange}
+                                />
                               </div>
                               <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Ghi chú thêm (nếu có)</label>
-                                {currentStep === 1 ? (
-                                  <textarea name="notes" rows={3} placeholder="VD: Đề nghị xem xét hoàn trả học phí học kỳ hiện tại..." className="w-full border border-gray-300 rounded-md p-2.5 text-sm text-gray-800 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none resize-none bg-white" value={formData.notes} onChange={handleInputChange} />
-                                ) : (
-                                  <div className="w-full border border-gray-200 bg-gray-50 rounded-md p-2.5 text-sm text-gray-800 min-h-[80px]">{formData.notes || 'Không có ghi chú'}</div>
-                                )}
+                                <textarea
+                                  name="notes"
+                                  rows={3}
+                                  disabled={currentStep === 6}
+                                  placeholder="VD: Đề nghị xem xét hoàn trả học phí học kỳ hiện tại..."
+                                  className="w-full border border-gray-300 rounded-md p-2.5 text-sm text-gray-800 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none resize-none bg-white disabled:bg-gray-50 disabled:text-gray-500"
+                                  value={formData.notes}
+                                  onChange={handleInputChange}
+                                />
                               </div>
                             </div>
                           </div>
@@ -1383,13 +1603,13 @@ export default function DropoutPage() {
                       <AlertTriangle className="text-red-500" size={18} />
                       <h3 className="font-semibold text-red-600 text-sm">Điều khoản cần xác nhận</h3>
                     </div>
-                    
+
                     <div className="p-5 space-y-4 text-sm text-gray-700">
                       <div className="flex gap-3 items-start"><span className="w-6 h-6 rounded-full bg-red-100 text-red-600 flex items-center justify-center font-semibold text-xs shrink-0">1</span><p>Quyết định thôi học có hiệu lực pháp lý và không thể thu hồi sau khi Ban Giám hiệu phê duyệt.</p></div>
                       <div className="flex gap-3 items-start"><span className="w-6 h-6 rounded-full bg-red-100 text-red-600 flex items-center justify-center font-semibold text-xs shrink-0">2</span><p>Mọi kết quả học tập, điểm số và tín chỉ tích lũy sẽ không được bảo lưu sau khi thôi học.</p></div>
                       <div className="flex gap-3 items-start"><span className="w-6 h-6 rounded-full bg-red-100 text-red-600 flex items-center justify-center font-semibold text-xs shrink-0">3</span><p>Học phí đã đóng cho học kỳ hiện tại sẽ được xem xét hoàn trả theo quy định của Nhà trường.</p></div>
                       <div className="flex gap-3 items-start"><span className="w-6 h-6 rounded-full bg-red-100 text-red-600 flex items-center justify-center font-semibold text-xs shrink-0">4</span><p>Sinh viên có trách nhiệm hoàn thành các nghĩa vụ tài chính (nếu còn nợ học phí) trước khi nộp đơn.</p></div>
-                      
+
                       <div className="mt-6 pt-4 border-t border-gray-100">
                         <label className="flex items-center gap-3 cursor-pointer">
                           <input type="checkbox" disabled={currentStep > 2} className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50" checked={isAgreed} onChange={(e) => setIsAgreed(e.target.checked)} />
@@ -1521,11 +1741,10 @@ export default function DropoutPage() {
                   {uploadState === "idle" && (
                     <div
                       onClick={triggerFileInput}
-                      className={`border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center transition ${
-                        currentStep === 4
-                          ? "border-blue-300 bg-blue-50/50 cursor-pointer hover:bg-blue-50"
-                          : "border-gray-200 bg-gray-50 opacity-60 cursor-default"
-                      }`}
+                      className={`border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center transition ${currentStep === 4
+                        ? "border-blue-300 bg-blue-50/50 cursor-pointer hover:bg-blue-50"
+                        : "border-gray-200 bg-gray-50 opacity-60 cursor-default"
+                        }`}
                     >
                       <div className="bg-blue-100 text-blue-600 p-3 rounded-full mb-3">
                         <UploadCloud size={24} />
@@ -1639,11 +1858,10 @@ export default function DropoutPage() {
                             return (
                               <div
                                 key={item.key}
-                                className={`rounded-lg border p-4 flex flex-col items-center justify-center gap-2 ${
-                                  check.present
-                                    ? "bg-green-50 border-green-200"
-                                    : "bg-red-50 border-red-200"
-                                }`}
+                                className={`rounded-lg border p-4 flex flex-col items-center justify-center gap-2 ${check.present
+                                  ? "bg-green-50 border-green-200"
+                                  : "bg-red-50 border-red-200"
+                                  }`}
                               >
                                 <User
                                   size={19}
@@ -1655,11 +1873,10 @@ export default function DropoutPage() {
                                 />
 
                                 <span
-                                  className={`text-xs font-semibold text-center ${
-                                    check.present
-                                      ? "text-green-800"
-                                      : "text-red-800"
-                                  }`}
+                                  className={`text-xs font-semibold text-center ${check.present
+                                    ? "text-green-800"
+                                    : "text-red-800"
+                                    }`}
                                 >
                                   {item.label}
                                 </span>
@@ -1759,7 +1976,7 @@ export default function DropoutPage() {
                     {currentStep === 6 ? 'Đã nộp' : 'Chờ tiếp nhận'}
                   </span>
                 </div>
-                
+
                 <button
                   type="button"
                   onClick={
@@ -1793,7 +2010,7 @@ export default function DropoutPage() {
                     <Check size={14} />
                   </span>
                 </button>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-6 text-sm mb-6">
                   <div className="flex justify-between md:flex-col md:gap-1 border-b md:border-none border-gray-100 pb-2 md:pb-0"><span className="text-gray-500">Sinh viên:</span> <span className="font-semibold text-gray-800">{studentProfile.fullName}</span></div>
                   <div className="flex justify-between md:flex-col md:gap-1 border-b md:border-none border-gray-100 pb-2 md:pb-0"><span className="text-gray-500">MSSV:</span> <span className="font-semibold text-gray-800">{studentProfile.studentId}</span></div>
@@ -1847,14 +2064,14 @@ export default function DropoutPage() {
                   <div className="bg-slate-50 border-b border-gray-200 p-4">
                     <h4 className="font-bold text-gray-800 text-center text-sm">Xem chi tiết hồ sơ</h4>
                   </div>
-                  
+
                   <div className="p-6">
                     <div className="flex justify-between items-start mb-6">
                       <div>
                         <p className="text-xs text-gray-400 mb-1">Mã hồ sơ</p>
                         <p className="font-bold text-gray-800 text-lg">{trackingCode || requestId || 'Đang cập nhật'}</p>
                         <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
-                          Thời gian nộp: {new Date().toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'})} — {new Date().toLocaleDateString('vi-VN')}
+                          Thời gian nộp: {new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} — {new Date().toLocaleDateString('vi-VN')}
                         </p>
                       </div>
                       <span className="bg-[#0070F4] text-white px-3 py-1 rounded-full text-xs font-bold shadow-sm">
@@ -1938,9 +2155,8 @@ export default function DropoutPage() {
           style={{
             backgroundColor:
               toastMessage.type === 'success' ? '#ECFDF5' : '#FEF2F2',
-            border: `1px solid ${
-              toastMessage.type === 'success' ? '#10B981' : '#EF4444'
-            }`,
+            border: `1px solid ${toastMessage.type === 'success' ? '#10B981' : '#EF4444'
+              }`,
           }}
         >
           {toastMessage.type === 'success' ? (
@@ -1950,11 +2166,10 @@ export default function DropoutPage() {
           )}
 
           <span
-            className={`text-sm font-medium ${
-              toastMessage.type === 'success'
-                ? 'text-[#065F46]'
-                : 'text-[#991B1B]'
-            }`}
+            className={`text-sm font-medium ${toastMessage.type === 'success'
+              ? 'text-[#065F46]'
+              : 'text-[#991B1B]'
+              }`}
           >
             {toastMessage.text}
           </span>
@@ -1962,11 +2177,10 @@ export default function DropoutPage() {
           <button
             type="button"
             onClick={() => setToastMessage(null)}
-            className={`ml-4 ${
-              toastMessage.type === 'success'
-                ? 'text-[#065F46]'
-                : 'text-[#991B1B]'
-            } hover:opacity-70 transition-opacity`}
+            className={`ml-4 ${toastMessage.type === 'success'
+              ? 'text-[#065F46]'
+              : 'text-[#991B1B]'
+              } hover:opacity-70 transition-opacity`}
           >
             <X size={16} />
           </button>

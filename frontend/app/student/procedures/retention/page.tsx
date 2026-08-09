@@ -43,6 +43,7 @@ type RetentionOCRResult = {
   detected_document_type?: string;
   validation_reason?: string;
   error_message?: string;
+  extracted_fields?: Record<string, unknown>;
 
   signature_checks: {
     parent_guardian: SignatureCheck;
@@ -193,7 +194,66 @@ useEffect(() => {
   // --- Handlers Bước 1 ---
   const handleStart = () => setIsStarted(true);
   const handleCancel = () => router.push('/student/dashboard');
-  const handleInputChange = (field: keyof typeof formData, value: string) => setFormData(prev => ({ ...prev, [field]: value }));
+
+  // Chuẩn hóa MSSV trước khi đối chiếu OCR với dữ liệu tài khoản.
+  const normalizeStudentId = (value: unknown): string => {
+    return String(value ?? "")
+      .replace(/\s+/g, "")
+      .trim()
+      .toUpperCase();
+  };
+
+  /*
+   * Nếu sinh viên sửa thông tin sau khi hệ thống đã tạo/tải đơn,
+   * đơn cũ và kết quả OCR không còn khớp với dữ liệu mới.
+   * Tự đưa quy trình về bước 1 để kiểm tra điều kiện và tạo lại đơn.
+   * Không cần thêm nút "Chỉnh sửa" hay "Quay lại".
+   */
+  const invalidateGeneratedRetentionAfterEdit = async () => {
+    if (currentStep < 2 || currentStep >= 5) {
+      return;
+    }
+
+    try {
+      if (signedApplicationDocument) {
+        await deleteProcedureDraftDocument(
+          "ACADEMIC_LEAVE",
+          signedApplicationDocument.id
+        );
+      }
+    } catch (error) {
+      console.error(
+        "Không thể xóa đơn bảo lưu cũ sau khi chỉnh sửa:",
+        error
+      );
+    }
+
+    setDownloadState("idle");
+    setDocFile(null);
+    setSignedApplicationDocument(null);
+    setScanState("idle");
+    setScanErrorType(null);
+    setAiResult(null);
+    setCurrentStep(1);
+
+    if (docFileRef.current) {
+      docFileRef.current.value = "";
+    }
+  };
+
+  const handleInputChange = (
+    field: keyof RetentionFormData,
+    value: string
+  ) => {
+    setFormData((previous) => ({
+      ...previous,
+      [field]: value,
+    }));
+
+    if (currentStep >= 2 && currentStep < 5) {
+      void invalidateGeneratedRetentionAfterEdit();
+    }
+  };
   const handleEvidenceChange = async (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
@@ -319,8 +379,79 @@ useEffect(() => {
           : "Không thể mở file minh chứng."
       );
     }
-  };
-  const handleSubmitForm = () => setCurrentStep(2);
+  };const handleSubmitForm = async () => {
+  const reason = formData.reason.trim();
+  const duration = formData.duration.trim();
+
+  if (!reason) {
+    alert("Vui lòng chọn lý do xin nghỉ học.");
+    return;
+  }
+
+  if (!duration) {
+    alert("Vui lòng chọn thời gian bảo lưu.");
+    return;
+  }
+
+  const accessToken =
+    localStorage.getItem("access_token") ||
+    localStorage.getItem("access");
+
+  if (!accessToken) {
+    alert(
+      "Phiên đăng nhập đã hết hạn. " +
+      "Vui lòng đăng nhập lại."
+    );
+
+    router.push("/login");
+    return;
+  }
+
+  const apiBase = (
+    process.env.NEXT_PUBLIC_API_URL ||
+    "http://127.0.0.1:8000/api"
+  ).replace(/\/$/, "");
+
+  try {
+    const response = await axios.post(
+      `${apiBase}/documents/retention/check-eligibility/`,
+      {
+        reason,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    );
+
+    if (response.data?.eligible === true) {
+      setCurrentStep(2);
+    }
+  } catch (error) {
+    console.error(
+      "Lỗi kiểm tra điều kiện bảo lưu:",
+      error
+    );
+
+    if (axios.isAxiosError(error)) {
+      const data = error.response?.data;
+
+      alert(
+        data?.reason ||
+        data?.detail ||
+        data?.message ||
+        "Không đủ điều kiện thực hiện thủ tục."
+      );
+
+      return;
+    }
+
+    alert(
+      "Không thể kiểm tra điều kiện bảo lưu."
+    );
+  }
+};
 
   // --- Handlers Bước 2 ---
   const handleDownloadDoc = async () => {
@@ -435,146 +566,52 @@ useEffect(() => {
 
   // --- Handlers Bước 3 ---
   const handleDocFileChange = async (
-  event: React.ChangeEvent<HTMLInputElement>
-) => {
-  const file = event.target.files?.[0];
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
 
-  if (!file) return;
+    if (!file) return;
 
-  setDocFile(file);
-  setScanState("scanning");
-  setScanErrorType(null);
-  setAiResult(null);
+    setDocFile(file);
+    setScanState("scanning");
+    setScanErrorType(null);
+    setAiResult(null);
 
-  const emptySignatureChecks = {
-    parent_guardian: {
-      present: false,
-    },
-    applicant: {
-      present: false,
-    },
-    faculty_leader: {
-      present: false,
-    },
-  };
+    const emptySignatureChecks = {
+      parent_guardian: {
+        present: false,
+      },
+      applicant: {
+        present: false,
+      },
+      faculty_leader: {
+        present: false,
+      },
+    };
 
-  const extension =
-    file.name
-      .split(".")
-      .pop()
-      ?.toLowerCase() || "";
+    const extension =
+      file.name
+        .split(".")
+        .pop()
+        ?.toLowerCase() || "";
 
-  const allowedExtensions = [
-    "pdf",
-    "png",
-    "jpg",
-    "jpeg",
-  ];
+    const allowedExtensions = [
+      "pdf",
+      "png",
+      "jpg",
+      "jpeg",
+    ];
 
-  // Kiểm tra định dạng ngầm.
-  if (!allowedExtensions.includes(extension)) {
-    setAiResult({
-      format_valid: false,
-      is_match: false,
-      accepted: false,
-
-      validation_reason:
-        "Định dạng file không hợp lệ. " +
-        "Chỉ chấp nhận PDF, JPG, JPEG hoặc PNG.",
-
-      signature_checks:
-        emptySignatureChecks,
-    });
-
-    setScanErrorType("document");
-    setScanState("error");
-    return;
-  }
-
-  const accessToken =
-    localStorage.getItem("access_token") ||
-    localStorage.getItem("access");
-
-  if (!accessToken) {
-    setScanState("idle");
-
-    alert(
-      "Phiên đăng nhập đã hết hạn. " +
-      "Vui lòng đăng nhập lại."
-    );
-
-    router.push("/login");
-    return;
-  }
-
-  const uploadData = new FormData();
-
-  uploadData.append(
-    "uploaded_file",
-    file
-  );
-
-  uploadData.append(
-    "document_type",
-    "RETENTION_SIGNED_APPLICATION"
-  );
-
-  const configuredApi =
-    process.env.NEXT_PUBLIC_API_URL ||
-    "http://127.0.0.1:8000";
-
-  const apiBase =
-    configuredApi.replace(/\/$/, "");
-
-  const ocrUrl = apiBase.endsWith("/api")
-    ? `${apiBase}/ocr/verify/`
-    : `${apiBase}/api/ocr/verify/`;
-
-  try {
-    const response = await axios.post(
-      ocrUrl,
-      uploadData,
-      {
-        headers: {
-          Authorization:
-            `Bearer ${accessToken}`,
-        },
-      }
-    );
-
-    const data = response.data;
-
-    console.log(
-      "Kết quả OCR bảo lưu:",
-      data
-    );
-
-    // Kiểm tra ngầm tài liệu có đúng
-    // Đơn xin nghỉ học tạm thời hay không.
-    const correctDocument =
-      data.is_match === true &&
-      data.detected_document_type ===
-        "RETENTION_SIGNED_APPLICATION";
-
-    if (!correctDocument) {
+    // Kiểm tra định dạng ngầm.
+    if (!allowedExtensions.includes(extension)) {
       setAiResult({
-        format_valid: true,
+        format_valid: false,
         is_match: false,
         accepted: false,
-
-        detected_document_type:
-          data.detected_document_type,
-
         validation_reason:
-          data.validation_reason ||
-          "File tải lên không phải " +
-          "Đơn xin nghỉ học tạm thời.",
-
-        error_message:
-          data.error_message,
-
-        signature_checks:
-          emptySignatureChecks,
+          "Định dạng file không hợp lệ. " +
+          "Chỉ chấp nhận PDF, JPG, JPEG hoặc PNG.",
+        signature_checks: emptySignatureChecks,
       });
 
       setScanErrorType("document");
@@ -582,195 +619,404 @@ useEffect(() => {
       return;
     }
 
-    const signatureChecks = {
-      parent_guardian: {
-        present:
-          data.signature_checks
-            ?.parent_guardian
-            ?.present === true,
+    const accessToken =
+      localStorage.getItem("access_token") ||
+      localStorage.getItem("access");
 
-        confidence:
-          data.signature_checks
-            ?.parent_guardian
-            ?.confidence,
+    if (!accessToken) {
+      setScanState("idle");
 
-        evidence:
-          data.signature_checks
-            ?.parent_guardian
-            ?.evidence,
-      },
+      alert(
+        "Phiên đăng nhập đã hết hạn. " +
+        "Vui lòng đăng nhập lại."
+      );
 
-      applicant: {
-        present:
-          data.signature_checks
-            ?.applicant
-            ?.present === true,
-
-        confidence:
-          data.signature_checks
-            ?.applicant
-            ?.confidence,
-
-        evidence:
-          data.signature_checks
-            ?.applicant
-            ?.evidence,
-      },
-
-      faculty_leader: {
-        present: false,
-        confidence: 0,
-        evidence:
-          "Đơn bảo lưu không yêu cầu chữ ký Lãnh đạo Khoa.",
-      },
-    };
-
-    const allSignaturesPresent =
-      signatureChecks.parent_guardian.present &&
-      signatureChecks.applicant.present;
-
-    const normalizedResult:
-      RetentionOCRResult = {
-      format_valid: true,
-      is_match: true,
-
-      accepted:
-        data.accepted === true &&
-        allSignaturesPresent,
-
-      detected_document_type:
-        data.detected_document_type,
-
-      validation_reason:
-        data.validation_reason,
-
-      error_message:
-        data.error_message,
-
-      signature_checks:
-        signatureChecks,
-    };
-
-    setAiResult(normalizedResult);
-
-    if (!allSignaturesPresent) {
-      setScanErrorType("signature");
-      setScanState("error");
+      router.push("/login");
       return;
     }
 
-    const savedDocument =
-      await uploadProcedureDraftDocument(
-        "ACADEMIC_LEAVE",
-        "ACADEMIC_LEAVE_SIGNED_APPLICATION",
-        file
-      );
+    const uploadData = new FormData();
 
-    setDocFile(file);
-    setSignedApplicationDocument(
-      savedDocument
+    uploadData.append(
+      "uploaded_file",
+      file
     );
-    setScanErrorType(null);
-    setScanState("success");
+
+    uploadData.append(
+      "document_type",
+      "RETENTION_SIGNED_APPLICATION"
+    );
+
+    const configuredApi =
+      process.env.NEXT_PUBLIC_API_URL ||
+      "http://127.0.0.1:8000";
+
+    const apiBase =
+      configuredApi.replace(/\/$/, "");
+
+    const ocrUrl = apiBase.endsWith("/api")
+      ? `${apiBase}/ocr/verify/`
+      : `${apiBase}/api/ocr/verify/`;
 
     try {
-      await saveProcedureDraft<RetentionDraftData>(
-        "ACADEMIC_LEAVE",
+      const response = await axios.post(
+        ocrUrl,
+        uploadData,
         {
-          isStarted: true,
-          currentStep: 3,
-          draftData: {
-            formData,
-            downloadState,
-            scanState: "success",
-            scanErrorType: null,
-            aiResult: normalizedResult,
-            trackingCode,
-            requestId,
-            evidenceFileName:
-              evidenceFile?.name ??
-              evidenceDocument?.original_name ??
-              null,
-            signedApplicationFileName:
-              savedDocument.original_name,
-            evidenceDocumentId:
-              evidenceDocument?.id ?? null,
-            signedApplicationDocumentId:
-              savedDocument.id,
+          headers: {
+            Authorization:
+              `Bearer ${accessToken}`,
           },
         }
       );
-    } catch (draftError) {
-      console.error(
-        "Không thể lưu bước 3 bảo lưu:",
-        draftError
+
+      /*
+       * Backend OCR có thể trả kết quả trực tiếp hoặc bọc trong "analysis".
+       * Chuẩn hóa về cùng một cấu trúc trước khi kiểm tra.
+       */
+      const rawResult = response.data;
+      const analysis =
+        rawResult?.analysis ??
+        rawResult;
+
+      const data = {
+        ...rawResult,
+        format_valid:
+          rawResult?.format_valid ??
+          analysis?.format_valid,
+        is_match:
+          rawResult?.is_match ??
+          analysis?.is_match,
+        accepted:
+          rawResult?.accepted ??
+          analysis?.accepted,
+        detected_document_type:
+          rawResult?.detected_document_type ??
+          analysis?.detected_document_type,
+        validation_reason:
+          rawResult?.validation_reason ??
+          analysis?.validation_reason,
+        error_message:
+          rawResult?.error_message ??
+          analysis?.error_message,
+        extracted_fields:
+          rawResult?.extracted_fields ??
+          analysis?.extracted_fields ??
+          {},
+        signature_checks:
+          rawResult?.signature_checks ??
+          analysis?.signature_checks ??
+          {},
+      };
+
+      console.log(
+        "Kết quả OCR bảo lưu:",
+        data
       );
-    }
-  } catch (error) {
-    console.error(
-      "Lỗi kiểm tra OCR bảo lưu:",
-      error
-    );
 
-    let message =
-      "Không thể xử lý tài liệu.";
+      // Kiểm tra ngầm tài liệu có đúng Đơn xin nghỉ học tạm thời hay không.
+      const correctDocument =
+        data.is_match === true &&
+        data.detected_document_type ===
+          "RETENTION_SIGNED_APPLICATION";
 
-    if (axios.isAxiosError(error)) {
-      const statusCode =
-        error.response?.status;
+      if (!correctDocument) {
+        setAiResult({
+          format_valid: true,
+          is_match: false,
+          accepted: false,
+          detected_document_type:
+            data.detected_document_type,
+          validation_reason:
+            data.validation_reason ||
+            "File tải lên không phải " +
+            "Đơn xin nghỉ học tạm thời.",
+          error_message:
+            data.error_message,
+          extracted_fields:
+            data.extracted_fields,
+          signature_checks:
+            emptySignatureChecks,
+        });
 
-      const errorData =
-        error.response?.data;
-
-      console.error(
-        "OCR retention backend response:",
-        errorData
-      );
-
-      if (statusCode === 401) {
-        localStorage.removeItem("access");
-        localStorage.removeItem(
-          "access_token"
-        );
-
-        alert(
-          "Phiên đăng nhập đã hết hạn. " +
-          "Vui lòng đăng nhập lại."
-        );
-
-        router.push("/login");
+        setScanErrorType("document");
+        setScanState("error");
         return;
       }
 
-      message =
-        errorData?.error_message ||
-        errorData?.detail ||
-        errorData?.validation_reason ||
-        errorData?.uploaded_file?.[0] ||
-        errorData?.document_type?.[0] ||
-        message;
-    } else if (error instanceof Error) {
-      message = error.message;
+      /*
+       * Đối chiếu MSSV trên Đơn xin nghỉ học tạm thời đã ký
+       * với MSSV chính chủ lấy từ CSDL của tài khoản đang đăng nhập.
+       * Sai/không đọc được MSSV chỉ hiện popup riêng, không hiển thị
+       * khối "Tài liệu không hợp lệ" vì file vẫn có thể đúng loại đơn.
+       */
+      const extractedStudentId =
+        normalizeStudentId(
+          data.extracted_fields?.student_id
+        );
+
+      let expectedStudentId =
+        normalizeStudentId(
+          profile?.studentId
+        );
+
+      // Nếu profile chưa kịp tải thì lấy lại trực tiếp từ backend.
+      if (!expectedStudentId) {
+        try {
+          const freshProfile =
+            await getRetentionProfile();
+
+          setProfile(freshProfile);
+          expectedStudentId =
+            normalizeStudentId(
+              freshProfile.studentId
+            );
+        } catch (profileError) {
+          console.error(
+            "Không thể lấy MSSV sinh viên để đối chiếu:",
+            profileError
+          );
+        }
+      }
+
+      if (!expectedStudentId) {
+        setAiResult(null);
+        setScanErrorType(null);
+        setScanState("idle");
+        setDocFile(null);
+
+        if (docFileRef.current) {
+          docFileRef.current.value = "";
+        }
+
+        window.alert(
+          "Không xác định được mã số sinh viên của tài khoản đang đăng nhập. " +
+          "Vui lòng tải lại trang hoặc đăng nhập lại."
+        );
+
+        return;
+      }
+
+      if (!extractedStudentId) {
+        setAiResult(null);
+        setScanErrorType(null);
+        setScanState("idle");
+        setDocFile(null);
+
+        if (docFileRef.current) {
+          docFileRef.current.value = "";
+        }
+
+        window.alert(
+          "Không đọc được mã số sinh viên trên Đơn xin nghỉ học tạm thời. " +
+          "Vui lòng kiểm tra file rõ nét và tải lại."
+        );
+
+        return;
+      }
+
+      if (extractedStudentId !== expectedStudentId) {
+        setAiResult(null);
+        setScanErrorType(null);
+        setScanState("idle");
+        setDocFile(null);
+
+        if (docFileRef.current) {
+          docFileRef.current.value = "";
+        }
+
+        window.alert(
+          `Mã số sinh viên trên đơn (${extractedStudentId}) ` +
+          `không khớp với mã số sinh viên của tài khoản ` +
+          `đang đăng nhập (${expectedStudentId}). ` +
+          "Vui lòng tải đúng đơn của bạn."
+        );
+
+        return;
+      }
+
+      const signatureChecks = {
+        parent_guardian: {
+          present:
+            data.signature_checks
+              ?.parent_guardian
+              ?.present === true,
+          confidence:
+            data.signature_checks
+              ?.parent_guardian
+              ?.confidence,
+          evidence:
+            data.signature_checks
+              ?.parent_guardian
+              ?.evidence,
+        },
+
+        applicant: {
+          present:
+            data.signature_checks
+              ?.applicant
+              ?.present === true,
+          confidence:
+            data.signature_checks
+              ?.applicant
+              ?.confidence,
+          evidence:
+            data.signature_checks
+              ?.applicant
+              ?.evidence,
+        },
+
+        faculty_leader: {
+          present: false,
+          confidence: 0,
+          evidence:
+            "Đơn bảo lưu không yêu cầu chữ ký Lãnh đạo Khoa.",
+        },
+      };
+
+      const allSignaturesPresent =
+        signatureChecks.parent_guardian.present &&
+        signatureChecks.applicant.present;
+
+      const normalizedResult:
+        RetentionOCRResult = {
+        format_valid: true,
+        is_match: true,
+        accepted:
+          data.accepted === true &&
+          allSignaturesPresent,
+        detected_document_type:
+          data.detected_document_type,
+        validation_reason:
+          data.validation_reason,
+        error_message:
+          data.error_message,
+        extracted_fields:
+          data.extracted_fields,
+        signature_checks:
+          signatureChecks,
+      };
+
+      setAiResult(normalizedResult);
+
+      if (!allSignaturesPresent) {
+        setScanErrorType("signature");
+        setScanState("error");
+        return;
+      }
+
+      const savedDocument =
+        await uploadProcedureDraftDocument(
+          "ACADEMIC_LEAVE",
+          "ACADEMIC_LEAVE_SIGNED_APPLICATION",
+          file
+        );
+
+      setDocFile(file);
+      setSignedApplicationDocument(
+        savedDocument
+      );
+      setScanErrorType(null);
+      setScanState("success");
+
+      try {
+        await saveProcedureDraft<RetentionDraftData>(
+          "ACADEMIC_LEAVE",
+          {
+            isStarted: true,
+            currentStep: 3,
+            draftData: {
+              formData,
+              downloadState,
+              scanState: "success",
+              scanErrorType: null,
+              aiResult: normalizedResult,
+              trackingCode,
+              requestId,
+              evidenceFileName:
+                evidenceFile?.name ??
+                evidenceDocument?.original_name ??
+                null,
+              signedApplicationFileName:
+                savedDocument.original_name,
+              evidenceDocumentId:
+                evidenceDocument?.id ?? null,
+              signedApplicationDocumentId:
+                savedDocument.id,
+            },
+          }
+        );
+      } catch (draftError) {
+        console.error(
+          "Không thể lưu bước 3 bảo lưu:",
+          draftError
+        );
+      }
+    } catch (error) {
+      console.error(
+        "Lỗi kiểm tra OCR bảo lưu:",
+        error
+      );
+
+      let message =
+        "Không thể xử lý tài liệu.";
+
+      if (axios.isAxiosError(error)) {
+        const statusCode =
+          error.response?.status;
+
+        const errorData =
+          error.response?.data;
+
+        console.error(
+          "OCR retention backend response:",
+          errorData
+        );
+
+        if (statusCode === 401) {
+          localStorage.removeItem("access");
+          localStorage.removeItem(
+            "access_token"
+          );
+
+          alert(
+            "Phiên đăng nhập đã hết hạn. " +
+            "Vui lòng đăng nhập lại."
+          );
+
+          router.push("/login");
+          return;
+        }
+
+        message =
+          errorData?.error_message ||
+          errorData?.detail ||
+          errorData?.validation_reason ||
+          errorData?.uploaded_file?.[0] ||
+          errorData?.document_type?.[0] ||
+          message;
+      } else if (error instanceof Error) {
+        message = error.message;
+      }
+
+      setAiResult({
+        format_valid: false,
+        is_match: false,
+        accepted: false,
+        validation_reason: message,
+        signature_checks:
+          emptySignatureChecks,
+      });
+
+      setScanErrorType("document");
+      setScanState("error");
+    } finally {
+      if (docFileRef.current) {
+        docFileRef.current.value = "";
+      }
     }
+  };
 
-    setAiResult({
-      format_valid: false,
-      is_match: false,
-      accepted: false,
-      validation_reason: message,
-
-      signature_checks:
-        emptySignatureChecks,
-    });
-
-    setScanErrorType("document");
-    setScanState("error");
-  } finally {
-    if (docFileRef.current) {
-      docFileRef.current.value = "";
-    }
-  }
-};
 
 const handleOpenSignedApplication = async () => {
   if (docFile) {
@@ -1395,7 +1641,7 @@ const handleRetryScan = () => {
                             <div className="space-y-5">
                               <div>
                                 <label className="text-xs font-semibold text-gray-400 mb-2 uppercase block">Lý do xin nghỉ <span className="text-red-500">*</span></label>
-                                <select disabled={currentStep > 1} value={formData.reason} onChange={(e) => handleInputChange('reason', e.target.value)} className="w-full border border-gray-300 rounded-lg p-2.5 text-sm text-gray-700 outline-none focus:border-blue-500 bg-white disabled:bg-gray-50">
+                                <select disabled={currentStep === 5} value={formData.reason} onChange={(e) => handleInputChange('reason', e.target.value)} className="w-full border border-gray-300 rounded-lg p-2.5 text-sm text-gray-700 outline-none focus:border-blue-500 bg-white disabled:bg-gray-50">
                                   <option value="">-- Chọn lý do --</option>
                                   <option value="Cá nhân">Lý do cá nhân</option>
                                   <option value="Sức khỏe">Lý do sức khỏe</option>
@@ -1411,7 +1657,7 @@ const handleRetryScan = () => {
                                 <input
                                   type="text"
                                   list="retention-duration-options"
-                                  disabled={currentStep > 1}
+                                  disabled={currentStep === 5}
                                   value={formData.duration}
                                   onChange={(e) =>
                                     handleInputChange("duration", e.target.value)
@@ -1431,13 +1677,13 @@ const handleRetryScan = () => {
                               <div>
                                 <label className="text-xs font-semibold text-gray-400 mb-2 uppercase block">Tài liệu đính kèm (nếu có)</label>
                                 <div className="flex flex-col gap-3">
-                                  <input disabled={currentStep > 1} type="text" placeholder="Ghi chú thêm (VD: Giấy xác nhận bệnh viện...)" value={formData.attachmentNote} onChange={(e) => handleInputChange('attachmentNote', e.target.value)} className="w-full border border-gray-300 rounded-lg p-2.5 text-sm text-gray-700 outline-none focus:border-blue-500 bg-white disabled:bg-gray-50" />
+                                  <input disabled={currentStep === 5} type="text" placeholder="Ghi chú thêm (VD: Giấy xác nhận bệnh viện...)" value={formData.attachmentNote} onChange={(e) => handleInputChange('attachmentNote', e.target.value)} className="w-full border border-gray-300 rounded-lg p-2.5 text-sm text-gray-700 outline-none focus:border-blue-500 bg-white disabled:bg-gray-50" />
                                   {!evidenceFile && !evidenceDocument ? (
-                                    <div onClick={() => currentStep === 1 && evidenceFileRef.current?.click()} className={`border-2 border-dashed border-gray-300 rounded-lg p-5 flex flex-col items-center justify-center transition bg-white ${currentStep === 1 ? 'cursor-pointer hover:bg-gray-50' : 'opacity-60 cursor-not-allowed'}`}>
+                                    <div onClick={() => currentStep < 5 && evidenceFileRef.current?.click()} className={`border-2 border-dashed border-gray-300 rounded-lg p-5 flex flex-col items-center justify-center transition bg-white ${currentStep < 5 ? 'cursor-pointer hover:bg-gray-50' : 'opacity-60 cursor-not-allowed'}`}>
                                       <UploadCloud size={28} className="text-blue-500 mb-2" />
                                       <p className="text-sm text-gray-700 font-medium mb-1">Nhấn để tải lên file minh chứng</p>
                                       <p className="text-xs text-gray-400">Bệnh án, giấy gọi NVQS...</p>
-                                      <input type="file" className="hidden" ref={evidenceFileRef} onChange={handleEvidenceChange} accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" />
+                                      <input type="file" className="hidden" ref={evidenceFileRef} onChange={handleEvidenceChange} accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" disabled={currentStep === 5} />
                                     </div>
                                   ) : (
                                     <div
@@ -1465,7 +1711,7 @@ const handleRetryScan = () => {
                                             "File minh chứng"}
                                         </span>
                                       </div>
-                                      {currentStep === 1 && (
+                                      {currentStep < 5 && (
                                         <button
                                           type="button"
                                           onClick={(event) => {

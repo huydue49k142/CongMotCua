@@ -177,30 +177,8 @@ export default function StaffRequestDetailPage() {
   };
 
   const openActionModal = (action: 'REJECT' | 'REQUEST_INFO') => {
-    if (action === 'REQUEST_INFO') {
-      // Với hồ sơ cũ đã ở trạng thái yêu cầu bổ sung, cho phép cán bộ
-      // mở lại modal để chọn tài liệu cụ thể mà không phải đổi trạng thái thủ công.
-      const existingRequirements =
-        (
-          request as (DetailedRequest & {
-            supplement_requirements?: SupplementDocumentOption[];
-          }) | null
-        )?.supplement_requirements ?? [];
-
-      setSelectedDocumentKeys(
-        existingRequirements.map((item) => item.document_key)
-      );
-
-      // Giữ lại ghi chú yêu cầu bổ sung gần nhất để cán bộ có thể chỉnh sửa.
-      const latestSupplementHistory = request?.history?.find(
-        (item) => item.status === 'ADDITIONAL_INFO_REQUIRED'
-      );
-      setNotes(latestSupplementHistory?.notes ?? '');
-    } else {
-      setNotes('');
-      setSelectedDocumentKeys([]);
-    }
-
+    setNotes('');
+    setSelectedDocumentKeys([]);
     setActionModal({ isOpen: true, action });
   };
 
@@ -274,10 +252,7 @@ export default function StaffRequestDetailPage() {
   const shortId = `HS${request.id.split('-')[0].toUpperCase()}`;
 
   const canFinalAction = request.status === 'PENDING';
-  const canRequestSupplement = [
-    'PENDING',
-    'ADDITIONAL_INFO_REQUIRED',
-  ].includes(request.status);
+  const canRequestSupplement = request.status === 'PENDING';
 
   return (
     <div className="bg-slate-50 min-h-screen">
@@ -304,9 +279,7 @@ export default function StaffRequestDetailPage() {
               className="bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 px-5 py-2.5 rounded-md text-sm font-medium flex items-center gap-2 transition shadow-sm"
             >
               <Edit3 size={16} />
-              {request.status === 'ADDITIONAL_INFO_REQUIRED'
-                ? 'Cập nhật yêu cầu bổ sung'
-                : 'Yêu cầu bổ sung'}
+              Yêu cầu bổ sung
             </button>
           )}
 
@@ -520,9 +493,7 @@ export default function StaffRequestDetailPage() {
                 </div>
                 <div>
                   <h3 className="font-bold text-lg text-slate-800">
-                    {request.status === 'ADDITIONAL_INFO_REQUIRED'
-                      ? 'Cập nhật yêu cầu bổ sung'
-                      : 'Yêu cầu bổ sung hồ sơ'}
+                    Yêu cầu bổ sung hồ sơ
                   </h3>
                   <p className="text-sm text-slate-500 mt-0.5">
                     Mã hồ sơ: {shortId} • Sinh viên: {request.student_name}

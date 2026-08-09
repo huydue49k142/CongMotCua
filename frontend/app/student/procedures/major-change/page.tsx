@@ -220,6 +220,7 @@ export default function MajorChangePage() {
   const [isExtracting, setIsExtracting] = useState(false);
   const [formData, setFormData] = useState<MajorChangeProfile | null>(null);
   const [studentName, setStudentName] = useState<string>("bạn");
+  const [officialStudentId, setOfficialStudentId] = useState<string>("");
 
   // Trạng thái kiểm tra học vụ (Bước 3)
   const [academicChecked, setAcademicChecked] = useState(false)
@@ -665,6 +666,9 @@ export default function MajorChangePage() {
     getMajorChangeProfile()
       .then((data) => {
         setStudentName(data.fullName || "bạn");
+        setOfficialStudentId(
+          String(data.studentId || "").trim()
+        );
       })
       .catch((error) => {
         console.error(
@@ -686,6 +690,13 @@ export default function MajorChangePage() {
 
   const handleStart = () => setIsStarted(true);
   const handleCancel = () => router.push('/student/dashboard');
+
+  const normalizeStudentId = (value: unknown): string => {
+    return String(value ?? "")
+      .replace(/\s+/g, "")
+      .trim()
+      .toUpperCase();
+  };
 
   const getOCRVerifyUrl = () => {
     const configuredApi =
@@ -1041,6 +1052,42 @@ export default function MajorChangePage() {
 
     getMajorChangeProfile()
       .then((profile) => {
+        const expectedStudentId =
+          normalizeStudentId(profile.studentId);
+
+        const admissionStudentId =
+          normalizeStudentId(
+            admissionFields.student_id
+          );
+
+        /*
+         * Nếu Giấy báo trúng tuyển có OCR được MSSV,
+         * phải khớp với MSSV trong CSDL của tài khoản đăng nhập.
+         * Không dùng MSSV OCR để ghi đè MSSV chính chủ.
+         */
+        if (
+          admissionStudentId &&
+          expectedStudentId &&
+          admissionStudentId !== expectedStudentId
+        ) {
+          setFile1Status("error");
+          setFile1Error(
+            `Mã số sinh viên trên Giấy báo trúng tuyển (${admissionStudentId}) ` +
+            `không khớp với tài khoản đang đăng nhập (${expectedStudentId}).`
+          );
+
+          alert(
+            `Mã số sinh viên trên Giấy báo trúng tuyển (${admissionStudentId}) ` +
+            `không khớp với mã số sinh viên của bạn (${expectedStudentId}).`
+          );
+
+          return;
+        }
+
+        setOfficialStudentId(
+          String(profile.studentId || "").trim()
+        );
+
         const mergedProfile:
           MajorChangeProfile = {
           ...profile,
@@ -1053,7 +1100,6 @@ export default function MajorChangePage() {
           ),
 
           studentId: String(
-            admissionFields.student_id ||
             profile.studentId ||
             ""
           ),
@@ -1173,6 +1219,70 @@ export default function MajorChangePage() {
         return;
       }
 
+      /*
+       * Đối chiếu MSSV trên Đơn xin chuyển ngành đã ký
+       * với MSSV chính chủ lấy từ CSDL.
+       */
+      const extractedStudentId =
+        normalizeStudentId(
+          result.extracted_fields?.student_id
+        );
+
+      let expectedStudentId =
+        normalizeStudentId(officialStudentId);
+
+      // Trường hợp state chưa kịp có MSSV, lấy lại trực tiếp từ backend.
+      if (!expectedStudentId) {
+        const profile = await getMajorChangeProfile();
+
+        expectedStudentId =
+          normalizeStudentId(profile.studentId);
+
+        setOfficialStudentId(
+          String(profile.studentId || "").trim()
+        );
+      }
+
+      if (!expectedStudentId) {
+        setSignedApplicationResult(result);
+        setSignedScanErrorType("document");
+        setSignedScanState("error");
+
+        alert(
+          "Không xác định được mã số sinh viên của tài khoản đang đăng nhập. " +
+          "Vui lòng tải lại trang hoặc đăng nhập lại."
+        );
+
+        return;
+      }
+
+      if (!extractedStudentId) {
+        setSignedApplicationResult(result);
+        setSignedScanErrorType("document");
+        setSignedScanState("error");
+
+        alert(
+          "Không đọc được mã số sinh viên trên Đơn xin chuyển ngành. " +
+          "Vui lòng kiểm tra file rõ nét và tải lại."
+        );
+
+        return;
+      }
+
+      if (extractedStudentId !== expectedStudentId) {
+        setSignedApplicationResult(result);
+        setSignedScanErrorType("document");
+        setSignedScanState("error");
+
+        alert(
+          `Mã số sinh viên trên đơn (${extractedStudentId}) ` +
+          `không khớp với mã số sinh viên của tài khoản ` +
+          `đang đăng nhập (${expectedStudentId}).`
+        );
+
+        return;
+      }
+
       if (!applicantSigned) {
         setSignedApplicationResult(result);
         setSignedScanErrorType("signature");
@@ -1257,15 +1367,7 @@ export default function MajorChangePage() {
       );
 
       if (!previewWindow) {
-        window.URL.revokeObjectURL(
-          previewUrl
-        );
-
-        alert(
-          'Trình duyệt đang chặn tab mới. ' +
-          'Vui lòng cho phép pop-up cho localhost.'
-        );
-
+        window.location.href = previewUrl;
         return;
       }
 
@@ -2265,10 +2367,45 @@ export default function MajorChangePage() {
     }
   }, [activeTab, currentStep, requestId]);
 
+  /**
+   * Cho phép chỉnh sửa dữ liệu ở mọi bước trước khi nộp.
+   * Nếu người dùng sửa sau khi đã tạo bản xem trước/đơn,
+   * các tài liệu sinh ra từ dữ liệu cũ sẽ bị vô hiệu hóa
+   * và quy trình quay về bước 5 để tạo lại đơn.
+   */
+  const invalidateGeneratedApplicationAfterEdit = () => {
+    if (currentStep === 7) {
+      return;
+    }
+
+    setPreviewUrl((oldUrl) => {
+      if (oldUrl) {
+        URL.revokeObjectURL(oldUrl);
+      }
+      return null;
+    });
+    setPreviewBlob(null);
+    previewRestoreAttemptedRef.current = false;
+
+    setDownloadState("idle");
+
+    setSignedApplicationFile(null);
+    setSignedApplicationDocument(null);
+    setSignedApplicationResult(null);
+    setSignedScanState("idle");
+    setSignedScanErrorType(null);
+
+    if (currentStep >= 6) {
+      setCurrentStep(5);
+    }
+  };
+
+
   const updateFormData = (
     field: keyof MajorChangeProfile,
     value: string
   ) => {
+    invalidateGeneratedApplicationAfterEdit();
     setFormData((previous) => {
       if (!previous) return previous;
 
@@ -2416,6 +2553,7 @@ export default function MajorChangePage() {
                         onChange={(event) =>
                           updateFormData("fullName", event.target.value)
                         }
+                        disabled={currentStep === 7}
                         className="w-full border border-gray-300 bg-gray-50 rounded-lg p-2.5 text-sm outline-none text-black"
                       />
                     </div>
@@ -2428,11 +2566,13 @@ export default function MajorChangePage() {
 
                       <input
                         type="text"
-                        value={formData.studentId || ""}
-                        onChange={(event) =>
-                          updateFormData("studentId", event.target.value)
+                        value={
+                          officialStudentId ||
+                          formData.studentId ||
+                          ""
                         }
-                        className="w-full border border-gray-300 bg-gray-50 rounded-lg p-2.5 text-sm outline-none text-black"
+                        readOnly
+                        className="w-full border border-gray-200 bg-gray-50 rounded-lg p-2.5 text-sm outline-none text-gray-700"
                       />
                     </div>
 
@@ -2453,6 +2593,7 @@ export default function MajorChangePage() {
                             dob: event.target.value,
                           }));
                         }}
+                        disabled={currentStep === 7}
                         className="w-full border border-gray-300 bg-gray-50 rounded-lg p-2.5 text-sm outline-none text-black"
                       />
                     </div>
@@ -2474,6 +2615,7 @@ export default function MajorChangePage() {
                             cccd: event.target.value,
                           }));
                         }}
+                        disabled={currentStep === 7}
                         className="w-full border border-gray-300 bg-gray-50 rounded-lg p-2.5 text-sm outline-none text-black"
                       />
                     </div>
@@ -2493,6 +2635,7 @@ export default function MajorChangePage() {
                             event.target.value
                           )
                         }
+                        disabled={currentStep === 7}
                         className="w-full border border-gray-300 bg-gray-50 rounded-lg p-2.5 text-sm outline-none text-black"
                       />
                     </div>
@@ -2512,6 +2655,7 @@ export default function MajorChangePage() {
                             event.target.value
                           )
                         }
+                        disabled={currentStep === 7}
                         className="w-full border border-gray-300 bg-gray-50 rounded-lg p-2.5 text-sm outline-none text-black"
                       />
                     </div>
@@ -2544,6 +2688,8 @@ export default function MajorChangePage() {
                     <select
                       value={targetMajorObj?.major_id || ''}
                       onChange={(e) => {
+                        invalidateGeneratedApplicationAfterEdit();
+
                         const majorId = e.target.value;
                         const selectedMajor = majorsList.find(m => m.major_id === majorId);
                         setTargetMajorObj(selectedMajor || null);
@@ -2566,7 +2712,7 @@ export default function MajorChangePage() {
                           setIsQualified(null);
                         }
                       }}
-                      disabled={currentStep > 5}
+                      disabled={currentStep === 7}
                       className="w-full border border-gray-300 rounded-lg p-3 text-sm outline-none focus:ring-1 focus:ring-blue-500 bg-white text-black"
                     >
                       <option value="">-- Chọn ngành muốn chuyển đến --</option>
@@ -2615,7 +2761,13 @@ export default function MajorChangePage() {
                       <h4 className="text-xs font-bold text-gray-500 uppercase mb-3">Phương thức xét tuyển của bạn</h4>
                       <div className="flex flex-wrap gap-2 mb-6">
                         {['Xét điểm THPT', 'Xét học bạ', 'Tuyển thẳng', 'Xét điểm ĐGNL', 'Phương thức khác'].map(method => (
-                          <button key={method} onClick={() => setAdmissionMethod(method)} disabled={currentStep > 5} className={`px-4 py-2 border rounded-md text-sm font-medium transition ${admissionMethod === method ? 'bg-[#0070F4] text-white border-[#0070F4]' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}>
+                          <button
+                            key={method}
+                            onClick={() => {
+                              invalidateGeneratedApplicationAfterEdit();
+                              setAdmissionMethod(method);
+                            }}
+                            disabled={currentStep === 7} className={`px-4 py-2 border rounded-md text-sm font-medium transition ${admissionMethod === method ? 'bg-[#0070F4] text-white border-[#0070F4]' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}>
                             {method}
                           </button>
                         ))}
@@ -2623,7 +2775,10 @@ export default function MajorChangePage() {
 
                       <h4 className="text-xs font-bold text-gray-500 uppercase mb-3">Điểm tuyển sinh</h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                        <div><label className="text-xs text-gray-500 mb-1.5 block">Tổ hợp môn xét tuyển</label><input type="text" placeholder="VD: A00, A01, D01" value={admissionScores.combo} onChange={e => setAdmissionScores({ ...admissionScores, combo: e.target.value })} disabled={currentStep > 5} className="w-full border rounded-lg p-2.5 text-sm outline-none text-black" /></div>
+                        <div><label className="text-xs text-gray-500 mb-1.5 block">Tổ hợp môn xét tuyển</label><input type="text" placeholder="VD: A00, A01, D01" value={admissionScores.combo} onChange={e => {
+                          invalidateGeneratedApplicationAfterEdit();
+                          setAdmissionScores({ ...admissionScores, combo: e.target.value });
+                        }} disabled={currentStep === 7} className="w-full border rounded-lg p-2.5 text-sm outline-none text-black" /></div>
                         <div><label className="text-xs text-gray-500 mb-1.5 block">Điểm xét tuyển</label><input type="text" value={admissionScores.score} disabled className="w-full border rounded-lg p-2.5 text-sm outline-none bg-gray-50 text-black" /></div>
                         <div><label className="text-xs text-gray-500 mb-1.5 block">Điểm ưu tiên (nếu có)</label><input type="text" value={admissionScores.priority} disabled className="w-full border rounded-lg p-2.5 text-sm outline-none bg-gray-50 text-black" /></div>
                         <div><label className="text-xs text-gray-500 mb-1.5 block">Ngưỡng đầu vào (nếu có)</label><input type="text" value={admissionScores.threshold} disabled className="w-full border rounded-lg p-2.5 text-sm outline-none bg-gray-50 text-black" /></div>
@@ -2631,17 +2786,38 @@ export default function MajorChangePage() {
 
                       <h4 className="text-xs font-bold text-gray-500 uppercase mb-3">Thông tin cá nhân bổ sung</h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                        <div><label className="text-xs text-gray-500 mb-1.5 block">Ngày sinh</label><input type="text" value={additionalInfo.dob} onChange={e => setAdditionalInfo({ ...additionalInfo, dob: e.target.value })} disabled={currentStep > 5} className="w-full border rounded-lg p-2.5 text-sm outline-none bg-gray-50 text-black" /></div>
-                        <div><label className="text-xs text-gray-500 mb-1.5 block">Nơi sinh</label><input type="text" placeholder="VD: TP. Hồ Chí Minh" value={additionalInfo.pob} onChange={e => setAdditionalInfo({ ...additionalInfo, pob: e.target.value })} disabled={currentStep > 5} className="w-full border rounded-lg p-2.5 text-sm outline-none text-black" /></div>
-                        <div><label className="text-xs text-gray-500 mb-1.5 block">Số điện thoại</label><input type="text" value={additionalInfo.phone} onChange={e => setAdditionalInfo({ ...additionalInfo, phone: e.target.value })} disabled={currentStep > 5} className="w-full border rounded-lg p-2.5 text-sm outline-none bg-gray-50 text-black" /></div>
-                        <div><label className="text-xs text-gray-500 mb-1.5 block">Số CCCD</label><input type="text" value={additionalInfo.cccd} onChange={e => setAdditionalInfo({ ...additionalInfo, cccd: e.target.value })} disabled={currentStep > 5} className="w-full border rounded-lg p-2.5 text-sm outline-none bg-gray-50 text-black" /></div>
-                        <div><label className="text-xs text-gray-500 mb-1.5 block">Ngày cấp CCCD</label><input type="text" placeholder="VD: 15/06/2021" value={additionalInfo.issueDate} onChange={e => setAdditionalInfo({ ...additionalInfo, issueDate: e.target.value })} disabled={currentStep > 5} className="w-full border rounded-lg p-2.5 text-sm outline-none text-black" /></div>
-                        <div><label className="text-xs text-gray-500 mb-1.5 block">Nơi cấp</label><input type="text" placeholder="VD: Cục CS QLHC" value={additionalInfo.issuePlace} onChange={e => setAdditionalInfo({ ...additionalInfo, issuePlace: e.target.value })} disabled={currentStep > 5} className="w-full border rounded-lg p-2.5 text-sm outline-none text-black" /></div>
+                        <div><label className="text-xs text-gray-500 mb-1.5 block">Ngày sinh</label><input type="text" value={additionalInfo.dob} onChange={e => {
+                          invalidateGeneratedApplicationAfterEdit();
+                          setAdditionalInfo({ ...additionalInfo, dob: e.target.value });
+                        }} disabled={currentStep === 7} className="w-full border rounded-lg p-2.5 text-sm outline-none bg-gray-50 text-black" /></div>
+                        <div><label className="text-xs text-gray-500 mb-1.5 block">Nơi sinh</label><input type="text" placeholder="VD: TP. Hồ Chí Minh" value={additionalInfo.pob} onChange={e => {
+                          invalidateGeneratedApplicationAfterEdit();
+                          setAdditionalInfo({ ...additionalInfo, pob: e.target.value });
+                        }} disabled={currentStep === 7} className="w-full border rounded-lg p-2.5 text-sm outline-none text-black" /></div>
+                        <div><label className="text-xs text-gray-500 mb-1.5 block">Số điện thoại</label><input type="text" value={additionalInfo.phone} onChange={e => {
+                          invalidateGeneratedApplicationAfterEdit();
+                          setAdditionalInfo({ ...additionalInfo, phone: e.target.value });
+                        }} disabled={currentStep === 7} className="w-full border rounded-lg p-2.5 text-sm outline-none bg-gray-50 text-black" /></div>
+                        <div><label className="text-xs text-gray-500 mb-1.5 block">Số CCCD</label><input type="text" value={additionalInfo.cccd} onChange={e => {
+                          invalidateGeneratedApplicationAfterEdit();
+                          setAdditionalInfo({ ...additionalInfo, cccd: e.target.value });
+                        }} disabled={currentStep === 7} className="w-full border rounded-lg p-2.5 text-sm outline-none bg-gray-50 text-black" /></div>
+                        <div><label className="text-xs text-gray-500 mb-1.5 block">Ngày cấp CCCD</label><input type="text" placeholder="VD: 15/06/2021" value={additionalInfo.issueDate} onChange={e => {
+                          invalidateGeneratedApplicationAfterEdit();
+                          setAdditionalInfo({ ...additionalInfo, issueDate: e.target.value });
+                        }} disabled={currentStep === 7} className="w-full border rounded-lg p-2.5 text-sm outline-none text-black" /></div>
+                        <div><label className="text-xs text-gray-500 mb-1.5 block">Nơi cấp</label><input type="text" placeholder="VD: Cục CS QLHC" value={additionalInfo.issuePlace} onChange={e => {
+                          invalidateGeneratedApplicationAfterEdit();
+                          setAdditionalInfo({ ...additionalInfo, issuePlace: e.target.value });
+                        }} disabled={currentStep === 7} className="w-full border rounded-lg p-2.5 text-sm outline-none text-black" /></div>
                       </div>
 
                       <div className="mb-6">
                         <label className="text-xs font-bold text-gray-500 uppercase block mb-2">Lý do xin chuyển ngành</label>
-                        <textarea rows={3} placeholder="Trình bày lý do bạn muốn chuyển ngành" value={reason} onChange={e => setReason(e.target.value)} disabled={currentStep > 5} className="w-full border border-gray-300 rounded-lg p-3 text-sm outline-none resize-none text-black"></textarea>
+                        <textarea rows={3} placeholder="Trình bày lý do bạn muốn chuyển ngành" value={reason} onChange={e => {
+                          invalidateGeneratedApplicationAfterEdit();
+                          setReason(e.target.value);
+                        }} disabled={currentStep === 7} className="w-full border border-gray-300 rounded-lg p-3 text-sm outline-none resize-none text-black"></textarea>
                       </div>
 
                       {currentStep === 5 && (
@@ -3079,7 +3255,7 @@ export default function MajorChangePage() {
                             </div>
                             <div className="bg-gray-50 rounded-lg p-3 border border-gray-100">
                               <p className="text-xs text-gray-400 mb-1">Mã số sinh viên</p>
-                              <p className="font-semibold text-gray-800">{formData?.studentId}</p>
+                              <p className="font-semibold text-gray-800">{officialStudentId || formData?.studentId}</p>
                             </div>
                             <div className="bg-gray-50 rounded-lg p-3 border border-gray-100">
                               <p className="text-xs text-gray-400 mb-1">Ngày sinh</p>

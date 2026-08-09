@@ -168,18 +168,26 @@ class DownloadDropoutFormAPIView(APIView):
 
 
 
-#BẢO LƯU
+# BẢO LƯU
+
+from services.retention_form_service import (
+    generate_retention_form
+)
+
 from services.retention_validation_service import (
+    get_business_date,
     validate_personal_retention_deadline,
 )
 
-from services.retention_form_service import (generate_retention_form)
+from rest_framework.response import Response
+
 RETENTION_REASON_LABELS = {
     "Cá nhân": "Lý do cá nhân",
     "Sức khỏe": "Lý do sức khỏe",
     "Kỳ thi quốc tế": "Tham dự kỳ thi quốc tế",
     "Lực lượng vũ trang": "Điều động vào lực lượng vũ trang",
 }
+
 
 class DownloadRetentionFormAPIView(APIView):
     permission_classes = [IsAuthenticated]
@@ -197,21 +205,40 @@ class DownloadRetentionFormAPIView(APIView):
             request.data.get("attachment_note", "")
         ).strip()
 
+        # ==============================
+        # KIỂM TRA LÝ DO
+        # ==============================
         if not reason_code:
             raise ValidationError({
                 "reason": "Vui lòng chọn lý do xin nghỉ học."
             })
 
+        # Chỉ chấp nhận 4 lý do đã cấu hình
+        if reason_code not in RETENTION_REASON_LABELS:
+            raise ValidationError({
+                "reason": "Lý do xin nghỉ học không hợp lệ."
+            })
+
+        # ==============================
+        # KIỂM TRA 4 TUẦN ĐẦU HỌC KỲ
+        # Chỉ áp dụng khi chọn "Cá nhân"
+        # ==============================
+        validate_personal_retention_deadline(
+            reason_code
+        )
+
+        # ==============================
+        # KIỂM TRA THỜI GIAN BẢO LƯU
+        # ==============================
         if not retention_duration:
             raise ValidationError({
                 "duration": "Vui lòng chọn thời gian bảo lưu."
             })
 
         # Hiển thị nội dung đẹp thay vì mã lựa chọn.
-        retention_reason = RETENTION_REASON_LABELS.get(
-            reason_code,
-            reason_code,
-        )
+        retention_reason = RETENTION_REASON_LABELS[
+            reason_code
+        ]
 
         # Trường này không bắt buộc trên giao diện.
         if not attachment_note:
@@ -225,8 +252,13 @@ class DownloadRetentionFormAPIView(APIView):
             user=request.user,
         )
 
-        phone = str(student.phone or "Chưa cập nhật").strip()
-        email = str(request.user.email or "").strip()
+        phone = str(
+            student.phone or "Chưa cập nhật"
+        ).strip()
+
+        email = str(
+            request.user.email or ""
+        ).strip()
 
         class_name = str(
             student.student_class.class_id or ""
@@ -238,21 +270,34 @@ class DownloadRetentionFormAPIView(APIView):
             student.student_class.major.name or ""
         ).strip()
 
-        today = timezone.localdate()
+        # Dùng ngày nghiệp vụ.
+        # Khi test sẽ lấy DEMO_CURRENT_DATE.
+        # Khi chạy thật sẽ lấy ngày thật.
+        today = get_business_date()
 
         context = {
             "full_name": student.full_name,
+
             "date_of_birth": format_date(
                 student.date_of_birth
             ),
+
             "class_name": class_name,
+
             "student_id": student.student_id,
+
             "phone": phone,
+
             "email": email,
+
             "faculty_name": faculty_name,
+
             "retention_duration": retention_duration,
+
             "retention_reason": retention_reason,
+
             "attachment_note": attachment_note,
+
             "application_date": (
                 f"ngày {today.day:02d} "
                 f"tháng {today.month:02d} "
@@ -288,7 +333,9 @@ class DownloadRetentionFormAPIView(APIView):
             })
 
         try:
-            output = generate_retention_form(context)
+            output = generate_retention_form(
+                context
+            )
 
         except FileNotFoundError as error:
             raise APIException(str(error))
@@ -310,7 +357,37 @@ class DownloadRetentionFormAPIView(APIView):
             content_type=DOCX_CONTENT_TYPE,
         )
 
+class CheckRetentionEligibilityAPIView(APIView):
+    permission_classes = [IsAuthenticated]
 
+    def post(self, request):
+        reason_code = str(
+            request.data.get("reason", "")
+        ).strip()
+
+        if not reason_code:
+            raise ValidationError({
+                "reason": "Vui lòng chọn lý do xin nghỉ học."
+            })
+
+        if reason_code not in RETENTION_REASON_LABELS:
+            raise ValidationError({
+                "reason": "Lý do xin nghỉ học không hợp lệ."
+            })
+
+        # Nếu là Cá nhân -> kiểm tra 4 tuần
+        # Lý do khác -> hàm tự bỏ qua
+        validate_personal_retention_deadline(
+            reason_code
+        )
+
+        return Response({
+            "success": True,
+            "eligible": True,
+            "message": "Đủ điều kiện tiếp tục thủ tục."
+        })
+
+    
 ## XIN TRỞ LẠI HỌC TẬP
 from services.resume_form_service import (
     generate_resume_form,
